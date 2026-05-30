@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { Toaster } from "sonner";
+import { Providers } from "@/app/providers";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -24,16 +25,18 @@ export default function RootLayout({
       <body
         className={`${poppins.variable} ${poppins.variable} antialiased`}
       >
-        {children}
-         <Toaster
-          position="top-right"
-          richColors
-          toastOptions={{
-            classNames: {
-              toast: "rounded-xl text-sm font-medium shadow-lg",
-            },
-          }}
-        />
+        <Providers>
+          {children}
+          <Toaster
+            position="top-right"
+            richColors
+            toastOptions={{
+              classNames: {
+                toast: "rounded-xl text-sm font-medium shadow-lg",
+              },
+            }}
+          />
+        </Providers>
       </body>
     </html>
   );

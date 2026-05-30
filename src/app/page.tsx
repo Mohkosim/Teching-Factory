@@ -1,28 +1,31 @@
 "use client";
+
 import Navbar from "@/components/layout/navbar";
-import HeroSection from "@/components/layout/dahboard/HeroSection";
-import AboutTefaSection from "@/components/layout/dahboard/AboutTefaSection";
-import WhyTefaSection from "@/components/layout/dahboard/WhyTefaSection";
-import ProdukSection from "@/components/layout/dahboard/ProdukSection";
-import JasaSection from "@/components/layout/dahboard/JasaSection";
-import MitraSection from "@/components/layout/dahboard/MitraSection";
-import StatistikTefaSection from "@/components/layout/dahboard/StatistikTefaSection";
-import SchoolOnboarding from "@/components/layout/dahboard/SchoolOnboardingSection";
+import HeroSection from "@/components/dashboard/HeroSection";
+import AboutTefaSection from "@/components/dashboard/AboutTefaSection";
+import WhyTefaSection from "@/components/dashboard/WhyTefaSection";
+import ProdukSection from "@/components/dashboard/ProdukSection";
+import JasaSection from "@/components/dashboard/JasaSection";
+import MitraSection from "@/components/dashboard/MitraSection";
+import StatistikTefaSection from "@/components/dashboard/StatistikTefaSection";
+import SchoolOnboarding from "@/components/dashboard/SchoolOnboardingSection";
 import Footer from "@/components/layout/footer";
 
 export default function Home() {
   return (
-    <main>
+    <>
       <Navbar />
-      <HeroSection/>
-      <AboutTefaSection/>
-      <WhyTefaSection/>
-      <ProdukSection/>
-      <JasaSection/>
-      <MitraSection/>
-      <StatistikTefaSection/>
-      <SchoolOnboarding/>
+      <main>
+        <HeroSection />
+        <AboutTefaSection />
+        <WhyTefaSection />
+        <ProdukSection />
+        <JasaSection />
+        <MitraSection />
+        <StatistikTefaSection />
+        <SchoolOnboarding />
+      </main>
       <Footer />
-    </main>
+    </>
   );
 }
