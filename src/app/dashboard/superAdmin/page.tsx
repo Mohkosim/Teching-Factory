@@ -1,12 +1,9 @@
-import { IoSchool } from "react-icons/io5";
-import { MdSwitchAccount } from "react-icons/md";
-import { StatsCard } from "@/components/layout/admin/dashboard/StatsCard";
-import { StatisticsChart } from "@/components/layout/admin/dashboard/StatisticsChart";
-import { ContactsInTable } from "@/components/layout/admin/dashboard/ContactsInTable";
+import { StatsSuperAdmin } from "@/components/layout/admin/dashboard/superAdmin/StatsSuperAdmin";
+import { StatisticsChart } from "@/components/layout/admin/dashboard/superAdmin/StatisticsChart";
+import { ContactsInTable } from "@/components/layout/admin/dashboard/superAdmin/ContactsInTable";
 import {
     Breadcrumb,
     BreadcrumbItem,
-    BreadcrumbLink,
     BreadcrumbList,
     BreadcrumbPage,
     BreadcrumbSeparator,
@@ -23,7 +20,7 @@ export default function DashboardPage() {
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
-                            <BreadcrumbLink href="/dashboard">Umum</BreadcrumbLink>
+                            Umum
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
@@ -34,24 +31,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatsCard
-                    value="30 SMK"
-                    title="Jumlah SMK Terdaftar"
-                    description=""
-                    href="/dashboard/manajemen-akun"
-                    icon={<IoSchool className="w-10 h-10 text-sky-500" />}
-                    iconBg="bg-sky-100"
-                />
-                <StatsCard
-                    value="3210"
-                    title="Jumlah Akun SMK"
-                    description=""
-                    href="/dashboard/manajemen-akun"
-                    icon={<MdSwitchAccount className="w-10 h-10 text-sky-500" />}
-                    iconBg="bg-sky-100"
-                />
-            </div>
+            <StatsSuperAdmin />
 
             {/* Charts & Table */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

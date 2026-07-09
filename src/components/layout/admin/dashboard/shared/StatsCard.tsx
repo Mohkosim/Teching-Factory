@@ -1,25 +1,14 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { StatItem } from "@/types/dashboard";
 
-interface StatsCardProps {
-  title: string;
-  value: string | number;
-  description: string;
-  href: string;
-  icon: React.ReactNode;
-  iconBg?: string;
-}
-
-export function StatsCard({
+export function StatCard({
   title,
   value,
   description,
-  href,
   icon,
   iconBg = "bg-primary/10",
-}: StatsCardProps) {
+}: StatItem) {
   return (
     <Card className="border-0 shadow-sm bg-white">
       <CardContent className="p-5">
@@ -38,13 +27,6 @@ export function StatsCard({
             {icon}
           </div>
         </div>
-        <Link
-          href={href}
-          className="mt-4 inline-flex items-center gap-1 text-xs text-zinc-500 font-medium hover:underline"
-        >
-          Lihat Selengkapnya
-          <ArrowRight className="w-3 h-3" />
-        </Link>
       </CardContent>
     </Card>
   );

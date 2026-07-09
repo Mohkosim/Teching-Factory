@@ -1,67 +1,59 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  UserCog,
-  Info,
-  Mail,
-} from "lucide-react";
+import { getNavGroups, Role } from "@/lib/nav-config";
 import { cn } from "@/lib/utils";
 
-const navGroups = [
-  {
-    label: "UMUM",
-    items: [
-      {
-        href: "/dashboard",
-        label: "Dashboard",
-        icon: LayoutDashboard,
-      },
-    ],
-  },
-  {
-    label: "MANAJEMEN",
-    items: [
-      {
-        href: "/dashboard/manajemen-akun",
-        label: "Manajemen Akun",
-        icon: UserCog,
-      },
-      {
-        href: "/dashboard/tentang-tefa",
-        label: "Tentang Tefa",
-        icon: Info,
-      },
-      {
-        href: "/dashboard/kontak-masuk",
-        label: "Kontak Masuk",
-        icon: Mail,
-      },
-    ],
-  },
-];
+interface SidebarProps {
+  collapsed: boolean;
+  role: Role;
+}
 
-export function Sidebar() {
+export function Sidebar({ collapsed, role }: SidebarProps) {
   const pathname = usePathname();
+  const navGroups = getNavGroups(role);
 
   return (
-    <aside className="w-56 min-h-screen bg-white border-r border-border flex flex-col">
+    <aside
+      className={cn(
+        "min-h-screen bg-white border-r border-border flex flex-col transition-all duration-300",
+        collapsed ? "w-20" : "w-56"
+      )}
+    >
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-transparent">
-        <span className="text-2xl font-bold text-foreground tracking-widest">
-          LOGO
-        </span>
+      <div
+        className={cn(
+          "py-5 border-b border-transparent overflow-hidden flex items-center justify-center",
+          collapsed ? "px-0" : "px-6"
+        )}
+      >
+        {collapsed ? (
+          <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-sky-500 text-white font-bold text-lg italic">
+            T
+          </div>
+        ) : (
+          <Image
+            src="/img/LogoTefa.png"
+            alt="Logo Tefa"
+            width={150}
+            height={80}
+            className="object-contain w-auto h-auto"
+            priority
+          />
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-5">
+      <nav className="flex-1 px-3 space-y-5">
         {navGroups.map((group) => (
-          <div key={group.label}>
-            <p className="text-[10px] font-semibold text-muted-foreground tracking-widest px-3 mb-2">
-              {group.label}
-            </p>
+          <div key={group.label} className={cn(collapsed && "pt-4 border-t border-border")}>
+            {!collapsed && (
+              <p className="text-[10px] font-bold text-muted-foreground tracking-widest px-3 mb-2">
+                {group.label}
+              </p>
+            )}
             <ul className="space-y-1">
               {group.items.map((item) => {
                 const isActive = pathname === item.href;
@@ -70,15 +62,17 @@ export function Sidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      title={collapsed ? item.label : undefined}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                        collapsed && "justify-center",
                         isActive
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-primary hover:bg-primary/10 hover:text-primary"
+                          ? "bg-sky-500 text-primary-foreground shadow-sm"
+                          : "text-sky-500 hover:bg-sky-500 hover:text-white"
                       )}
                     >
-                      <Icon className="w-4 h-4" />
-                      {item.label}
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {!collapsed && item.label}
                     </Link>
                   </li>
                 );
