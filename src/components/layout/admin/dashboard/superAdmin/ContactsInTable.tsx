@@ -83,7 +83,7 @@ export function ContactsInTable() {
           </Select>
         </div>
       </CardHeader>
-      <CardContent className="px-8 pb-4">
+      <CardContent className="px-8">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -130,16 +130,6 @@ export function ContactsInTable() {
               ))}
             </tbody>
           </table>
-        </div>
-
-        <div className="mt-3 flex justify-end border-t pt-5">
-          <Link
-            href="/dashboard/kontak-masuk"
-            className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
-          >
-            Lihat Selengkapnya
-            <ArrowRight className="w-3 h-3" />
-          </Link>
         </div>
       </CardContent>
     </Card>

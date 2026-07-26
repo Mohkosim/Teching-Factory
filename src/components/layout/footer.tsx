@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MapPin, Phone, Mail } from "lucide-react";
 import { AiFillInstagram, AiFillFacebook, AiFillPlayCircle } from "react-icons/ai";
+import Image from "next/image";
 
 const footerLinks = {
     platform: [
@@ -25,10 +26,14 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="lg:col-span-1">
                         <div className="flex items-center gap-2 mb-5">
-                            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                                <span className="text-white font-display font-bold text-sm">T</span>
-                            </div>
-                            <span className="font-display font-bold text-xl text-white">TEFA</span>
+                            <Image
+                                src="/img/LogoTefa.png"
+                                alt="Logo Tefa"
+                                width={150}
+                                height={80}
+                                className="object-contain w-auto h-auto"
+                                priority
+                            />
                         </div>
                     </div>
 
@@ -65,19 +70,15 @@ export default function Footer() {
                         <div className="space-y-3 text-white text-sm">
                             <div className="flex items-start gap-2.5">
                                 <MapPin size={15} className=" mt-0.5 shrink-0" />
-                                <span>SMK 2 Malang, Jalan Soekarna Hatta No.9 Kel.Jatimulyo, Kec. Lowokwaru Kota Malang Jawa Timur, 65141</span>
+                                <span>Perum Permata Regency 1 Blok 10/28, Perun Gpa, Ngijo, Kec. Karang Ploso, Kabupaten Malang, Jawa Timur 65152.</span>
                             </div>
                             <div className="flex items-center gap-2.5">
                                 <Phone size={15} className="shrink-0 " />
-                                <span>089618969383123</span>
+                                <span>085176777785</span>
                             </div>
                             <div className="flex items-center gap-2.5">
                                 <Mail size={15} className="shrink-0" />
-                                <span>smk2malang@gmail.com</span>
-                            </div>
-                            <div className="flex items-center gap-2.5">
-                                <AiFillInstagram size={15} className="shrink-0" />
-                                <span>@smk2malang</span>
+                                <span>info@hummatech.com</span>
                             </div>
                         </div>
                         <h4 className="font-display font-bold text-sm uppercase tracking-wider text-white mb-5">Ikuti Kami</h4>
@@ -98,7 +99,7 @@ export default function Footer() {
             {/* Bottom Bar */}
             <div className="border-t border-white/10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <p className="text-white text-xs">©2025 TEFA. All rights reserved.</p>
+                    <p className="text-white text-xs">©Copyright 2026. All Rights Reserved by Hummatech</p>
                     <div className="flex gap-5">
                         <Link href="/privacy" className="text-white text-xs transition-colors">Kebijakan Privasi</Link>
                         <Link href="/terms" className="text-white text-xs transition-colors">Syarat & Ketentuan</Link>

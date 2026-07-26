@@ -48,7 +48,8 @@ export default function accountManagement() {
     const [openAdd, setOpenAdd] = useState(false);
     const [addForm, setAddForm] = useState({
         name: "",
-        description: "",
+        username: "",
+        email: "",
         phoneNumber: "",
     });
 
@@ -72,18 +73,18 @@ export default function accountManagement() {
 
     // ── Handler Tambah Jurusan ──
     const handleOpenAdd = () => {
-        setAddForm({ name: "", description: "", phoneNumber: "" });
+        setAddForm({ name: "", username: "", email: "", phoneNumber: "" });
         setOpenAdd(true);
     };
 
     const handleSubmitAdd = () => {
-        if (!addForm.name.trim()) return;
+        if (!addForm.name.trim() || !addForm.username.trim() || !addForm.email.trim()) return;
 
         const newItem: SMKAccount = {
             id: Math.max(0, ...data.map((d) => d.id)) + 1,
             name: addForm.name,
-            description: addForm.description,
-            phoneNumber: addForm.phoneNumber,
+            username: addForm.username,
+            email: addForm.email,
         } as SMKAccount;
 
         setData((prev) => [newItem, ...prev]);
@@ -174,8 +175,8 @@ export default function accountManagement() {
                             <TableHead className="w-16 font-semibold text-gray-600 px-6">No</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Jurusan</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Logo</TableHead>
-                            <TableHead className="font-semibold text-gray-600 px-6">Deskripsi</TableHead>
-                            <TableHead className="font-semibold text-gray-600 px-6">Nomor WA</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Email</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Nomer Wa</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-15">Aksi</TableHead>
                         </TableRow>
@@ -203,7 +204,7 @@ export default function accountManagement() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-gray-500 max-w-xs py-4 px-6">
-                                        <span className="line-clamp-2 text-sm">{item.description}</span>
+                                        <span className="line-clamp-2 text-sm">{item.email}</span>
                                     </TableCell>
                                     <TableCell className="text-gray-600 font-mono text-sm py-4 px-6">{item.phoneNumber}</TableCell>
                                     <TableCell className="py-4 px-6">
@@ -276,24 +277,29 @@ export default function accountManagement() {
                                 placeholder="Contoh: Rekayasa Perangkat Lunak"
                             />
                         </div>
+
                         <div className="space-y-1.5">
-                            <Label htmlFor="add-description">Deskripsi</Label>
-                            <Textarea
-                                id="add-description"
-                                value={addForm.description}
-                                onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
-                                placeholder="Deskripsi singkat jurusan"
-                                rows={3}
+                            <Label htmlFor="add-username">Username</Label>
+                            <Input
+                                id="add-username"
+                                value={addForm.username}
+                                onChange={(e) => setAddForm((f) => ({ ...f, username: e.target.value }))}
+                                placeholder="Contoh: admin_rpl"
                             />
                         </div>
+
                         <div className="space-y-1.5">
-                            <Label htmlFor="add-phone">Nomor WA</Label>
+                            <Label htmlFor="add-email">Email</Label>
                             <Input
-                                id="add-phone"
-                                value={addForm.phoneNumber}
-                                onChange={(e) => setAddForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-                                placeholder="08xxxxxxxxxx"
+                                id="add-email"
+                                type="email"
+                                value={addForm.email}
+                                onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                                placeholder="contoh@email.com"
                             />
+                            <p className="text-xs text-gray-400">
+                                Password akan digenerate otomatis dan dikirimkan ke email ini.
+                            </p>
                         </div>
                     </div>
                     <DialogFooter className="gap-2">
@@ -367,6 +373,7 @@ export default function accountManagement() {
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-800">{detailItem.name}</p>
+                                    <p className="text-sm text-gray-500 font-mono">{detailItem.email}</p>
                                     <p className="text-sm text-gray-500 font-mono">{detailItem.phoneNumber}</p>
                                 </div>
                             </div>

@@ -11,13 +11,14 @@ import AuthTabs from "@/components/auth/AuthTabs";
 import FormField from "@/components/auth/FormField";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { loginSchema, type LoginSchema } from "@/lib/validations/auth";
+import Image from "next/image";
 
 // Peta redirect berdasarkan role
 const ROLE_REDIRECT: Record<string, string> = {
-  SuperAdmin:    "/dashboard/superAdmin",
-  AdminSMK:      "/dashboard/adminSMK",
-  AdminJurusan:  "/dashboard/adminJurusan",
-  User:          "/dashboard/guestSelection",
+  SuperAdmin: "/dashboard/superAdmin",
+  AdminSMK: "/dashboard/adminSMK",
+  AdminJurusan: "/dashboard/adminJurusan",
+  User: "/dashboard/guestSelection",
 };
 
 export default function Login() {
@@ -61,8 +62,17 @@ export default function Login() {
   return (
     <>
       {/* Logo */}
-      <div className="text-center">
-        <span className="text-3xl font-black text-gray-900 tracking-tight">LOGO</span>
+      <div className="text-center w-full">
+        <span className="text-3xl font-black text-gray-900 tracking-tight block">
+          <Image
+            src="/img/LogoTefa.png"
+            alt="Logo Tefa"
+            width={150}
+            height={80}
+            className="object-contain w-auto h-auto mx-auto block"
+            priority
+          />
+        </span>
       </div>
 
       {/* Tabs */}
@@ -77,9 +87,8 @@ export default function Login() {
             id="email"
             type="email"
             placeholder="Masukkan E-mail"
-            className={`bg-sky-50 border-0 rounded-xl h-12 text-sm placeholder:text-gray-400 focus-visible:ring-sky-400 ${
-              errors.email ? "ring-1 ring-red-400 focus-visible:ring-red-400" : ""
-            }`}
+            className={`bg-sky-50 border-0 rounded-xl h-12 text-sm placeholder:text-gray-400 focus-visible:ring-sky-400 ${errors.email ? "ring-1 ring-red-400 focus-visible:ring-red-400" : ""
+              }`}
             {...register("email")}
           />
         </FormField>

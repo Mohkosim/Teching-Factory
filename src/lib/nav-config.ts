@@ -1,11 +1,10 @@
-import { TbLayoutDashboardFilled } from "react-icons/tb";
-import { MdManageAccounts, MdInventory } from "react-icons/md";
+import { TbLayoutDashboardFilled, TbTruckDelivery } from "react-icons/tb";
+import { MdManageAccounts, MdMiscellaneousServices, MdStickyNote2 } from "react-icons/md";
 import { AiFillExclamationCircle } from "react-icons/ai";
 import { IoMdMailUnread } from "react-icons/io";
-import { FaMoneyBillWave, FaUsers, FaTruck } from "react-icons/fa";
-import { PiBookOpenTextFill } from "react-icons/pi";
 import { IoWallet } from "react-icons/io5";
 import { BsBoxFill } from "react-icons/bs";
+import { RiGalleryFill } from "react-icons/ri";
 
 import { IconType } from "react-icons";
 
@@ -52,7 +51,7 @@ const navConfig: Record<Role, NavGroup[]> = {
       items: [
         { href: "/dashboard/adminSMK/accountManagement", label: "Manajemen Akun", icon: MdManageAccounts },
         { href: "/dashboard/adminSMK/productManagement", label: "Manajemen Produk", icon: BsBoxFill },
-        { href: "/dashboard/adminSMK/serviceManagement", label: "Manajemen Jasa", icon: FaTruck },
+        { href: "/dashboard/adminSMK/serviceManagement", label: "Manajemen Jasa", icon: MdMiscellaneousServices },
       ],
     },
     {
@@ -73,8 +72,17 @@ const navConfig: Record<Role, NavGroup[]> = {
     {
       label: "MANAJEMEN",
       items: [
-        { href: "/dashboard/adminJurusan/kelas", label: "Manajemen Kelas", icon: PiBookOpenTextFill },
-        { href: "/dashboard/adminJurusan/siswa", label: "Manajemen Siswa", icon: FaUsers },
+        { href: "/dashboard/adminJurusan/productManagement", label: "Manajemen Produk", icon: BsBoxFill },
+        { href: "/dashboard/adminJurusan/serviceManagement", label: "Manajemen Jasa", icon: MdMiscellaneousServices },
+        { href: "/dashboard/adminJurusan/orderManagement", label: "Manajemen Pesanan", icon: MdStickyNote2 },
+        { href: "/dashboard/adminJurusan/shippingManagement", label: "Manajemen Pengiriman", icon: TbTruckDelivery },
+        { href: "/dashboard/adminJurusan/galleryManagement", label: "Manajemen Galeri", icon: RiGalleryFill },
+      ],
+    },
+    {
+      label: "LAPORAN",
+      items: [
+        { href: "/dashboard/adminJurusan/financialStatements", label: "Laporan Keuangan", icon: IoWallet },
       ],
     },
   ],

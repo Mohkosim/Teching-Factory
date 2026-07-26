@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { getProfilePath } from "@/lib/side-config";
 
 interface NavbarProps {
     collapsed: boolean;
@@ -109,7 +110,7 @@ export function Navbar({ collapsed, onToggleSidebar }: NavbarProps) {
 
                         <DropdownMenuItem
                             className="gap-2 cursor-pointer rounded-lg"
-                            onClick={() => router.push(`/dashboard/superAdmin/profile`)}
+                            onClick={() => router.push(getProfilePath(user?.role))}
                         >
                             <User className="h-4 w-4 text-gray-500" />
                             <span>Profil</span>

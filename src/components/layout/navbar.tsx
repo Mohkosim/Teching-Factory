@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 const navLinks = [
   { label: "Beranda", href: "/" },
@@ -26,12 +27,14 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
-            <span className="font-bold text-xl text-dark">
-              TEFA
-            </span>
+            <Image
+              src="/img/LogoTefa.png"
+              alt="Logo Tefa"
+              width={80}
+              height={80}
+              className="object-contain w-auto h-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop Nav */}

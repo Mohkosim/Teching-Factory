@@ -1,6 +1,8 @@
-import { StatsSuperAdmin } from "@/components/layout/admin/dashboard/superAdmin/StatsSuperAdmin";
-import { StatisticsChart } from "@/components/layout/admin/dashboard/superAdmin/StatisticsChart";
-import { ContactsInTable } from "@/components/layout/admin/dashboard/superAdmin/ContactsInTable";
+import { StatsAdminSMK } from "@/components/layout/admin/dashboard/adminSMK/StatsAdminSMK";
+import { StatisticsPenjualanJurusan } from "@/components/layout/admin/dashboard/adminSMK/StatisticsPenjualanJurusan";
+import { ProdukJasaChart } from "@/components/layout/admin/dashboard/adminSMK/ProdukJasaChart";
+import { ProdukChart } from "@/components/layout/admin/dashboard/adminSMK/ProdukChart";
+import { JasaChart } from "@/components/layout/admin/dashboard/adminSMK/JasaChart";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -31,12 +33,22 @@ export default function AdminSMK() {
             </div>
 
             {/* Stats Cards */}
-            <StatsSuperAdmin />
+            <StatsAdminSMK />
 
-            {/* Charts & Table */}
+            {/* Row 1: Chart besar + Donut */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                    <StatisticsPenjualanJurusan />
+                </div>
+                <div>
+                    <ProdukJasaChart />
+                </div>
+            </div>
+
+            {/* Row 2: Produk & Jasa */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <StatisticsChart />
-                <ContactsInTable />
+                <ProdukChart />
+                <JasaChart />
             </div>
         </div>
     );

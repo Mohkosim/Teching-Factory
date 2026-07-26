@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Eye, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    Search,
+    Eye,
+    Pencil,
+    Trash2,
+    Plus,
+    Package,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +35,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import {
     Breadcrumb,
@@ -45,14 +55,40 @@ interface ProductItem {
     description: string;
     priceMin: number;
     priceMax: number;
+    stok: number;
     category: string;
     jurusan: string;
     kapasitasProduksi: number;
     tipe: string;
 }
 
+// Bentuk kosong untuk form tambah/edit produk
+type ProductFormState = {
+    name: string;
+    description: string;
+    priceMin: string;
+    priceMax: string;
+    stok: string;
+    category: string;
+    jurusan: string;
+    kapasitasProduksi: string;
+    tipe: string;
+};
+
+const emptyForm: ProductFormState = {
+    name: "",
+    description: "",
+    priceMin: "",
+    priceMax: "",
+    stok: "",
+    category: "Produk Fisik",
+    jurusan: "Tata Boga",
+    kapasitasProduksi: "",
+    tipe: "Produk",
+};
+
 // ── Dummy data, ganti dengan fetch dari API kalau sudah siap ──
-const productData: ProductItem[] = Array.from({ length: 11 }).map((_, i) => ({
+const initialProductData: ProductItem[] = Array.from({ length: 11 }).map((_, i) => ({
     id: i + 1,
     name: "Bento Cake",
     images: [
@@ -65,6 +101,7 @@ const productData: ProductItem[] = Array.from({ length: 11 }).map((_, i) => ({
         "Bento Cake dibuat langsung oleh siswa kompetensi keahlian Tata Boga di bawah bimbingan instruktur berpengalaman. Kue ini menggunakan bahan-bahan berkualitas dengan tampilan lucu dan rasa yang lembut, cocok untuk hadiah maupun perayaan kecil-kecilan.",
     priceMin: 10000,
     priceMax: 25000,
+    stok: 12,
     category: "Produk Fisik",
     jurusan: "Tata Boga",
     kapasitasProduksi: 15,
@@ -73,12 +110,16 @@ const productData: ProductItem[] = Array.from({ length: 11 }).map((_, i) => ({
 
 const jurusanOptions = ["Semua", "Tata Boga", "Rekayasa Perangkat Lunak", "Tata Busana"];
 const kategoriOptions = ["Semua", "Produk Fisik", "Jasa"];
+const jurusanFormOptions = ["Tata Boga", "Rekayasa Perangkat Lunak", "Tata Busana"];
+const kategoriFormOptions = ["Produk Fisik", "Jasa"];
 
 function formatRupiah(value: number) {
     return "Rp " + value.toLocaleString("id-ID");
 }
 
 export default function ProductManagement() {
+    const [products, setProducts] = useState<ProductItem[]>(initialProductData);
+
     const [search, setSearch] = useState("");
     const [jurusanFilter, setJurusanFilter] = useState("Semua");
     const [kategoriFilter, setKategoriFilter] = useState("Semua");
@@ -86,13 +127,21 @@ export default function ProductManagement() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
+    // ── Dialog detail (view) ──
     const [detailItem, setDetailItem] = useState<ProductItem | null>(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
-    const [showRevisiForm, setShowRevisiForm] = useState(false);
-    const [revisiText, setRevisiText] = useState("");
+
+    // ── Dialog tambah/edit produk ──
+    const [formOpen, setFormOpen] = useState(false);
+    const [formMode, setFormMode] = useState<"create" | "edit">("create");
+    const [formData, setFormData] = useState<ProductFormState>(emptyForm);
+    const [editingId, setEditingId] = useState<number | null>(null);
+
+    // ── Dialog konfirmasi hapus ──
+    const [deleteItem, setDeleteItem] = useState<ProductItem | null>(null);
 
     const filtered = useMemo(() => {
-        return productData.filter((item) => {
+        return products.filter((item) => {
             const matchSearch =
                 item.name.toLowerCase().includes(search.toLowerCase()) ||
                 item.description.toLowerCase().includes(search.toLowerCase());
@@ -100,7 +149,7 @@ export default function ProductManagement() {
             const matchKategori = kategoriFilter === "Semua" || item.category === kategoriFilter;
             return matchSearch && matchJurusan && matchKategori;
         });
-    }, [search, jurusanFilter, kategoriFilter]);
+    }, [products, search, jurusanFilter, kategoriFilter]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -112,17 +161,14 @@ export default function ProductManagement() {
         setPage(1);
     };
 
+    // ── Detail (view) ──
     const openDetail = (item: ProductItem) => {
         setDetailItem(item);
         setActiveImageIndex(0);
-        setShowRevisiForm(false);
-        setRevisiText("");
     };
 
     const closeDetail = () => {
         setDetailItem(null);
-        setShowRevisiForm(false);
-        setRevisiText("");
     };
 
     const goPrevImage = () => {
@@ -135,10 +181,102 @@ export default function ProductManagement() {
         setActiveImageIndex((i) => (i === detailItem.images.length - 1 ? 0 : i + 1));
     };
 
-    const handleSubmitRevisi = () => {
-        // TODO: kirim revisiText ke backend (Laravel API)
-        setShowRevisiForm(false);
-        setRevisiText("");
+    // ── Tambah Produk ──
+    const openCreateForm = () => {
+        setFormMode("create");
+        setFormData(emptyForm);
+        setEditingId(null);
+        setFormOpen(true);
+    };
+
+    // ── Edit Produk ──
+    const openEditForm = (item: ProductItem) => {
+        setFormMode("edit");
+        setEditingId(item.id);
+        setFormData({
+            name: item.name,
+            description: item.description,
+            priceMin: String(item.priceMin),
+            priceMax: String(item.priceMax),
+            stok: String(item.stok),
+            category: item.category,
+            jurusan: item.jurusan,
+            kapasitasProduksi: String(item.kapasitasProduksi),
+            tipe: item.tipe,
+        });
+        setFormOpen(true);
+    };
+
+    const closeForm = () => {
+        setFormOpen(false);
+        setFormData(emptyForm);
+        setEditingId(null);
+    };
+
+    const handleFormChange = (field: keyof ProductFormState, value: string) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmitForm = () => {
+        // TODO: ganti dengan pemanggilan API (POST untuk tambah, PUT untuk edit)
+        const priceMin = Number(formData.priceMin) || 0;
+        const priceMax = Number(formData.priceMax) || 0;
+        const stok = Number(formData.stok) || 0;
+        const kapasitasProduksi = Number(formData.kapasitasProduksi) || 0;
+
+        if (formMode === "create") {
+            const newItem: ProductItem = {
+                id: Math.max(0, ...products.map((p) => p.id)) + 1,
+                name: formData.name,
+                images: [],
+                description: formData.description,
+                priceMin,
+                priceMax,
+                stok,
+                category: formData.category,
+                jurusan: formData.jurusan,
+                kapasitasProduksi,
+                tipe: formData.tipe,
+            };
+            setProducts((prev) => [newItem, ...prev]);
+        } else if (formMode === "edit" && editingId !== null) {
+            setProducts((prev) =>
+                prev.map((p) =>
+                    p.id === editingId
+                        ? {
+                            ...p,
+                            name: formData.name,
+                            description: formData.description,
+                            priceMin,
+                            priceMax,
+                            stok,
+                            category: formData.category,
+                            jurusan: formData.jurusan,
+                            kapasitasProduksi,
+                            tipe: formData.tipe,
+                        }
+                        : p
+                )
+            );
+        }
+
+        closeForm();
+    };
+
+    // ── Hapus Produk ──
+    const openDeleteConfirm = (item: ProductItem) => {
+        setDeleteItem(item);
+    };
+
+    const closeDeleteConfirm = () => {
+        setDeleteItem(null);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!deleteItem) return;
+        // TODO: panggil API DELETE di sini
+        setProducts((prev) => prev.filter((p) => p.id !== deleteItem.id));
+        setDeleteItem(null);
     };
 
     return (
@@ -150,7 +288,7 @@ export default function ProductManagement() {
                 </h1>
                 <Breadcrumb>
                     <BreadcrumbList>
-                        <BreadcrumbItem>Manajemen</BreadcrumbItem>
+                        <BreadcrumbItem>Umum</BreadcrumbItem>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
                             <BreadcrumbPage>Manajemen Produk</BreadcrumbPage>
@@ -161,7 +299,7 @@ export default function ProductManagement() {
 
             {/* Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                {/* Toolbar: Search + Filters + Reset */}
+                {/* Toolbar: Search + Filters + Reset + Tambah */}
                 <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-gray-100">
                     <div className="relative flex-1 min-w-[220px] max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -227,6 +365,14 @@ export default function ProductManagement() {
                         >
                             Reset Filter
                         </Button>
+
+                        <Button
+                            onClick={openCreateForm}
+                            className="bg-sky-500 hover:bg-sky-600 text-white rounded-xl self-end gap-1.5"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Tambah Produk
+                        </Button>
                     </div>
                 </div>
 
@@ -237,8 +383,8 @@ export default function ProductManagement() {
                             <TableHead className="w-16 font-semibold text-gray-600 px-6">No</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Nama Produk</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Gambar</TableHead>
-                            <TableHead className="font-semibold text-gray-600 px-6">Deskripsi</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Harga</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Stok</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Kategori</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Jurusan</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-6">Aksi</TableHead>
@@ -275,11 +421,11 @@ export default function ProductManagement() {
                                             <Package className="h-5 w-5 text-amber-600 hidden" />
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-gray-500 max-w-xs py-4 px-6">
-                                        <span className="line-clamp-2 text-sm">{item.description}</span>
-                                    </TableCell>
                                     <TableCell className="text-gray-600 text-sm py-4 px-6 whitespace-nowrap">
                                         {formatRupiah(item.priceMin)} - {formatRupiah(item.priceMax)}
+                                    </TableCell>
+                                    <TableCell className="text-gray-600 text-sm py-4 px-6">
+                                        {item.stok}
                                     </TableCell>
                                     <TableCell className="text-gray-600 text-sm py-4 px-6">
                                         {item.category}
@@ -288,13 +434,27 @@ export default function ProductManagement() {
                                         {item.jurusan}
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
-                                        <div className="flex items-center justify-end">
+                                        <div className="flex items-center justify-end gap-1.5">
                                             <button
                                                 onClick={() => openDetail(item)}
                                                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors"
                                                 title="Lihat Detail"
                                             >
                                                 <Eye className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => openEditForm(item)}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-500 transition-colors"
+                                                title="Edit Produk"
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => openDeleteConfirm(item)}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                                                title="Hapus Produk"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
                                     </TableCell>
@@ -314,13 +474,11 @@ export default function ProductManagement() {
                     onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
             </div>
 
-            {/* ── Dialog Detail Produk ── */}
+            {/* ── Dialog Detail Produk (View) ── */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && closeDetail()}>
                 <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
                     <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-sky-50/60">
-                        <DialogTitle className="text-base">
-                            {showRevisiForm ? "Form-revisi | Detail Produk" : "Detail Produk"}
-                        </DialogTitle>
+                        <DialogTitle className="text-base">Detail Produk</DialogTitle>
                     </DialogHeader>
 
                     {detailItem && (
@@ -398,47 +556,177 @@ export default function ProductManagement() {
                                 </div>
                             </div>
 
-                            {/* Info footer: kapasitas & tipe */}
-                            <div className="flex items-center justify-between mt-5 pt-4 border-t border-gray-100">
+                            {/* Info footer: stok, kapasitas & tipe */}
+                            <div className="mt-5 pt-4 border-t border-gray-100">
                                 <p className="text-xs text-gray-400">
-                                    Kapasitas Produksi : {detailItem.kapasitasProduksi} &nbsp;·&nbsp; Tipe : {detailItem.tipe}
+                                    Stok : {detailItem.stok} &nbsp;·&nbsp; Kapasitas Produksi : {detailItem.kapasitasProduksi} &nbsp;·&nbsp; Tipe : {detailItem.tipe}
                                 </p>
-
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        onClick={() => setShowRevisiForm((v) => !v)}
-                                        className="bg-red-500 hover:bg-red-600 text-white rounded-lg h-8 px-4 text-sm"
-                                    >
-                                        Revisi
-                                    </Button>
-                                    <Button className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8 px-4 text-sm">
-                                        Publikasi
-                                    </Button>
-                                </div>
                             </div>
-
-                            {/* Form Revisi */}
-                            {showRevisiForm && (
-                                <div className="mt-4 space-y-2">
-                                    <Label className="text-sm text-gray-600">Revisi</Label>
-                                    <Textarea
-                                        value={revisiText}
-                                        onChange={(e) => setRevisiText(e.target.value)}
-                                        placeholder="Tulis catatan revisi di sini..."
-                                        className="min-h-[100px] bg-sky-50/60 border-sky-100 rounded-lg resize-none"
-                                    />
-                                    <div className="flex justify-end">
-                                        <Button
-                                            onClick={handleSubmitRevisi}
-                                            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-8 px-5 text-sm"
-                                        >
-                                            Submit
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Dialog Tambah / Edit Produk ── */}
+            <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {formMode === "create" ? "Tambah Produk" : "Edit Produk"}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Nama Produk</Label>
+                            <Input
+                                value={formData.name}
+                                onChange={(e) => handleFormChange("name", e.target.value)}
+                                placeholder="Contoh: Bento Cake"
+                                className="bg-gray-50 border-gray-200 rounded-lg"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Deskripsi</Label>
+                            <Textarea
+                                value={formData.description}
+                                onChange={(e) => handleFormChange("description", e.target.value)}
+                                placeholder="Tulis deskripsi produk..."
+                                className="min-h-[90px] bg-gray-50 border-gray-200 rounded-lg resize-none"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Harga Min</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.priceMin}
+                                    onChange={(e) => handleFormChange("priceMin", e.target.value)}
+                                    placeholder="10000"
+                                    className="bg-gray-50 border-gray-200 rounded-lg"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Harga Max</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.priceMax}
+                                    onChange={(e) => handleFormChange("priceMax", e.target.value)}
+                                    placeholder="25000"
+                                    className="bg-gray-50 border-gray-200 rounded-lg"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Stok</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.stok}
+                                    onChange={(e) => handleFormChange("stok", e.target.value)}
+                                    placeholder="12"
+                                    className="bg-gray-50 border-gray-200 rounded-lg"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Kapasitas Produksi</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.kapasitasProduksi}
+                                    onChange={(e) => handleFormChange("kapasitasProduksi", e.target.value)}
+                                    placeholder="15"
+                                    className="bg-gray-50 border-gray-200 rounded-lg"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Kategori</Label>
+                                <Select
+                                    value={formData.category}
+                                    onValueChange={(v) => handleFormChange("category", v)}
+                                >
+                                    <SelectTrigger className="bg-gray-50 border-gray-200 rounded-lg">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {kategoriFormOptions.map((k) => (
+                                            <SelectItem key={k} value={k}>
+                                                {k}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Jurusan</Label>
+                                <Select
+                                    value={formData.jurusan}
+                                    onValueChange={(v) => handleFormChange("jurusan", v)}
+                                >
+                                    <SelectTrigger className="bg-gray-50 border-gray-200 rounded-lg">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {jurusanFormOptions.map((j) => (
+                                            <SelectItem key={j} value={j}>
+                                                {j}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            onClick={closeForm}
+                            variant="outline"
+                            className="rounded-lg"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleSubmitForm}
+                            className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg"
+                        >
+                            {formMode === "create" ? "Simpan Produk" : "Simpan Perubahan"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Dialog Konfirmasi Hapus ── */}
+            <Dialog open={!!deleteItem} onOpenChange={(open) => !open && closeDeleteConfirm()}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Hapus Produk</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-gray-500">
+                        Apakah Anda yakin ingin menghapus produk{" "}
+                        <span className="font-medium text-gray-700">{deleteItem?.name}</span>? Tindakan ini
+                        tidak dapat dibatalkan.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            onClick={closeDeleteConfirm}
+                            variant="outline"
+                            className="rounded-lg"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleConfirmDelete}
+                            className="bg-red-500 hover:bg-red-600 text-white rounded-lg"
+                        >
+                            Hapus
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

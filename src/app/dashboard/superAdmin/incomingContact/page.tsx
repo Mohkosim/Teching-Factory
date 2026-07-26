@@ -59,8 +59,6 @@ const generateMessages = (): Message[] =>
         isDeleted: false,
     }));
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function IncomingContact() {
@@ -89,24 +87,6 @@ export default function IncomingContact() {
 
     const totalPages = Math.ceil(filtered.length / pageSize);
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-
-    const handlePageChange = (p: number) => {
-        if (p >= 1 && p <= totalPages) setPage(p);
-    };
-
-    const getPageNumbers = () => {
-        const pages: (number | "...")[] = [];
-        if (totalPages <= 5) {
-            for (let i = 1; i <= totalPages; i++) pages.push(i);
-        } else {
-            pages.push(1);
-            if (page > 3) pages.push("...");
-            for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
-            if (page < totalPages - 2) pages.push("...");
-            pages.push(totalPages);
-        }
-        return pages;
-    };
 
     // ── Actions ──
     const toggleSelect = (id: number) =>
@@ -198,7 +178,7 @@ export default function IncomingContact() {
                                 </span>
                                 {tab.label}
                             </div>
-                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-md ${tab.color} text-white min-w-[24px] text-center`}>
+                            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-md ${tab.color} text-white min-w-24 text-center`}>
                                 {tab.count}
                             </span>
                         </button>

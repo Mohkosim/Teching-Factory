@@ -19,26 +19,25 @@ import {
 } from "@/components/ui/select";
 
 const data = [
-  { bulan: "Jun '24", nilai: 95 },
-  { bulan: "Jul '24", nilai: 80 },
-  { bulan: "Ags '24", nilai: 70 },
-  { bulan: "Sep '24", nilai: 120 },
-  { bulan: "Okt '24", nilai: 185 },
-  { bulan: "Nov '24", nilai: 160 },
-  { bulan: "Des '24", nilai: 150 },
-  { bulan: "Jan '25", nilai: 110 },
+  { bulan: "Jurusan A", nilai: 95 },
+  { bulan: "Jurusan B", nilai: 70 },
+  { bulan: "Jurusan C", nilai: 80 },
+  { bulan: "Jurusan D", nilai: 190 },
+  { bulan: "Jurusan E", nilai: 150 },
+  { bulan: "Jurusan F", nilai: 165 },
+  { bulan: "Jurusan G", nilai: 120 },
 ];
 
-export function StatisticsChart() {
+export function StatisticsPenjualanJurusan() {
   return (
     <Card className="border-0 shadow-sm bg-white">
       <CardHeader className="px-8 border-b">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">
-            Statistic SMK Terdaftar
+            Statistic penjualan per jurusan
           </h3>
           <Select defaultValue="semua">
-            <SelectTrigger className="w-1xl h-8 text-xs bg-white border-2 rounded-md ">
+            <SelectTrigger className="w-fit h-8 text-xs bg-white border-2 rounded-md gap-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -50,16 +49,9 @@ export function StatisticsChart() {
         </div>
       </CardHeader>
       <CardContent className="px-8">
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart
-            data={data}
-            margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
-          >
-            <CartesianGrid
-              strokeDasharray="4 4"
-              stroke="hsl(214, 32%, 88%)"
-              vertical={false}
-            />
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="4 4" stroke="hsl(214, 32%, 88%)" vertical={false} />
             <XAxis
               dataKey="bulan"
               tick={{ fontSize: 11, fill: "hsl(215, 16%, 55%)" }}

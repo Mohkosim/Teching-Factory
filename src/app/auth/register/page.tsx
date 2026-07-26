@@ -10,6 +10,7 @@ import AuthTabs from "@/components/auth/AuthTabs";
 import FormField from "@/components/auth/FormField";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { registerSchema, type RegisterSchema } from "@/lib/validations/auth";
+import Image from "next/image";
 
 export default function Register() {
     const router = useRouter();
@@ -43,9 +44,10 @@ export default function Register() {
                     router.push("/auth/login");
                 },
             });
-        } catch (err: any) {
+        } catch (err) {
+            const errormassage = err instanceof Error ? err.message : "Terjadi kesalahan";
             toast.error("Gagal membuat akun", {
-                description: err.message ?? "Terjadi kesalahan, coba lagi.",
+                description: errormassage,
             });
         }
     };
@@ -53,9 +55,18 @@ export default function Register() {
     return (
         <>
             {/* Logo */}
-            <div className="text-center">
-                <span className="text-3xl font-black text-gray-900 tracking-tight">LOGO</span>
-            </div>
+            <div className="text-center w-full">
+                    <span className="text-3xl font-black text-gray-900 tracking-tight block">
+                      <Image
+                        src="/img/LogoTefa.png"
+                        alt="Logo Tefa"
+                        width={150}
+                        height={80}
+                        className="object-contain w-auto h-auto mx-auto block"
+                        priority
+                      />
+                    </span>
+                  </div>
 
             {/* Tabs */}
             <AuthTabs />

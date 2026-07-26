@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Eye, Trash2, School, PowerOff } from "lucide-react";
+import { Search, Eye, Trash2, School, PowerOff, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,14 +30,20 @@ import PaginationIconsOnly from "@/components/pagination/page";
 
 import { smkData, type SMKAccount } from "@/lib/data";
 
-export default function accountManagement() {
+const DEFAULT_ROLE = "Admin Pelanggan";
+const UPGRADED_ROLE = "Admin SMK";
+
+export default function AccountManagement() {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [deleteItem, setDeleteItem] = useState<SMKAccount | null>(null);
     const [nonaktifItem, setNonaktifItem] = useState<SMKAccount | null>(null);
     const [detailItem, setDetailItem] = useState<SMKAccount | null>(null);
+    const [editItem, setEditItem] = useState<SMKAccount | null>(null);
     const [nonaktifIds, setNonaktifIds] = useState<number[]>([]);
+    // id -> role. Default role dianggap "Admin Pelanggan" jika belum ada di map.
+    const [roleOverrides, setRoleOverrides] = useState<Record<number, string>>({});
 
     const filtered = smkData.filter(
         (item) =>
@@ -49,17 +55,22 @@ export default function accountManagement() {
     const totalPages = Math.ceil(filtered.length / pageSize);
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
     const isNonaktif = (id: number) => nonaktifIds.includes(id);
+    const getRole = (id: number) => roleOverrides[id] ?? DEFAULT_ROLE;
 
     const handleToggleNonaktif = () => {
         if (!nonaktifItem) return;
         if (isNonaktif(nonaktifItem.id)) {
-            // Aktifkan kembali
             setNonaktifIds((prev) => prev.filter((id) => id !== nonaktifItem.id));
         } else {
-            // Nonaktifkan
             setNonaktifIds((prev) => [...prev, nonaktifItem.id]);
         }
         setNonaktifItem(null);
+    };
+
+    const handleUpgradeRole = () => {
+        if (!editItem) return;
+        setRoleOverrides((prev) => ({ ...prev, [editItem.id]: UPGRADED_ROLE }));
+        setEditItem(null);
     };
 
     return (
@@ -102,7 +113,7 @@ export default function accountManagement() {
                             <TableHead className="font-semibold text-gray-600 px-6">SMK</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Logo</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Deskripsi</TableHead>
-                            <TableHead className="font-semibold text-gray-600 px-6">Nomor WA</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Role</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-15">Aksi</TableHead>
                         </TableRow>
@@ -110,7 +121,7 @@ export default function accountManagement() {
                     <TableBody>
                         {paginated.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-12 text-gray-400">
+                                <TableCell colSpan={8} className="text-center py-12 text-gray-400">
                                     Tidak ada data ditemukan
                                 </TableCell>
                             </TableRow>
@@ -132,7 +143,14 @@ export default function accountManagement() {
                                     <TableCell className="text-gray-500 max-w-xs py-4 px-6">
                                         <span className="line-clamp-2 text-sm">{item.description}</span>
                                     </TableCell>
-                                    <TableCell className="text-gray-600 font-mono text-sm py-4 px-6">{item.phoneNumber}</TableCell>
+                                    <TableCell className="py-4 px-6">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRole(item.id) === UPGRADED_ROLE
+                                            ? "bg-blue-100 text-blue-600"
+                                            : "bg-gray-100 text-gray-600"
+                                            }`}>
+                                            {getRole(item.id)}
+                                        </span>
+                                    </TableCell>
                                     <TableCell className="py-4 px-6">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isNonaktif(item.id)
                                             ? "bg-red-100 text-red-600"
@@ -151,6 +169,17 @@ export default function accountManagement() {
                                             >
                                                 <Eye className="h-3.5 w-3.5" />
                                             </button>
+
+                                            {/* Edit Role - hanya aktif jika masih Admin Pelanggan */}
+                                            {getRole(item.id) === DEFAULT_ROLE && (
+                                                <button
+                                                    onClick={() => setEditItem(item)}
+                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors"
+                                                    title="Jadikan Admin SMK"
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
 
                                             {/* Nonaktifkan / Aktifkan */}
                                             <button
@@ -189,6 +218,30 @@ export default function accountManagement() {
                     onPageChange={(p) => setPage(p)}
                     onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
             </div>
+
+            {/* ── Dialog Edit Role ── */}
+            <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Jadikan Admin SMK</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-gray-500 py-2">
+                        Apakah Anda yakin ingin mengubah role akun{" "}
+                        <span className="font-semibold text-gray-700">{editItem?.name}</span> dari{" "}
+                        <span className="font-medium text-gray-700">Admin Pelanggan</span> menjadi{" "}
+                        <span className="font-medium text-blue-600">Admin SMK</span>?
+                    </p>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setEditItem(null)}>Batal</Button>
+                        <Button
+                            className="bg-blue-500 hover:bg-blue-600 text-white"
+                            onClick={handleUpgradeRole}
+                        >
+                            Simpan
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* ── Dialog Nonaktifkan / Aktifkan ── */}
             <Dialog open={!!nonaktifItem} onOpenChange={() => setNonaktifItem(null)}>
@@ -259,6 +312,10 @@ export default function accountManagement() {
                                         }`}>
                                         {isNonaktif(detailItem.id) ? "Nonaktif" : "Aktif"}
                                     </span>
+                                </div>
+                                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 col-span-2">
+                                    <p className="text-xs font-medium uppercase text-gray-400">Role</p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-700">{getRole(detailItem.id)}</p>
                                 </div>
                             </div>
 

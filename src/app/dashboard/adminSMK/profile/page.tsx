@@ -12,7 +12,6 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import Image from "next/image";
 
 export default function Profile() {
     const [profileForm, setProfileForm] = useState({
@@ -121,7 +120,7 @@ export default function Profile() {
                         <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
                             <div className="w-16 h-16 rounded-full border border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden">
                                 {avatarPreview ? (
-                                    <Image
+                                    <img
                                         src={avatarPreview}
                                         alt="Avatar"
                                         className="w-full h-full object-cover"

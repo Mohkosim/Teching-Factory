@@ -11,6 +11,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import Image from "next/image";
 
 export default function AboutTefa() {
     const [form, setForm] = useState({
@@ -127,7 +128,7 @@ export default function AboutTefa() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                             {form.files.map((f, i) => (
                                 <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 aspect-video bg-gray-100">
-                                    <img
+                                    <Image
                                         src={URL.createObjectURL(f)}
                                         alt={`preview-${i}`}
                                         className="h-full w-full object-cover"
