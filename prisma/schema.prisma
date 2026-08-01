@@ -28,7 +28,148 @@ model User {
   phone    String?
   img      String?
   role     Role   @default(User)
+  isActive Boolean @default(true)
+
+  smk      SMK?
+  jurusan  Jurusan?
+  review   Review[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SMK {
+  smk_id String @id @default(uuid())
+
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  alamat            String
+  kota              String
+  provinsi          String
+  tahun_berdiri     Int
+  akreditasi        String?
+  email             String?
+  website           String?
+  status_verifikasi Boolean @default(false)
+
+  jurusans Jurusan[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Jurusan {
+  jurusan_id String @id @default(uuid())
+
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  smk_id String
+  smk    SMK    @relation(fields: [smk_id], references: [smk_id])
+
+  nama_jurusan    String
+  deskripsi       String?
+  kepala_jurusan  String?
+  jam_operasional String?
+
+  produk Produk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum StatusProduk {
+  TERSEDIA
+  HABIS
+  NONAKTIF
+}
+
+model Produk {
+  produk_id String @id @default(uuid())
+
+  jurusan_id String
+  jurusan    Jurusan @relation(fields: [jurusan_id], references: [jurusan_id])
+
+  nama_produk String
+  deskripsi   String?
+  harga       Int
+  status      StatusProduk @default(TERSEDIA)
+  view_count  Int          @default(0)
+  sold_count  Int          @default(0)
+
+  foto   FotoProduk[]
+  barang Barang[]
+  jasa   Jasa[]
+  review Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FotoProduk {
+  foto_id String @id @default(uuid())
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id])
+
+  url String
+
+  createdAt DateTime @default(now())
+}
+
+model Barang {
+  barang_id String @id @default(uuid())
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id])
+
+  stok    Int    @default(0)
+  kondisi String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Jasa {
+  jasa_id String @id @default(uuid())
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id])
+
+  nama_jasa           String
+  estimasi_pengerjaan String?
+  total_project       Int     @default(0)
+
+  portofolio Portofolio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Portofolio {
+  portofolio_id String @id @default(uuid())
+
+  jasa_id String
+  jasa    Jasa   @relation(fields: [jasa_id], references: [jasa_id])
+
+  file_path String
+  deskripsi String?
+
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  review_id String @id @default(uuid())
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id])
+
+  rating   Int
+  komentar String?
+
+  createdAt DateTime @default(now())
 }

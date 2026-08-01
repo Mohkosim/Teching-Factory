@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { getNavGroups, Role } from "@/lib/nav-config";
+import { getNavGroups, Role } from "@/lib/config/nav-config";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -18,7 +18,7 @@ export function Sidebar({ collapsed, role }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "min-h-screen bg-white border-r border-border flex flex-col transition-all duration-300",
+        "min-h-screen bg-white border-r border-border flex flex-col",
         collapsed ? "w-20" : "w-56"
       )}
     >
@@ -64,7 +64,7 @@ export function Sidebar({ collapsed, role }: SidebarProps) {
                       href={item.href}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
                         collapsed && "justify-center",
                         isActive
                           ? "bg-sky-500 text-primary-foreground shadow-sm"

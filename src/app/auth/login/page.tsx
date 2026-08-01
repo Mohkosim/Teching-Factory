@@ -40,9 +40,15 @@ export default function Login() {
     });
 
     if (result?.error) {
-      toast.error("Login gagal", {
-        description: "E-mail atau kata sandi salah.",
-      });
+      if (result.error === "AccountDisabled") {
+        toast.error("Akun dinonaktifkan", {
+          description: "Akun Anda sedang dinonaktifkan. Hubungi admin untuk informasi lebih lanjut.",
+        });
+      } else {
+        toast.error("Login gagal", {
+          description: "E-mail atau kata sandi salah.",
+        });
+      }
       return;
     }
 
