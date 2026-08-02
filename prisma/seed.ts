@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"; 
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 
 async function main() {
   console.log("Seeding users menggunakan Prisma Client Custom...");

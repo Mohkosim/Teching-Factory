@@ -4,11 +4,10 @@ import { useState, useMemo, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Search, Eye, Pencil, Trash2, School, Plus, Package, HandHeart, Power } from "lucide-react";
+import { Search, Eye, Trash2, School, Plus, Package, HandHeart, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -25,7 +24,6 @@ import PasswordInput from "@/components/auth/PasswordInput";
 import { addJurusanSchema, type AddJurusanForm } from "@/lib/validations/createAccount";
 import {
     createJurusanAccount,
-    updateJurusanAccount,
     toggleJurusanStatus,
     deleteJurusanAccount,
 } from "@/lib/api/jurusan-api";
@@ -39,8 +37,6 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
     const [isPending, startTransition] = useTransition();
 
     const [openAdd, setOpenAdd] = useState(false);
-    const [editItem, setEditItem] = useState<JurusanAccount | null>(null);
-    const [editForm, setEditForm] = useState({ nama_jurusan: "", deskripsi: "", kepala_jurusan: "" });
     const [detailItem, setDetailItem] = useState<JurusanAccount | null>(null);
     const [nonaktifItem, setNonaktifItem] = useState<JurusanAccount | null>(null);
     const [deleteItem, setDeleteItem] = useState<JurusanAccount | null>(null);
@@ -84,29 +80,6 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                 } else {
                     toast.error("Gagal menambahkan akun jurusan");
                 }
-            }
-        });
-    };
-
-    const handleOpenEdit = (item: JurusanAccount) => {
-        setEditForm({
-            nama_jurusan: item.nama_jurusan,
-            deskripsi: item.deskripsi ?? "",
-            kepala_jurusan: item.kepala_jurusan ?? "",
-        });
-        setEditItem(item);
-    };
-
-    const handleSubmitEdit = () => {
-        if (!editItem) return;
-        startTransition(async () => {
-            try {
-                await updateJurusanAccount(editItem.jurusan_id, editForm);
-                setData((prev) => prev.map((it) => (it.jurusan_id === editItem.jurusan_id ? { ...it, ...editForm } : it)));
-                toast.success("Data jurusan berhasil diperbarui");
-                setEditItem(null);
-            } catch {
-                toast.error("Gagal memperbarui data jurusan");
             }
         });
     };
@@ -227,9 +200,6 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                                             <button onClick={() => setDetailItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors" title="Lihat Detail">
                                                 <Eye className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => handleOpenEdit(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors" title="Update Data">
-                                                <Pencil className="h-3.5 w-3.5" />
-                                            </button>
                                             <button onClick={() => setNonaktifItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors" title={item.isActive ? "Nonaktifkan" : "Aktifkan"}>
                                                 <Power className="h-3.5 w-3.5" />
                                             </button>
@@ -308,36 +278,6 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                             </Button>
                         </DialogFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Update Data */}
-            <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Update Data Jurusan</DialogTitle></DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edit-name">Nama Jurusan</Label>
-                            <Input id="edit-name" value={editForm.nama_jurusan}
-                                onChange={(e) => setEditForm((f) => ({ ...f, nama_jurusan: e.target.value }))} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edit-description">Deskripsi</Label>
-                            <Textarea id="edit-description" value={editForm.deskripsi}
-                                onChange={(e) => setEditForm((f) => ({ ...f, deskripsi: e.target.value }))} rows={3} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="edit-kepala">Kepala Jurusan</Label>
-                            <Input id="edit-kepala" value={editForm.kepala_jurusan}
-                                onChange={(e) => setEditForm((f) => ({ ...f, kepala_jurusan: e.target.value }))} />
-                        </div>
-                    </div>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setEditItem(null)}>Batal</Button>
-                        <Button className="bg-blue-500 hover:bg-blue-600 text-white" onClick={handleSubmitEdit} disabled={isPending}>
-                            Update
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

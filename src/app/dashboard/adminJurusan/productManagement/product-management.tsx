@@ -30,13 +30,13 @@ const emptyForm: ProdukForm = {
     nama_produk: "",
     deskripsi: "",
     harga: 0,
-    status: "TERSEDIA",
+    status: "Tersedia",
     stok: 0,
     kondisi: "Baru",
     fotos: [],
 };
 
-const statusOptions = ["Semua", "TERSEDIA", "HABIS", "NONAKTIF"] as const;
+const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
 
 function formatRupiah(value: number) {
     return "Rp " + value.toLocaleString("id-ID");
@@ -206,6 +206,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                         sold_count: res.data.sold_count,
                         stok: parsed.data.stok,
                         kondisi: parsed.data.kondisi,
+                        status_publikasi: res.data.status_publikasi ?? "Pending",
                     };
                     setProducts((prev) => [newItem, ...prev]);
                     toast.success("Produk berhasil ditambahkan");
@@ -213,10 +214,12 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                     await updateProduk(editingId, parsed.data);
                     setProducts((prev) =>
                         prev.map((p) =>
-                            p.produk_id === editingId ? { ...p, ...parsed.data, fotos } : p
+                            p.produk_id === editingId
+                                ? { ...p, ...parsed.data, fotos, status_publikasi: "Pending" }
+                                : p
                         )
                     );
-                    toast.success("Produk berhasil diperbarui");
+                    toast.success("Produk berhasil diperbarui, menunggu review ulang");
                 }
                 closeForm();
             } catch (err) {
@@ -309,6 +312,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                             <TableHead className="font-semibold text-gray-600 px-6">Harga</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Stok</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Status Publikasi</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-15">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -341,13 +345,23 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                     </TableCell>
                                     <TableCell className="text-gray-600 text-sm py-4 px-6">{item.stok}</TableCell>
                                     <TableCell className="py-4 px-6">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === "TERSEDIA" ? "bg-green-100 text-green-600" :
-                                            item.status === "HABIS" ? "bg-amber-100 text-amber-600" :
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === "Tersedia" ? "bg-green-100 text-green-600" :
+                                            item.status === "Habis" ? "bg-amber-100 text-amber-600" :
                                                 "bg-red-100 text-red-600"
                                             }`}>
                                             {item.status}
                                         </span>
                                     </TableCell>
+
+                                    <TableCell className="py-4 px-6">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status_publikasi === "Published" ? "bg-emerald-100 text-emerald-600" :
+                                            item.status_publikasi === "Revisi" ? "bg-red-100 text-red-600" :
+                                                "bg-amber-100 text-amber-600"
+                                            }`}>
+                                            {item.status_publikasi}
+                                        </span>
+                                    </TableCell>
+
                                     <TableCell className="py-4 px-6">
                                         <div className="flex items-center justify-end gap-1.5">
                                             <button onClick={() => openDetail(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors" title="Lihat Detail">
@@ -416,8 +430,8 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                                         key={idx}
                                                         onClick={() => setActiveImageIndex(idx)}
                                                         className={`h-9 w-9 rounded-md overflow-hidden border shrink-0 transition-all ${idx === activeImageIndex
-                                                                ? "border-sky-500 ring-2 ring-sky-200"
-                                                                : "border-gray-200"
+                                                            ? "border-sky-500 ring-2 ring-sky-200"
+                                                            : "border-gray-200"
                                                             }`}
                                                     >
                                                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -458,6 +472,25 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                     <p className="text-xs text-gray-400 pt-1">
                                         Stok : {detailItem.stok} &nbsp;·&nbsp; Terjual : {detailItem.sold_count} &nbsp;·&nbsp; Kondisi : {detailItem.kondisi ?? "-"}
                                     </p>
+
+                                    {/* Status Publikasi */}
+                                    <div className="pt-1">
+                                        <p className="text-xs text-gray-400 mb-1">Status Publikasi</p>
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${detailItem.status_publikasi === "Published" ? "bg-emerald-100 text-emerald-600" :
+                                            detailItem.status_publikasi === "Revisi" ? "bg-red-100 text-red-600" :
+                                                "bg-amber-100 text-amber-600"
+                                            }`}>
+                                            {detailItem.status_publikasi}
+                                        </span>
+                                    </div>
+
+                                    {/* Catatan Revisi (kalau ada) */}
+                                    {detailItem.status_publikasi === "Revisi" && detailItem.catatan_revisi && (
+                                        <div className="mt-2 p-3 rounded-lg bg-red-50 border border-red-100">
+                                            <p className="text-xs font-medium text-red-600">Catatan Revisi:</p>
+                                            <p className="text-xs text-red-500 mt-1">{detailItem.catatan_revisi}</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -548,21 +581,26 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label className="text-sm text-gray-600">Harga</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.harga}
-                                    onChange={(e) => handleFormChange("harga", Number(e.target.value))}
-                                    placeholder="25000"
-                                    className="bg-gray-50 border-gray-200 rounded-lg"
-                                />
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                                        Rp
+                                    </span>
+                                    <Input
+                                        type="number"
+                                        value={formData.harga === 0 ? "" : formData.harga}
+                                        onChange={(e) => handleFormChange("harga", e.target.value === "" ? 0 : Number(e.target.value))}
+                                        placeholder="0"
+                                        className="bg-gray-50 border-gray-200 rounded-lg pl-9"
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-sm text-gray-600">Stok</Label>
                                 <Input
                                     type="number"
-                                    value={formData.stok}
-                                    onChange={(e) => handleFormChange("stok", Number(e.target.value))}
-                                    placeholder="12"
+                                    value={formData.stok === 0 ? "" : formData.stok}
+                                    onChange={(e) => handleFormChange("stok", e.target.value === "" ? 0 : Number(e.target.value))}
+                                    placeholder="0"
                                     className="bg-gray-50 border-gray-200 rounded-lg"
                                 />
                             </div>
@@ -585,9 +623,9 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="TERSEDIA">TERSEDIA</SelectItem>
-                                        <SelectItem value="HABIS">HABIS</SelectItem>
-                                        <SelectItem value="NONAKTIF">NONAKTIF</SelectItem>
+                                        <SelectItem value="Tersedia">Tersedia</SelectItem>
+                                        <SelectItem value="Habis">Habis</SelectItem>
+                                        <SelectItem value="Nonaktif">Nonaktif</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

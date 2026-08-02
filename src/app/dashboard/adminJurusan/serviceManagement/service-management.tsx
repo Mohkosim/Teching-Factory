@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useTransition } from "react";
-import { Search, Eye, Pencil, Trash2, Plus, Wrench, ImagePlus, X } from "lucide-react";
+import { Search, Eye, Pencil, Trash2, Plus, Wrench, ImagePlus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +29,12 @@ const emptyForm: Omit<JasaForm, "fotos"> = {
     nama_jasa: "",
     deskripsi: "",
     harga: 0,
-    status: "TERSEDIA",
+    status: "Tersedia",
     estimasi_pengerjaan: "",
     total_project: 0,
 };
 
-const statusOptions = ["Semua", "TERSEDIA", "HABIS", "NONAKTIF"] as const;
+const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
 
 function formatRupiah(value: number) {
     return "Rp " + value.toLocaleString("id-ID");
@@ -161,6 +161,16 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
         setActiveImageIndex(0);
     };
 
+    const goPrevImage = () => {
+        if (!detailItem) return;
+        setActiveImageIndex((i) => (i === 0 ? detailItem.fotos.length - 1 : i - 1));
+    };
+
+    const goNextImage = () => {
+        if (!detailItem) return;
+        setActiveImageIndex((i) => (i === detailItem.fotos.length - 1 ? 0 : i + 1));
+    };
+
     const handleSubmitForm = () => {
         if (existingFotos.length + newFiles.length === 0) {
             toast.error("Minimal 1 foto jasa");
@@ -194,6 +204,9 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                         estimasi_pengerjaan: parsed.data.estimasi_pengerjaan ?? null,
                         total_project: parsed.data.total_project,
                         view_count: res.data.view_count,
+
+                        status_publikasi: res.data.status_publikasi ?? "Pending",
+                        catatan_revisi: res.data.catatan_revisi ?? null,
                     };
                     setServices((prev) => [newItem, ...prev]);
                     toast.success("Jasa berhasil ditambahkan");
@@ -300,6 +313,7 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                             <TableHead className="font-semibold text-gray-600 px-6">Deskripsi</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Harga</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Status Publikasi</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-6">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -334,11 +348,19 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                                         {formatRupiah(item.harga)}
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === "TERSEDIA" ? "bg-green-100 text-green-600" :
-                                            item.status === "HABIS" ? "bg-amber-100 text-amber-600" :
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === "Tersedia" ? "bg-green-100 text-green-600" :
+                                            item.status === "Habis" ? "bg-amber-100 text-amber-600" :
                                                 "bg-red-100 text-red-600"
                                             }`}>
                                             {item.status}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="py-4 px-6">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status_publikasi === "Published" ? "bg-emerald-100 text-emerald-600" :
+                                                item.status_publikasi === "Revisi" ? "bg-red-100 text-red-600" :
+                                                    "bg-amber-100 text-amber-600"
+                                            }`}>
+                                            {item.status_publikasi}
                                         </span>
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
@@ -371,51 +393,90 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
 
             {/* Detail */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader><DialogTitle>Detail Jasa</DialogTitle></DialogHeader>
+                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-sky-50/60">
+                        <DialogTitle className="text-base">Detail Jasa</DialogTitle>
+                    </DialogHeader>
+
                     {detailItem && (
-                        <div className="space-y-4 py-2">
-                            {detailItem.fotos.length > 0 && (
-                                <div className="relative h-48 w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={detailItem.fotos[activeImageIndex]}
-                                        alt={detailItem.nama_jasa}
-                                        className="h-full w-full object-cover"
-                                    />
+                        <div className="px-6 py-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                {/* Kolom Gambar */}
+                                <div className="space-y-3">
+                                    <div className="relative h-48 w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                                        {detailItem.fotos.length > 0 ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                                src={detailItem.fotos[activeImageIndex]}
+                                                alt={detailItem.nama_jasa}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <Wrench className="h-10 w-10 text-gray-300" />
+                                        )}
+                                    </div>
+
+                                    {detailItem.fotos.length > 1 && (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={goPrevImage}
+                                                className="h-7 w-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 shrink-0"
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </button>
+
+                                            <div className="flex items-center justify-center gap-1.5 overflow-x-auto">
+                                                {detailItem.fotos.map((img, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setActiveImageIndex(idx)}
+                                                        className={`h-9 w-9 rounded-md overflow-hidden border shrink-0 transition-all ${idx === activeImageIndex
+                                                            ? "border-sky-500 ring-2 ring-sky-200"
+                                                            : "border-gray-200"
+                                                            }`}
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={img}
+                                                            alt={`${detailItem.nama_jasa} ${idx + 1}`}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <button
+                                                onClick={goNextImage}
+                                                className="h-7 w-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 shrink-0"
+                                            >
+                                                <ChevronRight className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
 
-                            {detailItem.fotos.length > 1 && (
-                                <div className="flex items-center justify-center gap-1.5 overflow-x-auto">
-                                    {detailItem.fotos.map((img, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setActiveImageIndex(idx)}
-                                            className={`h-9 w-9 rounded-md overflow-hidden border shrink-0 transition-all ${idx === activeImageIndex
-                                                    ? "border-sky-500 ring-2 ring-sky-200"
-                                                    : "border-gray-200"
-                                                }`}
-                                        >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={img} alt={`${detailItem.nama_jasa} ${idx + 1}`} className="h-full w-full object-cover" />
-                                        </button>
-                                    ))}
+                                {/* Kolom Informasi */}
+                                <div className="space-y-2">
+                                    <h2 className="text-xl font-bold text-gray-800">{detailItem.nama_jasa}</h2>
+
+                                    <div>
+                                        <p className="text-xs text-gray-400">Harga</p>
+                                        <p className="text-lg font-bold text-sky-600">
+                                            {formatRupiah(detailItem.harga)}
+                                        </p>
+                                    </div>
+
+                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                        {detailItem.deskripsi || "-"}
+                                    </p>
+
+                                    <p className="text-xs text-gray-400 pt-1">
+                                        Estimasi : {detailItem.estimasi_pengerjaan ?? "-"} &nbsp;·&nbsp; Total Project : {detailItem.total_project} &nbsp;·&nbsp; Status : {detailItem.status}
+                                    </p>
                                 </div>
-                            )}
-
-                            <h2 className="text-xl font-bold text-gray-800">{detailItem.nama_jasa}</h2>
-                            <p className="text-lg font-bold text-sky-600">{formatRupiah(detailItem.harga)}</p>
-                            <p className="text-sm text-gray-500 leading-relaxed">{detailItem.deskripsi || "-"}</p>
-
-                            <p className="text-xs text-gray-400">
-                                Estimasi Pengerjaan : {detailItem.estimasi_pengerjaan ?? "-"} &nbsp;·&nbsp; Total Project : {detailItem.total_project} &nbsp;·&nbsp; Status : {detailItem.status}
-                            </p>
+                            </div>
                         </div>
                     )}
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDetailItem(null)}>Tutup</Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
@@ -502,21 +563,26 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label className="text-sm text-gray-600">Harga</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.harga}
-                                    onChange={(e) => handleFormChange("harga", Number(e.target.value))}
-                                    placeholder="130000"
-                                    className="bg-gray-50 border-gray-200 rounded-lg"
-                                />
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                                        Rp
+                                    </span>
+                                    <Input
+                                        type="number"
+                                        value={formData.harga === 0 ? "" : formData.harga}
+                                        onChange={(e) => handleFormChange("harga", e.target.value === "" ? 0 : Number(e.target.value))}
+                                        placeholder="0"
+                                        className="bg-gray-50 border-gray-200 rounded-lg pl-9"
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-sm text-gray-600">Total Project</Label>
                                 <Input
                                     type="number"
-                                    value={formData.total_project}
-                                    onChange={(e) => handleFormChange("total_project", Number(e.target.value))}
-                                    placeholder="20"
+                                    value={formData.total_project === 0 ? "" : formData.total_project}
+                                    onChange={(e) => handleFormChange("total_project", e.target.value === "" ? 0 : Number(e.target.value))}
+                                    placeholder="0"
                                     className="bg-gray-50 border-gray-200 rounded-lg"
                                 />
                             </div>
@@ -539,9 +605,9 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="TERSEDIA">TERSEDIA</SelectItem>
-                                        <SelectItem value="HABIS">HABIS</SelectItem>
-                                        <SelectItem value="NONAKTIF">NONAKTIF</SelectItem>
+                                        <SelectItem value="Tersedia">Tersedia</SelectItem>
+                                        <SelectItem value="Habis">Habis</SelectItem>
+                                        <SelectItem value="Nonaktif">Nonaktif</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

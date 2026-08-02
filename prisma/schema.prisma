@@ -33,6 +33,7 @@ model User {
   smk      SMK?
   jurusan  Jurusan?
   review   Review[]
+  galeri   Galeri[] 
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -80,9 +81,15 @@ model Jurusan {
 }
 
 enum StatusProduk {
-  TERSEDIA
-  HABIS
-  NONAKTIF
+  Tersedia
+  Habis
+  Nonaktif
+}
+
+enum StatusPublikasi {
+  Pending
+  Published
+  Revisi
 }
 
 model Produk {
@@ -94,9 +101,12 @@ model Produk {
   nama_produk String
   deskripsi   String?
   harga       Int
-  status      StatusProduk @default(TERSEDIA)
+  status      StatusProduk @default(Tersedia)
   view_count  Int          @default(0)
   sold_count  Int          @default(0)
+
+  status_publikasi StatusPublikasi @default(Pending)
+  catatan_revisi   String?  
 
   foto   FotoProduk[]
   barang Barang[]
@@ -172,4 +182,27 @@ model Review {
   komentar String?
 
   createdAt DateTime @default(now())
+}
+
+
+enum KategoriGaleri {
+  Pameran
+  Lomba
+  Pelatihan
+  Kunjungan
+}
+
+model Galeri {
+  galeri_id String @id @default(uuid())
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  judul     String
+  deskripsi String?
+  kategori  KategoriGaleri
+  image     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

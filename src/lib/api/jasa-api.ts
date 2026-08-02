@@ -54,3 +54,29 @@ export async function uploadJasaImages(files: File[]): Promise<string[]> {
     const data = await res.json();
     return data.urls as string[];
 }
+
+export async function publikasiJasa(id: string) {
+    const res = await fetch(`/api/jasa/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "publikasi" }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "PublikasiFailed");
+    }
+    return res.json();
+}
+
+export async function revisiJasa(id: string, catatan_revisi: string) {
+    const res = await fetch(`/api/jasa/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "revisi", catatan_revisi }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "RevisiFailed");
+    }
+    return res.json();
+}

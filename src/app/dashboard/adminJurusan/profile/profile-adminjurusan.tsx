@@ -20,6 +20,7 @@ import {
 
 import { uploadAvatar, updateProfile, updatePassword } from "@/lib/api/profile-api";
 import type { ProfileData } from "@/types/interfaces/profile";
+import JamOperasionalField from "@/components/JamOperasionalField";
 
 export default function ProfileClient({ initialData }: { initialData: ProfileData }) {
     const { update } = useSession();
@@ -273,16 +274,10 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="jam_operasional" className="text-sm text-gray-600">Jam Operasional</Label>
-                        <textarea
-                            id="jam_operasional"
-                            value={profileForm.jam_operasional}
-                            onChange={(e) => setProfileForm({ ...profileForm, jam_operasional: e.target.value })}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-lg min-h-30 p-3 text-sm shadow-none resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                            placeholder="jam_operasional"
-                        />
-                    </div>
+                    <JamOperasionalField
+                        value={profileForm.jam_operasional}
+                        onChange={(value) => setProfileForm({ ...profileForm, jam_operasional: value })}
+                    />
                 </div>
 
                 <div className="px-6 py-4 border-b border-gray-100">

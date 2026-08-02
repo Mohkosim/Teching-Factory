@@ -54,3 +54,30 @@ export async function uploadProdukImages(files: File[]): Promise<string[]> {
     const data = await res.json();
     return data.urls as string[];
 }
+
+// ── Aksi AdminSMK, pakai endpoint yang sama dengan updateProduk ──
+export async function publikasiProduk(id: string) {
+    const res = await fetch(`/api/produk/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "publikasi" }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "PublikasiFailed");
+    }
+    return res.json();
+}
+
+export async function revisiProduk(id: string, catatan_revisi: string) {
+    const res = await fetch(`/api/produk/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "revisi", catatan_revisi }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "RevisiFailed");
+    }
+    return res.json();
+}

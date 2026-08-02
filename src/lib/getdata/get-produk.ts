@@ -6,21 +6,35 @@ import type { ProdukItem } from "@/types/interfaces/produk";
 
 export async function getProdukList(): Promise<ProdukItem[]> {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "AdminJurusan") {
-        redirect("/login");
+    if (!session || !["AdminJurusan", "AdminSMK"].includes(session.user.role)) {
+        redirect("/auth/login");
     }
 
-    const jurusan = await prisma.jurusan.findUnique({
-        where: { user_id: session.user.id },
-    });
-    if (!jurusan) return [];
+    let jurusanIdFilter: string[] = [];
+
+    if (session.user.role === "AdminJurusan") {
+        const jurusan = await prisma.jurusan.findUnique({
+            where: { user_id: session.user.id },
+        });
+        if (!jurusan) return [];
+        jurusanIdFilter = [jurusan.jurusan_id];
+    } else {
+        const smk = await prisma.sMK.findUnique({
+            where: { user_id: session.user.id },
+            include: { jurusans: true },
+        });
+        if (!smk) return [];
+        jurusanIdFilter = smk.jurusans.map((j) => j.jurusan_id);
+    }
+
+    if (jurusanIdFilter.length === 0) return [];
 
     const produkList = await prisma.produk.findMany({
         where: {
-            jurusan_id: jurusan.jurusan_id,
+            jurusan_id: { in: jurusanIdFilter },
             barang: { some: {} },
         },
-        include: { barang: true, foto: true },
+        include: { barang: true, foto: true, jurusan: true },
         orderBy: { createdAt: "desc" },
     });
 
@@ -36,5 +50,9 @@ export async function getProdukList(): Promise<ProdukItem[]> {
         sold_count: p.sold_count,
         stok: p.barang.reduce((sum, b) => sum + b.stok, 0),
         kondisi: p.barang[0]?.kondisi ?? null,
+
+        nama_jurusan: p.jurusan.nama_jurusan,
+        status_publikasi: p.status_publikasi,
+        catatan_revisi: p.catatan_revisi,
     }));
 }

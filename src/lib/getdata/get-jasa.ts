@@ -6,18 +6,30 @@ import type { JasaItem } from "@/types/interfaces/jasa";
 
 export async function getJasaList(): Promise<JasaItem[]> {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "AdminJurusan") {
+    if (!session || !["AdminJurusan", "AdminSMK"].includes(session.user.role)) {
         redirect("/login");
     }
 
-    const jurusan = await prisma.jurusan.findUnique({
-        where: { user_id: session.user.id },
-    });
-    if (!jurusan) return [];
+    let jurusanIdFilter: string[] = [];
+
+    if (session.user.role === "AdminJurusan") {
+        const jurusan = await prisma.jurusan.findUnique({ where: { user_id: session.user.id } });
+        if (!jurusan) return [];
+        jurusanIdFilter = [jurusan.jurusan_id];
+    } else {
+        const smk = await prisma.sMK.findUnique({
+            where: { user_id: session.user.id },
+            include: { jurusans: true },
+        });
+        if (!smk) return [];
+        jurusanIdFilter = smk.jurusans.map((j) => j.jurusan_id);
+    }
+
+    if (jurusanIdFilter.length === 0) return [];
 
     const jasaList = await prisma.jasa.findMany({
-        where: { produk: { jurusan_id: jurusan.jurusan_id } },
-        include: { produk: { include: { foto: true } } },
+        where: { produk: { jurusan_id: { in: jurusanIdFilter } } },
+        include: { produk: { include: { foto: true, jurusan: true } } },
         orderBy: { createdAt: "desc" },
     });
 
@@ -32,5 +44,9 @@ export async function getJasaList(): Promise<JasaItem[]> {
         estimasi_pengerjaan: j.estimasi_pengerjaan,
         total_project: j.total_project,
         view_count: j.produk.view_count,
+
+        nama_jurusan: j.produk.jurusan.nama_jurusan,
+        status_publikasi: j.produk.status_publikasi,
+        catatan_revisi: j.produk.catatan_revisi,
     }));
 }

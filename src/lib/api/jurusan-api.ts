@@ -19,19 +19,6 @@ export interface UpdateJurusanPayload {
     kepala_jurusan?: string;
 }
 
-export async function updateJurusanAccount(id: string, payload: UpdateJurusanPayload) {
-    const res = await fetch(`/api/jurusan-account/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update-data", ...payload }),
-    });
-    if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? "UpdateFailed");
-    }
-    return res.json();
-}
-
 export async function toggleJurusanStatus(id: string) {
     const res = await fetch(`/api/jurusan-account/${id}`, {
         method: "PATCH",

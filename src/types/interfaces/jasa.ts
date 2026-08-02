@@ -4,9 +4,13 @@ export interface JasaItem {
     nama_jasa: string;
     deskripsi: string | null;
     harga: number;
-    status: "TERSEDIA" | "HABIS" | "NONAKTIF";
+    status: "Tersedia" | "Habis" | "Nonaktif";
     estimasi_pengerjaan: string | null;
     total_project: number;
     view_count: number;
     fotos: string[];
+
+    nama_jurusan?: string;
+    status_publikasi?: "Pending" | "Published" | "Revisi";
+    catatan_revisi?: string | null;
 }
