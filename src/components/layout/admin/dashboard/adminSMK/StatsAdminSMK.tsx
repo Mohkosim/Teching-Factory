@@ -3,32 +3,35 @@ import { IoSchool } from "react-icons/io5";
 import { FaBoxArchive } from "react-icons/fa6";
 import { MdMiscellaneousServices } from "react-icons/md";
 import { StatItem } from "@/types/dashboard";
+import { getStatsAdminSMK } from "@/lib/getdata/get-stats";
 
-const stats: StatItem[] = [
-  {
-    title: "Total Jurusan",
-    value: 24,
-    description: "Jumlah jurusan terdaftar",
-    icon: <IoSchool className="w-10 h-10 text-sky-500" />,
-    iconBg: "bg-sky-100",
-  },
-  {
-    title: "Total Produk",
-    value: 12,
-    description: "Jumlah produk terdaftar",
-    icon: <FaBoxArchive className="w-10 h-10 text-sky-500" />,
-    iconBg: "bg-sky-100",
-  },
-  {
-    title: "Total Jasa",
-    value: 12,
-    description: "Jumlah jasa terdaftar",
-    icon: <MdMiscellaneousServices className="w-10 h-10 text-sky-500" />,
-    iconBg: "bg-sky-100",
-  },
-];
+export async function StatsAdminSMK() {
+  const { totalJurusan, totalProduk, totalJasa } = await getStatsAdminSMK();
 
-export function StatsAdminSMK () {
+  const stats: StatItem[] = [
+    {
+      title: "Total Jurusan",
+      value: totalJurusan,
+      description: "Jumlah jurusan terdaftar",
+      icon: <IoSchool className="w-10 h-10 text-sky-500" />,
+      iconBg: "bg-sky-100",
+    },
+    {
+      title: "Total Produk",
+      value: totalProduk,
+      description: "Jumlah produk terdaftar",
+      icon: <FaBoxArchive className="w-10 h-10 text-sky-500" />,
+      iconBg: "bg-sky-100",
+    },
+    {
+      title: "Total Jasa",
+      value: totalJasa,
+      description: "Jumlah jasa terdaftar",
+      icon: <MdMiscellaneousServices className="w-10 h-10 text-sky-500" />,
+      iconBg: "bg-sky-100",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {stats.map((item) => (

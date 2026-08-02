@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { slugify } from "@/lib/utils/slug";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -28,7 +29,7 @@ export const authOptions: NextAuthOptions = {
           console.log("❌ Password salah untuk:", credentials.email);
           return null;
         }
-        
+
         if (!user.isActive) {
           throw new Error("AccountDisabled");
         }
@@ -68,6 +69,27 @@ export const authOptions: NextAuthOptions = {
         token.image = user.image;
         token.name = user.name;
         token.email = user.email;
+
+        if (user.role === "AdminSMK") {
+          const smk = await prisma.sMK.findUnique({
+            where: { user_id: user.id },
+            include: { user: true },
+          });
+          if (smk) {
+            token.smkSlug = slugify(smk.user.name);
+          }
+        }
+
+        if (user.role === "AdminJurusan") {
+          const jurusan = await prisma.jurusan.findUnique({
+            where: { user_id: user.id },
+            include: { smk: { include: { user: true } } },
+          });
+          if (jurusan) {
+            token.smkSlug = slugify(jurusan.smk.user.name);
+            token.jurusanSlug = slugify(jurusan.nama_jurusan);
+          }
+        }
       }
 
       if (trigger === "update" && session) {
@@ -85,6 +107,7 @@ export const authOptions: NextAuthOptions = {
       session.user.image = token.image as string;
       session.user.name = token.name as string;
       session.user.email = token.email as string;
+      session.user.smkSlug = token.smkSlug as string | undefined;
       return session;
     },
   },

@@ -1,4 +1,5 @@
 import { StatsSuperAdmin } from "@/components/layout/admin/dashboard/superAdmin/StatsSuperAdmin";
+import { getStatsChart } from "@/lib/getdata/get-stats-chart";
 import { StatisticsChart } from "@/components/layout/admin/dashboard/superAdmin/StatisticsChart";
 import { ContactsInTable } from "@/components/layout/admin/dashboard/superAdmin/ContactsInTable";
 import {
@@ -9,7 +10,9 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+    const chartData = await getStatsChart();
+
     return (
         <div className="space-y-6 px-6">
             {/* Page Header */}
@@ -35,7 +38,7 @@ export default function DashboardPage() {
 
             {/* Charts & Table */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <StatisticsChart />
+                <StatisticsChart data={chartData} />
                 <ContactsInTable />
             </div>
         </div>
