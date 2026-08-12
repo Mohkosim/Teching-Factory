@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,11 +10,29 @@ import {
     ChevronRight,
     MessageCircle,
     ClipboardList,
+    UploadCloud,
+    X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { JasaPublicItem } from "@/lib/data/jasa-public";
 
@@ -29,6 +47,23 @@ const DAFTAR_TAB: { key: TabDetail; label: string }[] = [
     { key: "review", label: "Review" },
 ];
 
+// ==== Form Pemesanan Jasa ====
+interface FormPemesananJasa {
+    namaPelanggan: string;
+    namaJasa: string;
+    tanggal: string;
+    metodePembayaran: string;
+    nominal: string;
+}
+
+const FORM_PEMESANAN_AWAL: FormPemesananJasa = {
+    namaPelanggan: "",
+    namaJasa: "",
+    tanggal: "",
+    metodePembayaran: "",
+    nominal: "",
+};
+
 export default function JasaDetailClient({
     jasa,
     rekomendasi,
@@ -39,10 +74,53 @@ export default function JasaDetailClient({
     const [gambarAktif, setGambarAktif] = useState(0);
     const [tabAktif, setTabAktif] = useState<TabDetail>("deskripsi");
 
+    // ==== State form pemesanan jasa ====
+    const [formOpen, setFormOpen] = useState(false);
+    const [formData, setFormData] = useState<FormPemesananJasa>(FORM_PEMESANAN_AWAL);
+    const [buktiFile, setBuktiFile] = useState<File | null>(null);
+    const [isPending, setIsPending] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const galeri = jasa.fotos.length > 0 ? jasa.fotos : [jasa.gambar];
 
     const geserGaleri = (arah: 1 | -1) => {
         setGambarAktif((i) => (i + arah + galeri.length) % galeri.length);
+    };
+
+    const handleFormChange = (field: keyof FormPemesananJasa, value: string) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const openForm = () => {
+        setFormData({ ...FORM_PEMESANAN_AWAL, namaJasa: jasa.nama });
+        setBuktiFile(null);
+        setFormOpen(true);
+    };
+
+    const closeForm = () => {
+        setFormOpen(false);
+        setFormData(FORM_PEMESANAN_AWAL);
+        setBuktiFile(null);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) setBuktiFile(file);
+        e.target.value = "";
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (file) setBuktiFile(file);
+    };
+
+    const handleSubmitForm = async () => {
+        // TODO: sambungkan ke API pemesanan jasa sesungguhnya
+        setIsPending(true);
+        console.log("Form Pemesanan Jasa:", { ...formData, buktiFile });
+        setIsPending(false);
+        closeForm();
     };
 
     return (
@@ -127,7 +205,11 @@ export default function JasaDetailClient({
                                 <MessageCircle className="h-4 w-4" />
                                 Hubungi Penyedia Jasa
                             </Button>
-                            <Button variant="outline" className="gap-2 rounded-full border-gray-300 px-6">
+                            <Button
+                                onClick={openForm}
+                                variant="outline"
+                                className="gap-2 rounded-full border-gray-300 px-6"
+                            >
                                 <ClipboardList className="h-4 w-4" />
                                 Form Pemesanan
                             </Button>
@@ -193,6 +275,137 @@ export default function JasaDetailClient({
                     </div>
                 )}
             </div>
+
+            {/* Dialog Form Pemesanan Jasa */}
+            <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
+                <DialogContent className="w-[92vw] max-w-md sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold text-gray-900">
+                            Form Pembayaran Jasa
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Nama Pelanggan</Label>
+                            <Input
+                                value={formData.namaPelanggan}
+                                onChange={(e) => handleFormChange("namaPelanggan", e.target.value)}
+                                placeholder="Masukkan Nama Pelanggan"
+                                className="bg-gray-50 border-gray-200 rounded-lg"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Nama Jasa</Label>
+                            <Input
+                                value={formData.namaJasa}
+                                onChange={(e) => handleFormChange("namaJasa", e.target.value)}
+                                placeholder="Masukkan Nama Jasa"
+                                className="bg-gray-50 border-gray-200 rounded-lg"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Tanggal</Label>
+                            <Input
+                                type="date"
+                                value={formData.tanggal}
+                                onChange={(e) => handleFormChange("tanggal", e.target.value)}
+                                placeholder="Tanggal"
+                                className="bg-gray-50 border-gray-200 rounded-lg"
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Metode Pembayaran</Label>
+                            <Select
+                                value={formData.metodePembayaran}
+                                onValueChange={(v) => handleFormChange("metodePembayaran", v)}
+                            >
+                                <SelectTrigger className="bg-gray-50 border-gray-200 rounded-lg">
+                                    <SelectValue placeholder="Metode Pembayaran" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="bni">BNI - Bank Negara Indonesia</SelectItem>
+                                    <SelectItem value="bri">BRI - Bank Rakyat Indonesia</SelectItem>
+                                    <SelectItem value="bca">BCA - Bank Central Asia</SelectItem>
+                                    <SelectItem value="qris">QRIS</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Nominal</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                                    Rp
+                                </span>
+                                <Input
+                                    type="number"
+                                    value={formData.nominal}
+                                    onChange={(e) => handleFormChange("nominal", e.target.value)}
+                                    placeholder="Masukkan Nominal"
+                                    className="bg-gray-50 border-gray-200 rounded-lg pl-9"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Upload Bukti Pembayaran</Label>
+
+                            {buktiFile ? (
+                                <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <span className="truncate text-sm text-gray-700">{buktiFile.name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBuktiFile(null)}
+                                        className="ml-3 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/10 text-gray-500 hover:bg-black/20"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={handleDrop}
+                                    className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center"
+                                >
+                                    <p className="text-sm text-gray-400">Seret dan letakkan file di sini</p>
+                                    <p className="text-xs text-gray-400">atau klik untuk menelusuri</p>
+                                    <Button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="mt-1 rounded-lg bg-sky-500 hover:bg-sky-600 text-white px-6"
+                                        size="sm"
+                                    >
+                                        <UploadCloud className="h-4 w-4 mr-1.5" />
+                                        Upload
+                                    </Button>
+                                </div>
+                            )}
+
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,application/pdf"
+                                className="hidden"
+                                onChange={handleFileChange}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            onClick={handleSubmitForm}
+                            disabled={isPending}
+                            className="w-full rounded-full bg-sky-500 hover:bg-sky-600 text-white"
+                        >
+                            {isPending ? "Menyimpan..." : "Simpan"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

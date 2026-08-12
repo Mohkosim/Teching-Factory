@@ -119,7 +119,7 @@ export default function Navbar() {
 
                     <DropdownMenuItem asChild>
                       <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
-                        <UserIcon size={16} /> Edit
+                        <UserIcon size={16} /> Profile
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -128,7 +128,7 @@ export default function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/pesanan" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/profile/pesanan" className="flex items-center gap-2 cursor-pointer">
                         <Package size={16} /> Pesanan
                       </Link>
                     </DropdownMenuItem>
