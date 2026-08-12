@@ -94,3 +94,20 @@ export async function getStatsAdminJurusan() {
     return { totalProduk, totalJasa, totalPesanan };
 }
 
+export interface TefaStats {
+  smk: number;
+  jurusan: number;
+  produk: number;
+  jasa: number;
+}
+
+export async function getTefaStats(): Promise<TefaStats> {
+  const [smk, jurusan, produk, jasa] = await Promise.all([
+    prisma.sMK.count(),
+    prisma.jurusan.count(),
+    prisma.barang.count(),
+    prisma.jasa.count(),
+  ]);
+
+  return { smk, jurusan, produk, jasa };
+}

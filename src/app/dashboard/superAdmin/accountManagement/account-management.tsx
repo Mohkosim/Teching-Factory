@@ -33,7 +33,7 @@ import { toast } from "sonner";
 import { SMKAccount } from "@/types/interfaces/accountAdmin"
 
 const ROLE_LABELS: Record<SMKAccount["role"], string> = {
-    User: "Admin Pelanggan",
+    User: "User",
     SuperAdmin: "Admin Utama",
     AdminSMK: "Admin SMK",
     AdminJurusan: "Admin Jurusan",
@@ -207,6 +207,7 @@ export default function AccountManagement({
                             <TableHead className="font-semibold text-gray-600 px-6">SMK</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Logo</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Alamat</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Phone</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Role</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-15">Aksi</TableHead>
@@ -240,6 +241,10 @@ export default function AccountManagement({
                                     <TableCell className="text-gray-500 max-w-xs py-4 px-6">
                                         <span className="line-clamp-2 text-sm">{item.alamat ?? "-"}</span>
                                     </TableCell>
+                                    <TableCell className="text-gray-500 max-w-xs py-4 px-6">
+                                        <span className="line-clamp-2 text-sm">{item.phone ?? "-"}</span>
+                                    </TableCell>
+
                                     <TableCell className="py-4 px-6">
                                         <span
                                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.role === "AdminSMK"
@@ -428,6 +433,12 @@ export default function AccountManagement({
                                     </span>
                                 </div>
                                 <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 col-span-2">
+                                    <p className="text-xs font-medium uppercase text-gray-400">Penangung Jawab</p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-700 truncate">
+                                        {detailItem.kepala_sekolah || "-"}
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 col-span-2">
                                     <p className="text-xs font-medium uppercase text-gray-400">Email</p>
                                     <p className="mt-1 text-sm font-semibold text-gray-700 truncate">
                                         {detailItem.email}
@@ -439,13 +450,12 @@ export default function AccountManagement({
                                         {ROLE_LABELS[detailItem.role]}
                                     </p>
                                 </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <p className="text-sm font-medium text-gray-700">Alamat</p>
-                                <p className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm leading-6 text-gray-600">
-                                    {detailItem.alamat || "-"}
-                                </p>
+                                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 col-span-2">
+                                    <p className="text-xs font-medium uppercase text-gray-400">Alamat</p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-700">
+                                        {detailItem.alamat || "-"}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     )}

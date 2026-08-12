@@ -8,6 +8,7 @@ export interface SMKAccount {
   isActive: boolean;
 
   // Data dari relasi SMK (opsional, hanya ada kalau role AdminSMK)
+  kepala_sekolah?: string | null;
   smk_id?: string | null;
   alamat?: string | null;
   kota?: string | null;

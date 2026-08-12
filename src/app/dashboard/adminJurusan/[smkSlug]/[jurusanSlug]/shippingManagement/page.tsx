@@ -3,8 +3,6 @@
 import { useState, useMemo } from "react";
 import {
     Search,
-    ChevronLeft,
-    ChevronRight,
     Pencil,
     Trash2,
     Plus,

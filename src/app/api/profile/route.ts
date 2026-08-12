@@ -19,7 +19,7 @@ export async function GET() {
     return NextResponse.json(profile);
 }
 
-// PATCH: update field dasar (name, email, img) + field spesifik sesuai role
+// PATCH: update field dasar (name, email, img, phone) + field spesifik sesuai role
 export async function PATCH(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -31,13 +31,16 @@ export async function PATCH(req: Request) {
         name,
         email,
         img,
+        phone,
         // AdminSMK
+        kepala_sekolah,
+        deskripsi_smk,
         alamat,
         kota,
         provinsi,
+        map_link,
         tahun_berdiri,
         // AdminJurusan
-        phone,
         deskripsi,
         kepala_jurusan,
         jam_operasional,
@@ -45,11 +48,14 @@ export async function PATCH(req: Request) {
         name?: string;
         email?: string;
         img?: string;
+        phone?: string;
+        kepala_sekolah?: string;
+        deskripsi_smk?: string;
         alamat?: string;
         kota?: string;
         provinsi?: string;
+        map_link?: string;
         tahun_berdiri?: number | string;
-        phone?: string;
         deskripsi?: string;
         kepala_jurusan?: string;
         jam_operasional?: string;
@@ -81,21 +87,22 @@ export async function PATCH(req: Request) {
 
     const isNewSmk = currentUser.role === "AdminSMK" && !currentUser.smk?.smk_id;
     if (isNewSmk) {
-        if (!alamat || !kota || !provinsi || !tahun_berdiri) {
+        if (!kepala_sekolah || !phone || !alamat || !kota || !provinsi || !tahun_berdiri) {
             return NextResponse.json(
-                { message: "Alamat, kota, provinsi, dan tahun berdiri wajib diisi" },
+                { message: "Nama kepala sekolah, nomor telepon, alamat, kota, provinsi, dan tahun berdiri wajib diisi" },
                 { status: 400 }
             );
         }
     }
 
-    // ── Update field dasar User ──
+    // ── Update field dasar User (name, email, img, phone) ──
     const updatedUser = await prisma.user.update({
         where: { user_id: session.user.id },
         data: {
             ...(name !== undefined ? { name } : {}),
             ...(email !== undefined ? { email } : {}),
             ...(img !== undefined ? { img } : {}),
+            ...(phone !== undefined ? { phone } : {}),
         },
         select: {
             user_id: true,
@@ -111,9 +118,12 @@ export async function PATCH(req: Request) {
             await prisma.sMK.update({
                 where: { smk_id: updatedUser.smk.smk_id },
                 data: {
+                    ...(kepala_sekolah !== undefined ? { kepala_sekolah } : {}),
+                    ...(deskripsi_smk !== undefined ? { deskripsi: deskripsi_smk } : {}),
                     ...(alamat !== undefined ? { alamat } : {}),
                     ...(kota !== undefined ? { kota } : {}),
                     ...(provinsi !== undefined ? { provinsi } : {}),
+                    ...(map_link !== undefined ? { map_link } : {}),
                     ...(tahun_berdiri !== undefined ? { tahun_berdiri: Number(tahun_berdiri) } : {}),
                 },
             });
@@ -122,36 +132,28 @@ export async function PATCH(req: Request) {
             await prisma.sMK.create({
                 data: {
                     user_id: updatedUser.user_id,
+                    kepala_sekolah: kepala_sekolah!,
+                    deskripsi: deskripsi_smk,
                     alamat: alamat!,
                     kota: kota!,
                     provinsi: provinsi!,
+                    map_link,
                     tahun_berdiri: Number(tahun_berdiri),
                 },
             });
         }
     }
 
-    // ── AdminJurusan: sama polanya, update kalau ada baris jurusan ──
-    if (updatedUser.role === "AdminJurusan") {
-        // Update phone di tabel User
-        if (phone !== undefined) {
-            await prisma.user.update({
-                where: { user_id: updatedUser.user_id },
-                data: { phone },
-            });
-        }
-
-        // Update field lain di tabel Jurusan
-        if (updatedUser.jurusan?.jurusan_id) {
-            await prisma.jurusan.update({
-                where: { jurusan_id: updatedUser.jurusan.jurusan_id },
-                data: {
-                    ...(deskripsi !== undefined ? { deskripsi } : {}),
-                    ...(kepala_jurusan !== undefined ? { kepala_jurusan } : {}),
-                    ...(jam_operasional !== undefined ? { jam_operasional } : {}),
-                },
-            });
-        }
+    // ── AdminJurusan: update field di tabel Jurusan (phone sudah di-handle di atas) ──
+    if (updatedUser.role === "AdminJurusan" && updatedUser.jurusan?.jurusan_id) {
+        await prisma.jurusan.update({
+            where: { jurusan_id: updatedUser.jurusan.jurusan_id },
+            data: {
+                ...(deskripsi !== undefined ? { deskripsi } : {}),
+                ...(kepala_jurusan !== undefined ? { kepala_jurusan } : {}),
+                ...(jam_operasional !== undefined ? { jam_operasional } : {}),
+            },
+        });
     }
 
     const fresh = await getCurrentUserProfile();

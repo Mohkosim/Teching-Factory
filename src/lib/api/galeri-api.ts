@@ -54,3 +54,17 @@ export async function uploadGaleriImage(file: File): Promise<string> {
     const data = await res.json();
     return data.url as string;
 }
+
+export async function fetchGaleriDetail(galeri_id: string): Promise<GaleriForm> {
+  const res = await fetch("/api/galeri/detail", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ galeri_id }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Gagal memuat detail galeri");
+  }
+
+  return res.json();
+}

@@ -30,6 +30,7 @@ export async function getSMKAccounts(): Promise<SMKAccount[]> {
         role: u.role,
         isActive: u.isActive,
         smk_id: u.smk?.smk_id ?? null,
+        kepala_sekolah: u.smk?.kepala_sekolah ?? null,
         alamat: u.smk?.alamat ?? null,
         kota: u.smk?.kota ?? null,
         provinsi: u.smk?.provinsi ?? null,

@@ -104,26 +104,32 @@ export function Navbar({ collapsed, onToggleSidebar }: NavbarProps) {
                     </DropdownMenuLabel>
 
                     <DropdownMenuSeparator />
-
                     <DropdownMenuItem
                         className="gap-2 cursor-pointer rounded-lg"
-                        onClick={() => router.push(getProfilePath(user?.role))}
-                    >
+                        onClick={() =>
+                            router.push(
+                                getProfilePath({
+                                    role: user?.role,
+                                    smkSlug: user?.smkSlug,
+                                    jurusanSlug: user?.jurusanSlug,
+                                })
+                            )
+                        }>
                         <User className="h-4 w-4 text-gray-500" />
-                        <span>Profil</span>
-                    </DropdownMenuItem>
+                    <span>Profil</span>
+                </DropdownMenuItem>
 
-                    <DropdownMenuSeparator />
+                <DropdownMenuSeparator />
 
-                    <DropdownMenuItem
-                        onClick={() => signOut({ callbackUrl: "/" })}
-                        className="gap-2 cursor-pointer rounded-lg text-red-500 focus:text-red-500 focus:bg-red-50"
-                    >
-                        <LogOut className="h-4 w-4" />
-                        <span>Keluar</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </header>
+                <DropdownMenuItem
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="gap-2 cursor-pointer rounded-lg text-red-500 focus:text-red-500 focus:bg-red-50"
+                >
+                    <LogOut className="h-4 w-4" />
+                    <span>Keluar</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+        </header >
     );
 }

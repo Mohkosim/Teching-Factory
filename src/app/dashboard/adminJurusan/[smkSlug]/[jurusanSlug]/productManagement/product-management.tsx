@@ -42,6 +42,20 @@ function formatRupiah(value: number) {
     return "Rp " + value.toLocaleString("id-ID");
 }
 
+function isKontenBerubah(
+    original: ProdukItem,
+    parsed: ProdukForm,
+    fotosBaru: string[]
+): boolean {
+    return (
+        original.nama_produk !== parsed.nama_produk ||
+        (original.deskripsi ?? "") !== (parsed.deskripsi ?? "") ||
+        original.harga !== parsed.harga ||
+        (original.kondisi ?? "") !== (parsed.kondisi ?? "") ||
+        JSON.stringify(original.fotos) !== JSON.stringify(fotosBaru)
+    );
+}
+
 export default function ProductManagement({ initialData }: { initialData: ProdukItem[] }) {
     const [products, setProducts] = useState<ProdukItem[]>(initialData);
     const [search, setSearch] = useState("");
@@ -211,15 +225,38 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                     setProducts((prev) => [newItem, ...prev]);
                     toast.success("Produk berhasil ditambahkan");
                 } else if (formMode === "edit" && editingId) {
-                    await updateProduk(editingId, parsed.data);
+                    const original = products.find((p) => p.produk_id === editingId);
+
+                    const kontenBerubah = original
+                        ? isKontenBerubah(original, parsed.data, fotos)
+                        : true;
+                    const harusReviewUlang =
+                        kontenBerubah &&
+                        (original?.status_publikasi === "Published" ||
+                            original?.status_publikasi === "Revisi");
+
+                    const nextStatusPublikasi = harusReviewUlang
+                        ? "Pending"
+                        : original?.status_publikasi ?? "Pending";
+
+                    await updateProduk(editingId, {
+                        ...parsed.data,
+                        status_publikasi: nextStatusPublikasi,
+                    });
+
                     setProducts((prev) =>
                         prev.map((p) =>
                             p.produk_id === editingId
-                                ? { ...p, ...parsed.data, fotos, status_publikasi: "Pending" }
+                                ? { ...p, ...parsed.data, fotos, status_publikasi: nextStatusPublikasi }
                                 : p
                         )
                     );
-                    toast.success("Produk berhasil diperbarui, menunggu review ulang");
+
+                    toast.success(
+                        harusReviewUlang
+                            ? "Produk berhasil diperbarui, menunggu review ulang"
+                            : "Produk berhasil diperbarui"
+                    );
                 }
                 closeForm();
             } catch (err) {

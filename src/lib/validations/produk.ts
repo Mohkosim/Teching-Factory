@@ -8,6 +8,7 @@ export const produkSchema = z.object({
     fotos: z.array(z.string().min(1)).min(1, "Minimal 1 foto produk"),
     stok: z.coerce.number().min(0, "Stok tidak boleh negatif"),
     kondisi: z.string().min(1, "Kondisi wajib diisi"),
+    status_publikasi: z.enum(["Pending", "Published", "Revisi"]).optional(),
 });
 
 export type ProdukForm = z.infer<typeof produkSchema>;

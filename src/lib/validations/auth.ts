@@ -42,16 +42,12 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(1, "Kata sandi wajib diisi")
-      .min(8, "Kata sandi minimal 8 karakter")
-      .regex(/[A-Z]/, "Harus mengandung minimal 1 huruf kapital")
-      .regex(/[0-9]/, "Harus mengandung minimal 1 angka"),
+    token: z.string().min(1),
+    password: z.string().min(8, "Kata sandi minimal 8 karakter"),
     confirmPassword: z.string().min(1, "Konfirmasi kata sandi wajib diisi"),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Kata sandi tidak cocok",
+    message: "Konfirmasi kata sandi tidak cocok",
     path: ["confirmPassword"],
   });
 

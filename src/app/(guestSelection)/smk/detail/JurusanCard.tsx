@@ -1,0 +1,41 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { GraduationCap, ArrowRight } from "lucide-react";
+import { JurusanListItem } from "@/types/interfaces/jurusan";
+
+export default function JurusanCard({ jurusan }: { jurusan: JurusanListItem }) {
+  const router = useRouter();
+
+  function handleClick() {
+    sessionStorage.setItem("selectedJurusanId", jurusan.jurusan_id);
+    router.push("/smk/detail/detailJurusan");
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+    >
+      <div className="flex items-center justify-center px-6 pt-8 pb-6">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-blue-50">
+          <GraduationCap className="h-10 w-10 text-blue-500" />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-4 py-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-gray-900">
+            {jurusan.nama_jurusan}
+          </p>
+          <p className="text-xs text-gray-500">{jurusan.jumlahProduk} Produk</p>
+        </div>
+
+        <span className="flex shrink-0 items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors group-hover:border-blue-200 group-hover:bg-blue-50 group-hover:text-blue-600">
+          Lihat Detail
+          <ArrowRight className="h-3 w-3" />
+        </span>
+      </div>
+    </button>
+  );
+}

@@ -1,46 +1,52 @@
+"use client";
+
 import * as React from "react"
 import Link from "next/link";
+import Image from "next/image";
 import Autoplay from "embla-carousel-autoplay"
 import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
+    Carousel,
+    CarouselContent,
+    CarouselItem,
 } from "@/components/ui/carousel"
 import { ChevronRight } from "lucide-react";
 
 const backgrounds = [
-  { src: "/img/image1.png", alt: "Karya Siswa 1" },
-  { src: "/img/image1.png", alt: "Karya Siswa 2" },
-  { src: "/img/image1.png", alt: "Karya Siswa 3" },
+    { src: "/img/image1.png", alt: "Karya Siswa 1" },
+    { src: "/img/image1.png", alt: "Karya Siswa 2" },
+    { src: "/img/image1.png", alt: "Karya Siswa 3" },
 ];
 
 const floatingIcons = [
-  { img: "/icons/icons2.png", top: "25%", left: "15%", rotate: "-6" },
-  { img: "/icons/icons6.png", top: "20%", right: "15%", rotate: "6" },
-  { img: "/icons/icons3.png", top: "75%", left: "20%", rotate: "-6" },
-  { img: "/icons/icons4.png", top: "80%", right: "20%", rotate: "6" },
-  { img: "/icons/icons5.png", top: "53%", right: "8%", rotate: "3" },
-  { img: "/icons/icons1.png", top: "55%", left: "8%", rotate: "-3" },
+    { img: "/icons/icons2.png", top: "15%", left: "15%", rotate: "-6" },
+    { img: "/icons/icons6.png", top: "10%", right: "15%", rotate: "6" },
+    { img: "/icons/icons3.png", top: "65%", left: "20%", rotate: "-6" },
+    { img: "/icons/icons4.png", top: "70%", right: "20%", rotate: "6" },
+    { img: "/icons/icons5.png", top: "43%", right: "8%", rotate: "3" },
+    { img: "/icons/icons1.png", top: "45%", left: "8%", rotate: "-3" },
 ];
 
 export default function HeroSection() {
-    const plugin = React.useRef(
+    const [plugin] = React.useState(() =>
         Autoplay({ delay: 5000, stopOnInteraction: false })
-    )
+    );
+
     return (
         <section className="relative min-h-screen flex items-center overflow-hidden">
             <Carousel
-                plugins={[plugin.current]}
+                plugins={[plugin]}
                 className="absolute inset-0 w-full h-full"
             >
                 <CarouselContent className="ml-0 w-full h-full">
                     {backgrounds.map((bg, index) => (
                         <CarouselItem key={index} className="pl-0 w-full h-full">
                             <div className="relative h-screen w-full">
-                                <img
+                                <Image
                                     src={bg.src}
                                     alt={bg.alt}
-                                    className="absolute inset-0 w-full h-full object-cover opacity-50"
+                                    fill
+                                    priority={index === 0}
+                                    className="object-cover opacity-50"
                                 />
                                 <div className="absolute inset-0 bg-black/40" />
                             </div>
@@ -139,14 +145,16 @@ export default function HeroSection() {
                         transform: `rotate(${item.rotate}deg)`,
                     }}
                 >
-                    <img
+                    <Image
                         src={item.img}
                         alt="icon"
+                        fill
+                        className="object-contain"
                     />
                 </div>
             ))}
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-5 text-center">
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-5 text-center">
                 {/* Badge */}
                 <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white text-sm font-medium px-4 py-2 rounded-full mb-6 border border-white/20">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />

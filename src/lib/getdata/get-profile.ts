@@ -21,9 +21,12 @@ export async function getCurrentUserProfile(): Promise<ProfileData | null> {
         img: user.img,
         phone: user.phone,
 
+        kepala_sekolah: user.smk?.kepala_sekolah ?? null,
+        deskripsi_smk: user.smk?.deskripsi ?? null,
         alamat: user.smk?.alamat ?? null,
         kota: user.smk?.kota ?? null,
         provinsi: user.smk?.provinsi ?? null,
+        map_link: user.smk?.map_link ?? null,
         tahun_berdiri: user.smk?.tahun_berdiri ?? null,
 
         deskripsi: user.jurusan?.deskripsi ?? null,

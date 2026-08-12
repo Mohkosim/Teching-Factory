@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { getNavGroups, Role } from "@/lib/config/nav-config";
+import { usePathname, useParams } from "next/navigation";
+import { getNavGroups, NavItem, Role } from "@/lib/config/nav-config";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -13,7 +13,20 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, role }: SidebarProps) {
   const pathname = usePathname();
-  const navGroups = getNavGroups(role);
+
+  const params = useParams<{ smkSlug?: string; jurusanSlug?: string }>();
+
+  const navGroups = getNavGroups(role, {
+    smkSlug: params?.smkSlug,
+    jurusanSlug: params?.jurusanSlug,
+  });
+
+  const isItemActive = (item: NavItem) => {
+    if (item.exact) {
+      return pathname === item.href;
+    }
+    return pathname === item.href || (pathname?.startsWith(`${item.href}/`) ?? false);
+  };
 
   return (
     <aside
@@ -56,7 +69,7 @@ export function Sidebar({ collapsed, role }: SidebarProps) {
             )}
             <ul className="space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href;
+                const active = isItemActive(item);
                 const Icon = item.icon;
                 return (
                   <li key={item.href}>
@@ -64,9 +77,9 @@ export function Sidebar({ collapsed, role }: SidebarProps) {
                       href={item.href}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                         collapsed && "justify-center",
-                        isActive
+                        active
                           ? "bg-sky-500 text-primary-foreground shadow-sm"
                           : "text-sky-500 hover:bg-sky-500 hover:text-white"
                       )}

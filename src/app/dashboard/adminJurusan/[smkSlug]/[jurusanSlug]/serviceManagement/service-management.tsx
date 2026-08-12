@@ -40,6 +40,21 @@ function formatRupiah(value: number) {
     return "Rp " + value.toLocaleString("id-ID");
 }
 
+function isKontenBerubah(
+    original: JasaItem,
+    parsed: Omit<JasaForm, "fotos">,
+    fotosBaru: string[]
+): boolean {
+    return (
+        original.nama_jasa !== parsed.nama_jasa ||
+        (original.deskripsi ?? "") !== (parsed.deskripsi ?? "") ||
+        original.harga !== parsed.harga ||
+        (original.estimasi_pengerjaan ?? "") !== (parsed.estimasi_pengerjaan ?? "") ||
+        original.total_project !== parsed.total_project ||
+        JSON.stringify(original.fotos) !== JSON.stringify(fotosBaru)
+    );
+}
+
 export default function ServiceManagement({ initialData }: { initialData: JasaItem[] }) {
     const [services, setServices] = useState<JasaItem[]>(initialData);
     const [search, setSearch] = useState("");
@@ -211,15 +226,36 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                     setServices((prev) => [newItem, ...prev]);
                     toast.success("Jasa berhasil ditambahkan");
                 } else if (formMode === "edit" && editingId) {
-                    await updateJasa(editingId, parsed.data);
+                    const original = services.find((s) => s.jasa_id === editingId);
+
+                    const kontenBerubah = original
+                        ? isKontenBerubah(original, parsed.data, fotos)
+                        : true;
+                    const harusReviewUlang =
+                        kontenBerubah && original?.status_publikasi === "Published";
+
+                    const nextStatusPublikasi = harusReviewUlang
+                        ? "Pending"
+                        : original?.status_publikasi ?? "Pending";
+
+                    await updateJasa(editingId, {
+                        ...parsed.data,
+                        status_publikasi: nextStatusPublikasi,
+                    });
+
                     setServices((prev) =>
                         prev.map((s) =>
                             s.jasa_id === editingId
-                                ? { ...s, ...parsed.data, fotos }
+                                ? { ...s, ...parsed.data, fotos, status_publikasi: nextStatusPublikasi }
                                 : s
                         )
                     );
-                    toast.success("Jasa berhasil diperbarui");
+
+                    toast.success(
+                        harusReviewUlang
+                            ? "Jasa berhasil diperbarui, menunggu review ulang"
+                            : "Jasa berhasil diperbarui"
+                    );
                 }
                 closeForm();
             } catch (err) {

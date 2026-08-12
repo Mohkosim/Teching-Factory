@@ -35,6 +35,9 @@ model User {
   review   Review[]
   galeri   Galeri[] 
 
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -45,13 +48,13 @@ model SMK {
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [user_id])
 
+  kepala_sekolah    String?
+  deskripsi         String?
   alamat            String
   kota              String
   provinsi          String
+  map_link          String?
   tahun_berdiri     Int
-  akreditasi        String?
-  email             String?
-  website           String?
   status_verifikasi Boolean @default(false)
 
   jurusans Jurusan[]
@@ -202,6 +205,53 @@ model Galeri {
   deskripsi String?
   kategori  KategoriGaleri
   image     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TentangTefa {
+  tentang_id String @id @default(uuid())
+
+  deskripsi String  @db.Text
+  videoLink String?
+
+  dokumentasi TentangTefaFoto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TentangTefaFoto {
+  foto_id String @id @default(uuid())
+
+  tentang_id String
+  tentang    TentangTefa @relation(fields: [tentang_id], references: [tentang_id])
+
+  url String
+
+  createdAt DateTime @default(now())
+}
+
+enum StatusPesan {
+  Baru
+  Dibaca
+  Dibalas
+}
+
+model Pesan {
+  pesan_id String @id @default(uuid())
+
+  nama  String
+  email String
+  phone   String   @default("Tidak ada nomor")
+  pesan String
+
+  status StatusPesan @default(Baru)
+  
+  isRead     Boolean @default(false)
+  isFavorite Boolean @default(false)
+  isDeleted  Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

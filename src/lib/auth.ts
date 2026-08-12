@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { slugify } from "@/lib/utils/slug";
@@ -43,10 +44,16 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+
+    GoogleProvider({
+      clientId: process.env.AUTH_GOOGLE_ID!,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+    }),
   ],
 
   session: {
     strategy: "jwt",
+    maxAge: 60 * 25,
   },
 
   cookies: {
@@ -71,13 +78,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
 
         if (user.role === "AdminSMK") {
-          const smk = await prisma.sMK.findUnique({
-            where: { user_id: user.id },
-            include: { user: true },
-          });
-          if (smk) {
-            token.smkSlug = slugify(smk.user.name);
-          }
+          token.smkSlug = slugify(user.name ?? user.email ?? user.id);
         }
 
         if (user.role === "AdminJurusan") {
@@ -92,10 +93,29 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      if (trigger === "update" && session) {
-        if (session.name) token.name = session.name;
-        if (session.email) token.email = session.email;
-        if (session.image) token.image = session.image;
+      if (trigger === "update") {
+        if (session?.name) token.name = session.name;
+        if (session?.email) token.email = session.email;
+        if (session?.image) token.image = session.image;
+
+        const role = token.role as string | undefined;
+        const userId = token.id as string | undefined;
+
+        if (userId && role === "AdminSMK") {
+          const name = (token.name as string | null | undefined) ?? (token.email as string | null | undefined) ?? userId;
+          token.smkSlug = slugify(name);
+        }
+
+        if (userId && role === "AdminJurusan" && (!token.smkSlug || !token.jurusanSlug)) {
+          const jurusan = await prisma.jurusan.findUnique({
+            where: { user_id: userId },
+            include: { smk: { include: { user: true } } },
+          });
+          if (jurusan) {
+            token.smkSlug = slugify(jurusan.smk.user.name);
+            token.jurusanSlug = slugify(jurusan.nama_jurusan);
+          }
+        }
       }
 
       return token;
@@ -108,6 +128,7 @@ export const authOptions: NextAuthOptions = {
       session.user.name = token.name as string;
       session.user.email = token.email as string;
       session.user.smkSlug = token.smkSlug as string | undefined;
+      session.user.jurusanSlug = token.jurusanSlug as string | undefined;
       return session;
     },
   },

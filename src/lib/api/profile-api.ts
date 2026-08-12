@@ -20,9 +20,12 @@ export interface UpdateProfilePayload {
     img?: string;
 
     // AdminSMK
+    kepala_sekolah?: string;
+    deskripsi_smk?: string;
     alamat?: string;
     kota?: string;
     provinsi?: string;
+    map_link?: string;
     tahun_berdiri?: number;
 
     // AdminJurusan

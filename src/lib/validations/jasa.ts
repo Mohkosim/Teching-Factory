@@ -8,6 +8,7 @@ export const jasaSchema = z.object({
     estimasi_pengerjaan: z.string().optional(),
     total_project: z.coerce.number().min(0).default(0),
     fotos: z.array(z.string()).min(1, "Minimal 1 foto jasa"),
+    status_publikasi: z.enum(["Pending", "Published", "Revisi"]).optional(),
 });
 
 export type JasaForm = z.infer<typeof jasaSchema>;

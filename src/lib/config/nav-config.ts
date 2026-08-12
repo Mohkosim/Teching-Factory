@@ -14,6 +14,7 @@ export interface NavItem {
   href: string;
   label: string;
   icon: IconType;
+  exact?: boolean;
 }
 
 export interface NavGroup {
@@ -21,12 +22,17 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-const navConfig: Record<Role, NavGroup[]> = {
-  SuperAdmin: [
+export interface NavParams {
+  smkSlug?: string;
+  jurusanSlug?: string;
+}
+
+const navConfig: Record<Role, (params: NavParams) => NavGroup[]> = {
+  SuperAdmin: () => [
     {
       label: "UMUM",
       items: [
-        { href: "/dashboard/superAdmin", label: "Dashboard", icon: TbLayoutDashboardFilled },
+        { href: "/dashboard/superAdmin", label: "Dashboard", icon: TbLayoutDashboardFilled, exact: true },
       ],
     },
     {
@@ -39,55 +45,65 @@ const navConfig: Record<Role, NavGroup[]> = {
     },
   ],
 
-  AdminSMK: [
-    {
-      label: "UMUM",
-      items: [
-        { href: "/dashboard/adminSMK", label: "Dashboard", icon: TbLayoutDashboardFilled },
-      ],
-    },
-    {
-      label: "MANAJEMEN",
-      items: [
-        { href: "/dashboard/adminSMK/accountManagement", label: "Manajemen Akun", icon: MdManageAccounts },
-        { href: "/dashboard/adminSMK/productManagement", label: "Manajemen Produk", icon: BsBoxFill },
-        { href: "/dashboard/adminSMK/serviceManagement", label: "Manajemen Jasa", icon: MdMiscellaneousServices },
-      ],
-    },
-    {
-      label: "LAPORAN",
-      items: [
-        { href: "/dashboard/adminSMK/financialStatements", label: "Laporan Keuangan", icon: IoWallet },
-      ],
-    },
-  ],
+  AdminSMK: ({ smkSlug }) => {
+    const base = `/dashboard/adminSMK/${smkSlug ?? ""}`;
+    return [
+      {
+        label: "UMUM",
+        items: [
+          { href: base, label: "Dashboard", icon: TbLayoutDashboardFilled, exact: true },
+        ],
+      },
+      {
+        label: "MANAJEMEN",
+        items: [
+          { href: `${base}/accountManagement`, label: "Manajemen Akun", icon: MdManageAccounts },
+          { href: `${base}/productManagement`, label: "Manajemen Produk", icon: BsBoxFill },
+          { href: `${base}/serviceManagement`, label: "Manajemen Jasa", icon: MdMiscellaneousServices },
+        ],
+      },
+      {
+        label: "LAPORAN",
+        items: [
+          { href: `${base}/financialStatements`, label: "Laporan Keuangan", icon: IoWallet },
+        ],
+      },
+    ];
+  },
 
-  AdminJurusan: [
-    {
-      label: "UMUM",
-      items: [
-        { href: "/dashboard/adminJurusan", label: "Dashboard", icon: TbLayoutDashboardFilled },
-      ],
-    },
-    {
-      label: "MANAJEMEN",
-      items: [
-        { href: "/dashboard/adminJurusan/productManagement", label: "Manajemen Produk", icon: BsBoxFill },
-        { href: "/dashboard/adminJurusan/serviceManagement", label: "Manajemen Jasa", icon: MdMiscellaneousServices },
-        { href: "/dashboard/adminJurusan/orderManagement", label: "Manajemen Pesanan", icon: MdStickyNote2 },
-        { href: "/dashboard/adminJurusan/shippingManagement", label: "Manajemen Pengiriman", icon: TbTruckDelivery },
-        { href: "/dashboard/adminJurusan/galleryManagement", label: "Manajemen Galeri", icon: RiGalleryFill },
-      ],
-    },
-    {
-      label: "LAPORAN",
-      items: [
-        { href: "/dashboard/adminJurusan/financialStatements", label: "Laporan Keuangan", icon: IoWallet },
-      ],
-    },
-  ],
+  AdminJurusan: ({ smkSlug, jurusanSlug }) => {
+    const base = jurusanSlug
+      ? `/dashboard/adminJurusan/${smkSlug ?? ""}/${jurusanSlug}`
+      : `/dashboard/adminJurusan`;
+
+    return [
+      {
+        label: "UMUM",
+        items: [
+          { href: base, label: "Dashboard", icon: TbLayoutDashboardFilled, exact: true },
+        ],
+      },
+      {
+        label: "MANAJEMEN",
+        items: [
+          { href: `${base}/productManagement`, label: "Manajemen Produk", icon: BsBoxFill },
+          { href: `${base}/serviceManagement`, label: "Manajemen Jasa", icon: MdMiscellaneousServices },
+          { href: `${base}/orderManagement`, label: "Manajemen Pesanan", icon: MdStickyNote2 },
+          { href: `${base}/shippingManagement`, label: "Manajemen Pengiriman", icon: TbTruckDelivery },
+          { href: `${base}/galleryManagement`, label: "Manajemen Galeri", icon: RiGalleryFill },
+        ],
+      },
+      {
+        label: "LAPORAN",
+        items: [
+          { href: `${base}/financialStatements`, label: "Laporan Keuangan", icon: IoWallet },
+        ],
+      },
+    ];
+  },
 };
 
-export function getNavGroups(role: Role): NavGroup[] {
-  return navConfig[role] ?? [];
+export function getNavGroups(role: Role, params: NavParams = {}): NavGroup[] {
+  const builder = navConfig[role];
+  return builder ? builder(params) : [];
 }

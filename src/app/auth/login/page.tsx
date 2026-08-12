@@ -12,13 +12,14 @@ import FormField from "@/components/auth/FormField";
 import PasswordInput from "@/components/auth/PasswordInput";
 import { loginSchema, type LoginSchema } from "@/lib/validations/auth";
 import Image from "next/image";
+import Link from "next/link";
 
 // Peta redirect berdasarkan role
 const ROLE_REDIRECT: Record<string, string> = {
   SuperAdmin: "/dashboard/superAdmin",
   AdminSMK: "/dashboard/adminSMK",
   AdminJurusan: "/dashboard/adminJurusan",
-  User: "/dashboard/guestSelection",
+  User: "/",
 };
 
 export default function Login() {
@@ -65,6 +66,10 @@ export default function Login() {
     });
   };
 
+  const handleGoogleSignIn = async () => {
+    await signIn("google", { callbackUrl: "/" });
+  };
+
   return (
     <>
       {/* Logo */}
@@ -108,6 +113,16 @@ export default function Login() {
           />
         </FormField>
 
+        {/* Lupa Kata Sandi */}
+        <div className="flex justify-end -mt-3">
+          <Link
+            href="/auth/forgot-password"
+            className="text-xs font-semibold text-sky-500 hover:text-sky-600 transition-colors"
+          >
+            Lupa Kata Sandi?
+          </Link>
+        </div>
+
         {/* Tombol Masuk */}
         <Button
           type="submit"
@@ -115,6 +130,22 @@ export default function Login() {
           className="w-full h-12 rounded-xl bg-sky-400 hover:bg-sky-500 text-white font-bold text-sm shadow-sm transition-colors duration-200 mt-2 disabled:opacity-60"
         >
           {isSubmitting ? "Memproses..." : "Masuk"}
+        </Button>
+
+        {/* Tombol Masuk dengan Google */}
+        <Button
+          type="button"
+          onClick={handleGoogleSignIn}
+          variant="outline"
+          className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm shadow-sm transition-colors duration-200 flex items-center justify-center gap-2"
+        >
+          <Image
+            src="/img/google.svg"
+            alt="Google"
+            width={18}
+            height={18}
+          />
+          Masuk dengan Google
         </Button>
 
       </form>

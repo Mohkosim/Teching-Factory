@@ -5,9 +5,12 @@ export interface ProfileData {
     img: string | null;
 
     // Khusus AdminSMK
+    kepala_sekolah?: string | null;
+    deskripsi_smk?: string | null;
     alamat?: string | null;
     kota?: string | null;
     provinsi?: string | null;
+    map_link?: string | null;
     tahun_berdiri?: number | null;
 
     // Khusus AdminJurusan

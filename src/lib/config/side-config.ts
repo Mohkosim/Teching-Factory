@@ -1,13 +1,26 @@
 type UserRole = "SuperAdmin" | "AdminSMK" | "AdminJurusan" | "User";
 
-export const getProfilePath = (role?: UserRole) => {
+interface GetProfilePathParams {
+    role?: UserRole;
+    smkSlug?: string | null;
+    jurusanSlug?: string | null;
+}
+
+export const getProfilePath = ({ role, smkSlug, jurusanSlug }: GetProfilePathParams) => {
     switch (role) {
         case "SuperAdmin":
             return "/dashboard/superAdmin/profile";
+
         case "AdminSMK":
-            return "/dashboard/adminSMK/profile";
+            return smkSlug
+                ? `/dashboard/adminSMK/${smkSlug}/profile`
+                : "/dashboard/adminSMK"; // fallback kalau slug belum ada
+
         case "AdminJurusan":
-            return "/dashboard/adminJurusan/profile";
+            return smkSlug && jurusanSlug
+                ? `/dashboard/adminJurusan/${smkSlug}/${jurusanSlug}/profile`
+                : "/dashboard/adminJurusan";
+
         default:
             return "/dashboard/profile";
     }
