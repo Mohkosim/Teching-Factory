@@ -13,12 +13,73 @@ datasource db {
   provider = "postgresql"
 }
 
+// Enumeration
+
 enum Role {
   User
   SuperAdmin
   AdminSMK
   AdminJurusan
 }
+
+enum Gender {
+  Laki_laki
+  Perempuan
+}
+
+enum KategoriGaleri {
+  Pameran
+  Lomba
+  Pelatihan
+  Kunjungan
+}
+
+enum StatusProduk {
+  Tersedia
+  Habis
+  Nonaktif
+}
+
+enum StatusPublikasi {
+  Pending
+  Published
+  Revisi
+}
+
+enum StatusPesan {
+  Baru
+  Dibaca
+  Dibalas
+}
+
+enum StatusOrder {
+  Menunggu
+  Diproses
+  Dikirim
+  Selesai
+  Dibatalkan
+}
+
+enum StatusPembayaran {
+  Belum_Bayar
+  Menunggu_Konfirmasi
+  Lunas
+  Gagal
+}
+
+enum JenisTransaksi {
+  Pemasukan
+  Pengeluaran
+}
+
+enum MetodePembayaran {
+  Transfer
+  COD
+  QRIS
+  E_Wallet
+}
+
+// Model Database
 
 model User {
   user_id  String @id @default(uuid())
@@ -28,15 +89,21 @@ model User {
   phone    String?
   img      String?
   role     Role   @default(User)
+  gender   Gender? 
   isActive Boolean @default(true)
 
   smk      SMK?
   jurusan  Jurusan?
+  alamat Alamat[]
   review   Review[]
-  galeri   Galeri[] 
+  galeri   Galeri[]
+  favorites Favorite[] 
 
   resetToken       String?
   resetTokenExpiry DateTime?
+
+  order     Order[]
+  transaksi Transaksi[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,7 +118,10 @@ model SMK {
   kepala_sekolah    String?
   deskripsi         String?
   alamat            String
+  kecamatan         String?
   kota              String
+  kota_id           Int?  
+  kode_pos          String?
   provinsi          String
   map_link          String?
   tahun_berdiri     Int
@@ -78,21 +148,30 @@ model Jurusan {
   jam_operasional String?
 
   produk Produk[]
+  kurirAktif KurirAktif[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum StatusProduk {
-  Tersedia
-  Habis
-  Nonaktif
-}
+model Alamat {
+  alamat_id String @id @default(uuid())
 
-enum StatusPublikasi {
-  Pending
-  Published
-  Revisi
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  nama_penerima  String
+  nomor_telepon  String
+  alamat_lengkap String
+  kecamatan      String
+  kota           String
+  provinsi       String
+  kode_pos       String
+  kota_id        Int?
+  isUtama        Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Produk {
@@ -115,6 +194,8 @@ model Produk {
   barang Barang[]
   jasa   Jasa[]
   review Review[]
+  favorites Favorite[]
+  orderDetail Order_Detail[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -155,6 +236,7 @@ model Jasa {
   total_project       Int     @default(0)
 
   portofolio Portofolio[]
+  favorites Favorite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -181,18 +263,27 @@ model Review {
   produk_id String
   produk    Produk @relation(fields: [produk_id], references: [produk_id])
 
+  order_detail_id String       @unique
+  orderDetail     Order_Detail @relation(fields: [order_detail_id], references: [order_detail_id])
+
+
   rating   Int
   komentar String?
+
+  foto FotoReview[]
 
   createdAt DateTime @default(now())
 }
 
+model FotoReview {
+  foto_id String @id @default(uuid())
 
-enum KategoriGaleri {
-  Pameran
-  Lomba
-  Pelatihan
-  Kunjungan
+  review_id String
+  review    Review @relation(fields: [review_id], references: [review_id], onDelete: Cascade)
+
+  url String
+
+  createdAt DateTime @default(now())
 }
 
 model Galeri {
@@ -233,12 +324,6 @@ model TentangTefaFoto {
   createdAt DateTime @default(now())
 }
 
-enum StatusPesan {
-  Baru
-  Dibaca
-  Dibalas
-}
-
 model Pesan {
   pesan_id String @id @default(uuid())
 
@@ -255,4 +340,112 @@ model Pesan {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Order {
+  order_id String @id @default(uuid())
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+  
+  kode_invoice String?
+
+  total_harga       Int
+  status_order      StatusOrder      @default(Menunggu)
+  status_pembayaran StatusPembayaran @default(Belum_Bayar)
+
+  orderDetail Order_Detail[]
+  transaksi   Transaksi[]
+  pengiriman  Pengiriman?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order_Detail {
+  order_detail_id String @id @default(uuid())
+
+  order_id String
+  order    Order  @relation(fields: [order_id], references: [order_id])
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id])
+
+  jumlah       Int
+  harga_satuan Int
+  subtotal     Int
+
+  review Review?
+
+  createdAt DateTime @default(now())
+
+  @@unique([order_id, produk_id])
+}
+
+model Transaksi {
+  transaksi_id String @id @default(uuid())
+
+  order_id String
+  order    Order  @relation(fields: [order_id], references: [order_id])
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  tanggal_transaksi DateTime         @default(now())
+  jenis_transaksi   JenisTransaksi
+  nominal           Int
+  bukti             String?
+  metode            MetodePembayaran
+  kode_pembayaran   String? 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pengiriman {
+  pengiriman_id String @id @default(uuid())
+
+  order_id String @unique
+  order    Order  @relation(fields: [order_id], references: [order_id])
+
+  nama_penerima String
+  alamat        String
+  kurir         String
+  ongkir        Int
+  nomor_resi String?
+  estimasi_tiba String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  produkId  String?
+  jasaId    String?
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+  produk Produk? @relation(fields: [produkId], references: [produk_id], onDelete: Cascade)
+  jasa   Jasa?   @relation(fields: [jasaId], references: [jasa_id], onDelete: Cascade)
+
+  @@unique([userId, produkId])
+  @@unique([userId, jasaId])
+}
+
+model KurirAktif {
+  kurir_aktif_id String @id @default(uuid())
+
+  jurusan_id String
+  jurusan    Jurusan @relation(fields: [jurusan_id], references: [jurusan_id], onDelete: Cascade)
+
+  kode_kurir String
+  nama_kurir String
+  status     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jurusan_id, kode_kurir])
 }

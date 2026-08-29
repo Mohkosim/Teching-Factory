@@ -5,6 +5,8 @@ import {
     Search, Eye, Pencil, Trash2, Plus, ImagePlus, ImageIcon, X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
     Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
@@ -51,8 +53,6 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
     const [newFile, setNewFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const [deleteItem, setDeleteItem] = useState<GaleriItem | null>(null);
 
     const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
@@ -145,6 +145,7 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
         }
 
         startTransition(async () => {
+            tampilkanLoading(formMode === "create" ? "Menambahkan foto..." : "Memperbarui foto...");
             try {
                 let imageUrl = formData.image;
                 if (newFile) {
@@ -153,6 +154,7 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
 
                 const parsed = galeriSchema.safeParse({ ...formData, image: imageUrl });
                 if (!parsed.success) {
+                    Swal.close();
                     toast.error(parsed.error.issues[0]?.message ?? "Data tidak valid");
                     return;
                 }
@@ -160,16 +162,19 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
                 if (formMode === "create") {
                     const res = await createGaleri(parsed.data);
                     setGallery((prev) => [res.data, ...prev]);
+                    Swal.close();
                     toast.success("Foto berhasil ditambahkan");
                 } else if (formMode === "edit" && editingId) {
                     await updateGaleri(editingId, parsed.data);
                     setGallery((prev) =>
                         prev.map((g) => (g.galeri_id === editingId ? { ...g, ...parsed.data } : g))
                     );
+                    Swal.close();
                     toast.success("Foto berhasil diperbarui");
                 }
                 closeForm();
             } catch (err) {
+                Swal.close();
                 if (err instanceof Error && err.message === "FileTooLarge") {
                     toast.error("Ukuran file melebihi 2MB");
                     return;
@@ -183,20 +188,21 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
         });
     };
 
-    const openDeleteConfirm = (item: GaleriItem) => setDeleteItem(item);
-    const closeDeleteConfirm = () => setDeleteItem(null);
-
-    const handleConfirmDelete = () => {
-        if (!deleteItem) return;
-        startTransition(async () => {
-            try {
-                await deleteGaleri(deleteItem.galeri_id);
-                setGallery((prev) => prev.filter((g) => g.galeri_id !== deleteItem.galeri_id));
-                toast.success("Foto berhasil dihapus");
-                setDeleteItem(null);
-            } catch {
-                toast.error("Gagal menghapus foto");
-            }
+    const handleDelete = (item: GaleriItem) => {
+        confirmHapus(item.judul).then((confirmed) => {
+            if (!confirmed) return;
+            startTransition(async () => {
+                tampilkanLoading("Menghapus foto...");
+                try {
+                    await deleteGaleri(item.galeri_id);
+                    setGallery((prev) => prev.filter((g) => g.galeri_id !== item.galeri_id));
+                    Swal.close();
+                    toast.success("Foto berhasil dihapus");
+                } catch {
+                    Swal.close();
+                    toast.error("Gagal menghapus foto");
+                }
+            });
         });
     };
 
@@ -286,7 +292,7 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
                                         <Pencil className="h-3.5 w-3.5" />
                                         Edit
                                     </button>
-                                    <button onClick={() => openDeleteConfirm(item)} className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600">
+                                    <button onClick={() => handleDelete(item)} className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600">
                                         <Trash2 className="h-3.5 w-3.5" />
                                         Hapus
                                     </button>
@@ -429,25 +435,6 @@ export default function GalleryManagement({ initialData }: { initialData: Galeri
                             className="w-full bg-sky-500 hover:bg-sky-600 text-white rounded-xl h-10"
                         >
                             {isPending ? "Menyimpan..." : formMode === "create" ? "Simpan" : "Edit"}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Hapus */}
-            <Dialog open={!!deleteItem} onOpenChange={(open) => !open && closeDeleteConfirm()}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>Hapus Foto</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-500">
-                        Apakah Anda yakin ingin menghapus foto{" "}
-                        <span className="font-medium text-gray-700">{deleteItem?.judul}</span>? Tindakan ini tidak dapat dibatalkan.
-                    </p>
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button onClick={closeDeleteConfirm} variant="outline" className="rounded-lg">Batal</Button>
-                        <Button onClick={handleConfirmDelete} disabled={isPending} className="bg-red-500 hover:bg-red-600 text-white rounded-lg">
-                            {isPending ? "Menghapus..." : "Hapus"}
                         </Button>
                     </div>
                 </DialogContent>

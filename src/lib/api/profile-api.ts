@@ -1,3 +1,5 @@
+import type { AlamatData, AlamatPayload } from "@/types/interfaces/alamat";
+
 export async function uploadAvatar(base64: string): Promise<string> {
     const res = await fetch("/api/profile/avatar", {
         method: "POST",
@@ -18,12 +20,16 @@ export interface UpdateProfilePayload {
     name: string;
     email: string;
     img?: string;
+    gender?: "Laki_laki" | "Perempuan";
 
     // AdminSMK
     kepala_sekolah?: string;
     deskripsi_smk?: string;
     alamat?: string;
+    kecamatan?: string;      // <-- BARU
     kota?: string;
+    kota_id?: number | null; // <-- BARU
+    kode_pos?: string;       // <-- BARU
     provinsi?: string;
     map_link?: string;
     tahun_berdiri?: number;
@@ -63,4 +69,44 @@ export async function updatePassword(passwordLama: string, passwordBaru: string)
     }
 
     return res.json();
+}
+
+export async function getAlamatList(): Promise<AlamatData[]> {
+    const res = await fetch("/api/profile/alamat");
+    if (!res.ok) throw new Error("Gagal memuat alamat");
+    return res.json();
+}
+
+export async function createAlamat(payload: AlamatPayload): Promise<AlamatData> {
+    const res = await fetch("/api/profile/alamat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "Gagal menambah alamat");
+    }
+    return res.json();
+}
+
+export async function updateAlamat(id: string, payload: Partial<AlamatPayload>): Promise<AlamatData> {
+    const res = await fetch(`/api/profile/alamat/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "Gagal memperbarui alamat");
+    }
+    return res.json();
+}
+
+export async function deleteAlamat(id: string): Promise<void> {
+    const res = await fetch(`/api/profile/alamat/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "Gagal menghapus alamat");
+    }
 }

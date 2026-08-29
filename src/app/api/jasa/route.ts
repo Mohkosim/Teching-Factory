@@ -17,7 +17,7 @@ export async function GET() {
 
     const jasaList = await prisma.jasa.findMany({
         where: { produk: { jurusan_id: jurusan.jurusan_id } },
-        include: { produk: { include: { foto: true } } },
+        include: { produk: { include: { foto: true } }, portofolio: true },
         orderBy: { createdAt: "desc" },
     });
 
@@ -44,10 +44,10 @@ export async function POST(req: NextRequest) {
     const {
         nama_jasa, deskripsi, harga, status,
         estimasi_pengerjaan, total_project, fotos,
+        portofolio,
     } = parsed.data;
 
     try {
-        // Jasa adalah "detail" dari Produk, jadi buat Produk dulu sebagai induknya
         const produk = await prisma.produk.create({
             data: {
                 jurusan_id: jurusan.jurusan_id,
@@ -63,10 +63,21 @@ export async function POST(req: NextRequest) {
                         nama_jasa,
                         estimasi_pengerjaan,
                         total_project,
+                        portofolio: portofolio && portofolio.length > 0
+                            ? {
+                                create: portofolio.map((p) => ({
+                                    file_path: p.file_path,
+                                    deskripsi: p.deskripsi,
+                                })),
+                            }
+                            : undefined,
                     },
                 },
             },
-            include: { jasa: true, foto: true },
+            include: {
+                jasa: { include: { portofolio: true } },
+                foto: true,
+            },
         });
 
         return NextResponse.json({ message: "Jasa berhasil ditambahkan", data: produk });

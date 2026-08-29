@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { tampilkanLoading } from "@/lib/utils/alert";
 import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,8 +48,10 @@ export default function ForgotPasswordPage() {
   };
 
   const onSubmit = async (data: ForgotPasswordSchema) => {
+    tampilkanLoading("Mengirim instruksi..."); // Swal: loading selama request
     try {
       const success = await sendRequest(data.email);
+      Swal.close();
       if (!success) return;
 
       setSubmittedEmail(data.email);
@@ -55,6 +59,7 @@ export default function ForgotPasswordPage() {
         description: "Silakan cek email Anda untuk melanjutkan.",
       });
     } catch (error) {
+      Swal.close();
       console.error(error);
       toast.error("Terjadi kesalahan server");
     }
@@ -63,12 +68,15 @@ export default function ForgotPasswordPage() {
   const handleResend = async () => {
     if (!submittedEmail) return;
     setIsResending(true);
+    tampilkanLoading("Mengirim ulang..."); // Swal: loading selama request
     try {
       const success = await sendRequest(submittedEmail);
+      Swal.close();
       if (success) {
         toast.success("Email dikirim ulang!");
       }
     } catch (error) {
+      Swal.close();
       console.error(error);
       toast.error("Terjadi kesalahan server");
     } finally {

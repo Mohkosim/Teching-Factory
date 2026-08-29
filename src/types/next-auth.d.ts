@@ -9,6 +9,7 @@ declare module "next-auth" {
     image?: string | null;
     smkSlug?: string;
     jurusanSlug?: string;
+    phone?: string;
   }
 
   interface Session {
@@ -20,6 +21,7 @@ declare module "next-auth" {
       role: Role;
       smkSlug?: string;
       jurusanSlug?: string;
+      phone?: string;
     };
   }
 }
@@ -33,5 +35,6 @@ declare module "next-auth/jwt" {
     image?: string | null;
     smkSlug?: string;
     jurusanSlug?: string;
+    phone?: string;
   }
 }

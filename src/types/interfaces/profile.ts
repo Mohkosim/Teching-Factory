@@ -3,12 +3,16 @@ export interface ProfileData {
     name: string;
     email: string;
     img: string | null;
+    gender?: "Laki_laki" | "Perempuan" | null;
 
     // Khusus AdminSMK
     kepala_sekolah?: string | null;
     deskripsi_smk?: string | null;
     alamat?: string | null;
+    kecamatan?: string | null;   // <-- BARU
     kota?: string | null;
+    kota_id?: number | null;     // <-- BARU: origin RajaOngkir
+    kode_pos?: string | null;    // <-- BARU
     provinsi?: string | null;
     map_link?: string | null;
     tahun_berdiri?: number | null;

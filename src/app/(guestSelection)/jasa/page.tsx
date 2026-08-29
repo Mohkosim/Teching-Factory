@@ -1,8 +1,12 @@
 import { getJasaPublicList } from "@/lib/data/jasa-public";
+import { getFavoritIds } from "@/lib/data/favorit-public";
 import JasaPageClient from "./JasaPageClient";
 
 export default async function ProdukPage() {
-  const jasaList = await getJasaPublicList();
+  const [jasaList, favoritIds] = await Promise.all([
+    getJasaPublicList(),
+    getFavoritIds(),
+  ]);
 
-  return <JasaPageClient jasa={jasaList} />;
+  return <JasaPageClient jasa={jasaList} favoritIds={favoritIds} />;
 }

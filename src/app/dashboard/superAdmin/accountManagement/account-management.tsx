@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import PaginationIconsOnly from "@/components/pagination/page";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { confirmAksi, confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 
 import { SMKAccount } from "@/types/interfaces/accountAdmin"
 
@@ -55,9 +57,6 @@ export default function AccountManagement({
     const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
 
     const [detailItem, setDetailItem] = useState<SMKAccount | null>(null);
-    const [editItem, setEditItem] = useState<SMKAccount | null>(null);
-    const [nonaktifItem, setNonaktifItem] = useState<SMKAccount | null>(null);
-    const [deleteItem, setDeleteItem] = useState<SMKAccount | null>(null);
 
     // ── Filtering ──
     const filtered = useMemo(() => {
@@ -78,16 +77,25 @@ export default function AccountManagement({
     }, [filtered, page, pageSize]);
 
     // ── Handlers ──
-    const handleUpgradeRole = () => {
-        if (!editItem) return;
+    const handleUpgradeRole = async (item: SMKAccount) => {
+        const konfirmasi = await confirmAksi({
+            title: "Jadikan Admin SMK?",
+            text: `Role akun "${item.name}" akan diubah dari Admin Pelanggan menjadi Admin SMK.`,
+            icon: "question",
+            confirmText: "Ya, jadikan admin",
+        });
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading("Menyimpan perubahan role...");
             try {
-                const res = await fetch(`/api/account/${editItem.user_id}`, {
+                const res = await fetch(`/api/account/${item.user_id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "upgrade-role" }),
                 });
                 const json = await res.json();
+                Swal.close();
 
                 if (!res.ok) {
                     toast.error(json.message ?? "Gagal mengubah role");
@@ -96,29 +104,42 @@ export default function AccountManagement({
 
                 setAccounts((prev) =>
                     prev.map((acc) =>
-                        acc.user_id === editItem.user_id ? { ...acc, role: "AdminSMK" } : acc
+                        acc.user_id === item.user_id ? { ...acc, role: "AdminSMK" } : acc
                     )
                 );
                 toast.success(json.message ?? "Role berhasil diubah");
-                setEditItem(null);
                 router.refresh();
             } catch (error) {
+                Swal.close();
                 console.error(error);
                 toast.error("Terjadi kesalahan saat mengubah role");
             }
         });
     };
 
-    const handleToggleNonaktif = () => {
-        if (!nonaktifItem) return;
+    const handleToggleNonaktif = async (item: SMKAccount) => {
+        const akanDiaktifkan = !item.isActive;
+        const konfirmasi = await confirmAksi({
+            title: akanDiaktifkan ? "Aktifkan Akun SMK?" : "Nonaktifkan Akun SMK?",
+            text: akanDiaktifkan
+                ? `Akun "${item.name}" akan diaktifkan kembali dan dapat diakses.`
+                : `Akun "${item.name}" tidak akan dapat diakses selama dinonaktifkan.`,
+            icon: "warning",
+            confirmText: akanDiaktifkan ? "Ya, aktifkan" : "Ya, nonaktifkan",
+            confirmColor: akanDiaktifkan ? "#22c55e" : "#f97316", // green-500 / orange-500
+        });
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading(akanDiaktifkan ? "Mengaktifkan akun..." : "Menonaktifkan akun...");
             try {
-                const res = await fetch(`/api/account/${nonaktifItem.user_id}`, {
+                const res = await fetch(`/api/account/${item.user_id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: "toggle-status" }),
                 });
                 const json = await res.json();
+                Swal.close();
 
                 if (!res.ok) {
                     toast.error(json.message ?? "Gagal mengubah status akun");
@@ -127,40 +148,44 @@ export default function AccountManagement({
 
                 setAccounts((prev) =>
                     prev.map((acc) =>
-                        acc.user_id === nonaktifItem.user_id
+                        acc.user_id === item.user_id
                             ? { ...acc, isActive: !acc.isActive }
                             : acc
                     )
                 );
                 toast.success(json.message ?? "Status akun berhasil diubah");
-                setNonaktifItem(null);
                 router.refresh();
             } catch (error) {
+                Swal.close();
                 console.error(error);
                 toast.error("Terjadi kesalahan saat mengubah status akun");
             }
         });
     };
 
-    const handleDelete = () => {
-        if (!deleteItem) return;
+    const handleDelete = async (item: SMKAccount) => {
+        const konfirmasi = await confirmHapus(item.name);
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading("Menghapus akun...");
             try {
-                const res = await fetch(`/api/account/${deleteItem.user_id}`, {
+                const res = await fetch(`/api/account/${item.user_id}`, {
                     method: "DELETE",
                 });
                 const json = await res.json();
+                Swal.close();
 
                 if (!res.ok) {
                     toast.error(json.message ?? "Gagal menghapus akun");
                     return;
                 }
 
-                setAccounts((prev) => prev.filter((acc) => acc.user_id !== deleteItem.user_id));
+                setAccounts((prev) => prev.filter((acc) => acc.user_id !== item.user_id));
                 toast.success(json.message ?? "Akun berhasil dihapus");
-                setDeleteItem(null);
                 router.refresh();
             } catch (error) {
+                Swal.close();
                 console.error(error);
                 toast.error("Terjadi kesalahan saat menghapus akun");
             }
@@ -277,8 +302,9 @@ export default function AccountManagement({
 
                                             {item.role === "User" && (
                                                 <button
-                                                    onClick={() => setEditItem(item)}
-                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors"
+                                                    onClick={() => handleUpgradeRole(item)}
+                                                    disabled={isPending}
+                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors disabled:opacity-50"
                                                     title="Jadikan Admin SMK"
                                                 >
                                                     <Pencil className="h-3.5 w-3.5" />
@@ -286,8 +312,9 @@ export default function AccountManagement({
                                             )}
 
                                             <button
-                                                onClick={() => setNonaktifItem(item)}
-                                                className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${!item.isActive
+                                                onClick={() => handleToggleNonaktif(item)}
+                                                disabled={isPending}
+                                                className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50 ${!item.isActive
                                                         ? "bg-green-50 hover:bg-green-100 text-green-500"
                                                         : "bg-orange-50 hover:bg-orange-100 text-orange-500"
                                                     }`}
@@ -297,8 +324,9 @@ export default function AccountManagement({
                                             </button>
 
                                             <button
-                                                onClick={() => setDeleteItem(item)}
-                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                                                onClick={() => handleDelete(item)}
+                                                disabled={isPending}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
                                                 title="Hapus"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -324,75 +352,7 @@ export default function AccountManagement({
                 />
             </div>
 
-            {/* ── Dialog Edit Role ── */}
-            <Dialog open={!!editItem} onOpenChange={() => setEditItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>Jadikan Admin SMK</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-500 py-2">
-                        Apakah Anda yakin ingin mengubah role akun{" "}
-                        <span className="font-semibold text-gray-700">{editItem?.name}</span> dari{" "}
-                        <span className="font-medium text-gray-700">Admin Pelanggan</span> menjadi{" "}
-                        <span className="font-medium text-blue-600">Admin SMK</span>?
-                    </p>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setEditItem(null)}>
-                            Batal
-                        </Button>
-                        <Button
-                            className="bg-blue-500 hover:bg-blue-600 text-white"
-                            onClick={handleUpgradeRole}
-                            disabled={isPending}
-                        >
-                            Simpan
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* ── Dialog Nonaktifkan / Aktifkan ── */}
-            <Dialog open={!!nonaktifItem} onOpenChange={() => setNonaktifItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {nonaktifItem && !nonaktifItem.isActive ? "Aktifkan Akun SMK" : "Nonaktifkan Akun SMK"}
-                        </DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-500 py-2">
-                        {nonaktifItem && !nonaktifItem.isActive ? (
-                            <>
-                                Apakah Anda yakin ingin mengaktifkan kembali akun{" "}
-                                <span className="font-semibold text-gray-700">{nonaktifItem?.name}</span>? Akun akan
-                                dapat diakses kembali.
-                            </>
-                        ) : (
-                            <>
-                                Apakah Anda yakin ingin menonaktifkan akun{" "}
-                                <span className="font-semibold text-gray-700">{nonaktifItem?.name}</span>? Akun tidak
-                                akan dapat diakses selama dinonaktifkan.
-                            </>
-                        )}
-                    </p>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setNonaktifItem(null)}>
-                            Batal
-                        </Button>
-                        <Button
-                            className={`text-white ${nonaktifItem && !nonaktifItem.isActive
-                                    ? "bg-green-500 hover:bg-green-600"
-                                    : "bg-orange-500 hover:bg-orange-600"
-                                }`}
-                            onClick={handleToggleNonaktif}
-                            disabled={isPending}
-                        >
-                            {nonaktifItem && !nonaktifItem.isActive ? "Aktifkan" : "Nonaktifkan"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* ── Dialog Detail Akun ── */}
+            {/* ── Dialog Detail Akun (bukan aksi, tetap pakai shadcn Dialog) ── */}
             <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -462,32 +422,6 @@ export default function AccountManagement({
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDetailItem(null)}>
                             Tutup
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* ── Dialog Hapus ── */}
-            <Dialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>Hapus Akun SMK</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-500 py-2">
-                        Apakah Anda yakin ingin menghapus akun{" "}
-                        <span className="font-semibold text-gray-700">{deleteItem?.name}</span>? Tindakan ini tidak
-                        dapat dibatalkan.
-                    </p>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setDeleteItem(null)}>
-                            Batal
-                        </Button>
-                        <Button
-                            className="bg-red-500 hover:bg-red-600 text-white"
-                            onClick={handleDelete}
-                            disabled={isPending}
-                        >
-                            Hapus
                         </Button>
                     </DialogFooter>
                 </DialogContent>

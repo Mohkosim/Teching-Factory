@@ -106,7 +106,7 @@ export const authOptions: NextAuthOptions = {
           token.smkSlug = slugify(name);
         }
 
-        if (userId && role === "AdminJurusan" && (!token.smkSlug || !token.jurusanSlug)) {
+        if (userId && role === "AdminJurusan") {
           const jurusan = await prisma.jurusan.findUnique({
             where: { user_id: userId },
             include: { smk: { include: { user: true } } },

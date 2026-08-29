@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { Search, Eye, Wrench, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { Search, Eye, Wrench, ChevronLeft, ChevronRight, AlertCircle, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +54,8 @@ export default function ServiceManagement({
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [showRevisiForm, setShowRevisiForm] = useState(false);
     const [revisiText, setRevisiText] = useState("");
+    // --- Deskripsi bisa dilebarkan/diciutkan ---
+    const [deskripsiExpanded, setDeskripsiExpanded] = useState(false);
 
     const filtered = useMemo(() => {
         return services.filter((item) => {
@@ -79,6 +83,7 @@ export default function ServiceManagement({
         setActiveImageIndex(0);
         setShowRevisiForm(false);
         setRevisiText("");
+        setDeskripsiExpanded(false); // reset setiap buka detail baru
     };
 
     const closeDetail = () => {
@@ -100,6 +105,7 @@ export default function ServiceManagement({
     const handlePublikasi = () => {
         if (!detailItem) return;
         startTransition(async () => {
+            tampilkanLoading("Mempublikasikan jasa...");
             try {
                 await publikasiJasa(detailItem.jasa_id);
                 setServices((prev) =>
@@ -109,9 +115,11 @@ export default function ServiceManagement({
                             : s
                     )
                 );
+                Swal.close();
                 toast.success("Jasa berhasil dipublikasikan");
                 closeDetail();
             } catch {
+                Swal.close();
                 toast.error("Gagal mempublikasikan jasa");
             }
         });
@@ -124,6 +132,7 @@ export default function ServiceManagement({
             return;
         }
         startTransition(async () => {
+            tampilkanLoading("Mengirim catatan revisi...");
             try {
                 await revisiJasa(detailItem.jasa_id, revisiText);
                 setServices((prev) =>
@@ -133,13 +142,24 @@ export default function ServiceManagement({
                             : s
                     )
                 );
+                Swal.close();
                 toast.success("Catatan revisi berhasil dikirim");
                 closeDetail();
             } catch {
+                Swal.close();
                 toast.error("Gagal mengirim revisi");
             }
         });
     };
+
+    function namaFileDariUrl(url: string) {
+        try {
+            const bersih = url.split("?")[0];
+            return decodeURIComponent(bersih.substring(bersih.lastIndexOf("/") + 1));
+        } catch {
+            return "portofolio.pdf";
+        }
+    }
 
     return (
         <div className="space-y-6 px-6">
@@ -287,15 +307,15 @@ export default function ServiceManagement({
 
             {/* Dialog Detail */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && closeDetail()}>
-                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-sky-50/60">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 shrink-0 border-b border-gray-100 bg-sky-50/60">
                         <DialogTitle className="text-base">
                             {showRevisiForm ? "Form Revisi | Detail Jasa" : "Detail Jasa"}
                         </DialogTitle>
                     </DialogHeader>
 
                     {detailItem && (
-                        <div className="px-6 py-5">
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-3">
                                     <div className="relative h-48 w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
@@ -339,7 +359,53 @@ export default function ServiceManagement({
                                         <p className="text-xs text-gray-400">Harga</p>
                                         <p className="text-lg font-bold text-sky-600">{formatRupiah(detailItem.harga)}</p>
                                     </div>
-                                    <p className="text-sm text-gray-500 leading-relaxed">{detailItem.deskripsi || "-"}</p>
+
+                                    {/* --- Deskripsi: bisa diciutkan / dilebarkan --- */}
+                                    <div>
+                                        <p
+                                            className={`text-sm text-gray-500 leading-relaxed ${deskripsiExpanded ? "" : "line-clamp-3"
+                                                }`}
+                                        >
+                                            {detailItem.deskripsi || "-"}
+                                        </p>
+                                        {(detailItem.deskripsi?.length ?? 0) > 120 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDeskripsiExpanded((v) => !v)}
+                                                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-sky-600 hover:text-sky-700"
+                                            >
+                                                {deskripsiExpanded ? (
+                                                    <>
+                                                        Sembunyikan <ChevronUp className="h-3 w-3" />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Lihat selengkapnya <ChevronDown className="h-3 w-3" />
+                                                    </>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {(detailItem.portofolio?.length ?? 0) > 0 && (
+                                        <div className="pt-1 space-y-1.5">
+                                            <p className="text-xs font-semibold text-gray-500">Portofolio</p>
+                                            {detailItem.portofolio!.map((p) => (
+
+                                                <a key={p.portofolio_id}
+                                                    href={p.file_path}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"
+                                                >
+                                                    <FileText className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                                                    <span className="truncate">
+                                                        {p.deskripsi || namaFileDariUrl(p.file_path)}
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {detailItem.catatan_revisi && (
                                         <div className="mt-2 p-3 rounded-lg bg-red-50 border border-red-200">

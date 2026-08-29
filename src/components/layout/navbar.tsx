@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { KeranjangItem } from "@/types/interfaces/keranjang";
 
 const navLinks = [
   { label: "Beranda", href: "/" },
@@ -40,6 +41,69 @@ export default function Navbar() {
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
   const user = session?.user;
+
+  const [cartCount, setCartCount] = useState(0);
+  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [pesananCount, setPesananCount] = useState(0);
+
+  const fetchCartCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/keranjang");
+      if (!res.ok) return;
+      const data: { items: KeranjangItem[] } = await res.json();
+      const total = data.items.reduce(
+        (sum: number, item: KeranjangItem) => sum + item.kuantitas,
+        0
+      );
+      setCartCount(total);
+    } catch {
+      // biarkan cartCount tetap seperti sebelumnya jika gagal fetch
+    }
+  }, []);
+
+  const fetchFavoriteCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/favorite");
+      if (!res.ok) return;
+      const data: unknown[] = await res.json();
+      setFavoriteCount(data.length);
+    } catch {
+      // biarkan favoriteCount tetap seperti sebelumnya jika gagal fetch
+    }
+  }, []);
+
+  const fetchPesananCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pesanan");
+      if (!res.ok) return;
+      const data: { produk: unknown[]; jasa: unknown[] } = await res.json();
+      setPesananCount((data.produk?.length ?? 0) + (data.jasa?.length ?? 0));
+    } catch {
+      // biarkan pesananCount tetap seperti sebelumnya jika gagal fetch
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch async, setState terjadi setelah await, bukan sinkron di badan effect
+    fetchCartCount();
+    fetchFavoriteCount();
+    fetchPesananCount();
+
+    window.addEventListener("cart-updated", fetchCartCount);
+    window.addEventListener("favorite-updated", fetchFavoriteCount);
+    window.addEventListener("pesanan-updated", fetchPesananCount);
+    return () => {
+      window.removeEventListener("cart-updated", fetchCartCount);
+      window.removeEventListener("favorite-updated", fetchFavoriteCount);
+      window.removeEventListener("pesanan-updated", fetchPesananCount);
+    };
+  }, [isLoggedIn, fetchCartCount, fetchFavoriteCount, fetchPesananCount]);
+
+  const displayedCartCount = isLoggedIn ? cartCount : 0;
+  const displayedFavoriteCount = isLoggedIn ? favoriteCount : 0;
+  const displayedPesananCount = isLoggedIn ? pesananCount : 0;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100">
@@ -94,6 +158,11 @@ export default function Navbar() {
                   aria-label="Keranjang"
                 >
                   <ShoppingCart size={20} />
+                  {displayedCartCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                      {displayedCartCount > 99 ? "99+" : displayedCartCount}
+                    </span>
+                  )}
                 </Link>
 
                 <DropdownMenu>
@@ -123,18 +192,39 @@ export default function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/keranjang" className="flex items-center gap-2 cursor-pointer">
-                        <ShoppingCart size={16} /> Keranjang
+                      <Link href="/keranjang" className="flex items-center justify-between cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <ShoppingCart size={16} /> Keranjang
+                        </span>
+                        {displayedCartCount > 0 && (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                            {displayedCartCount > 99 ? "99+" : displayedCartCount}
+                          </span>
+                        )}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/profile/pesanan" className="flex items-center gap-2 cursor-pointer">
-                        <Package size={16} /> Pesanan
+                      <Link href="/profile/pesanan" className="flex items-center justify-between cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <Package size={16} /> Pesanan
+                        </span>
+                        {displayedPesananCount > 0 && (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                            {displayedPesananCount > 99 ? "99+" : displayedPesananCount}
+                          </span>
+                        )}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/favorite" className="flex items-center gap-2 cursor-pointer">
-                        <Heart size={16} /> Favorite
+                      <Link href="/favorite" className="flex items-center justify-between cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <Heart size={16} /> Favorite
+                        </span>
+                        {displayedFavoriteCount > 0 && (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                            {displayedFavoriteCount > 99 ? "99+" : displayedFavoriteCount}
+                          </span>
+                        )}
                       </Link>
                     </DropdownMenuItem>
 
@@ -210,9 +300,30 @@ export default function Navbar() {
               </div>
 
               <Link href="/profile" onClick={() => setIsOpen(false)} className="block py-1.5 text-sm text-gray-600">Edit Profil</Link>
-              <Link href="/keranjang" onClick={() => setIsOpen(false)} className="block py-1.5 text-sm text-gray-600">Keranjang</Link>
-              <Link href="/pesanan" onClick={() => setIsOpen(false)} className="block py-1.5 text-sm text-gray-600">Pesanan</Link>
-              <Link href="/favorite" onClick={() => setIsOpen(false)} className="block py-1.5 text-sm text-gray-600">Favorite</Link>
+              <Link href="/keranjang" onClick={() => setIsOpen(false)} className="flex items-center justify-between py-1.5 text-sm text-gray-600">
+                <span>Keranjang</span>
+                {displayedCartCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                    {displayedCartCount > 99 ? "99+" : displayedCartCount}
+                  </span>
+                )}
+              </Link>
+              <Link href="/profile/pesanan" onClick={() => setIsOpen(false)} className="flex items-center justify-between py-1.5 text-sm text-gray-600">
+                <span>Pesanan</span>
+                {displayedPesananCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                    {displayedPesananCount > 99 ? "99+" : displayedPesananCount}
+                  </span>
+                )}
+              </Link>
+              <Link href="/favorite" onClick={() => setIsOpen(false)} className="flex items-center justify-between py-1.5 text-sm text-gray-600">
+                <span>Favorite</span>
+                {displayedFavoriteCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                    {displayedFavoriteCount > 99 ? "99+" : displayedFavoriteCount}
+                  </span>
+                )}
+              </Link>
 
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}

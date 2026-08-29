@@ -10,10 +10,21 @@ export interface JasaItem {
     view_count: number;
     fotos: string[];
 
+    jurusan_id: string;
+    jurusan_smk_id: string;
+    jurusan_smk_nama: string;
     nama_jurusan?: string;
     status_publikasi?: "Pending" | "Published" | "Revisi";
     catatan_revisi?: string | null;
+    portofolio: PortofolioItem[];
 }
+
+export interface PortofolioItem {
+  portofolio_id: string;
+  file_path: string;
+  deskripsi: string | null;
+}
+
 
 export interface JasaListItem {
   jasa_id: string;
@@ -25,7 +36,6 @@ export interface JasaListItem {
   total_project: number;
   jurusan_nama: string;
   smk_nama: string;
-  rating: number;
   jumlahReview: number;
 }
 
@@ -35,3 +45,13 @@ export interface JasaListResult {
   totalPages: number;
   currentPage: number;
 }
+
+export type JasaSortOption =
+  | "terbaru"
+  | "nama_asc"
+  | "nama_desc"
+  | "harga_asc"
+  | "harga_desc"
+  | "terlaris";
+
+export type ProdukTypeFilter = "semua" | "produk" | "jasa";

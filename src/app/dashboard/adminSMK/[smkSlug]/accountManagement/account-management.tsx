@@ -4,6 +4,8 @@ import { useState, useMemo, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { confirmAksi, confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 import { Search, Eye, Trash2, School, Plus, Package, HandHeart, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,8 +40,6 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
 
     const [openAdd, setOpenAdd] = useState(false);
     const [detailItem, setDetailItem] = useState<JurusanAccount | null>(null);
-    const [nonaktifItem, setNonaktifItem] = useState<JurusanAccount | null>(null);
-    const [deleteItem, setDeleteItem] = useState<JurusanAccount | null>(null);
 
     const {
         register: registerAdd,
@@ -67,12 +67,15 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
 
     const onSubmitAdd = (values: AddJurusanForm) => {
         startTransition(async () => {
+            tampilkanLoading("Menambahkan akun jurusan..."); // Swal: loading selama request
             try {
                 const res = await createJurusanAccount(values);
+                Swal.close();
                 setData((prev) => [...prev, res.data]);
                 toast.success("Akun jurusan berhasil ditambahkan");
                 setOpenAdd(false);
             } catch (err) {
+                Swal.close();
                 if (err instanceof Error && err.message === "EmailTaken") {
                     toast.error("Email sudah digunakan akun lain");
                 } else if (err instanceof Error && err.message === "UsernameTaken") {
@@ -84,32 +87,46 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
         });
     };
 
-    const handleToggleNonaktif = () => {
-        if (!nonaktifItem) return;
+    const handleToggleNonaktif = async (item: JurusanAccount) => {
+        const konfirmasi = await confirmAksi({
+            title: item.isActive ? "Nonaktifkan Akun?" : "Aktifkan Akun?",
+            text: `Apakah Anda yakin ingin ${item.isActive ? "menonaktifkan" : "mengaktifkan"} akun "${item.nama_jurusan}"?`,
+            icon: "warning",
+            confirmText: item.isActive ? "Ya, nonaktifkan" : "Ya, aktifkan",
+            confirmColor: "#f59e0b", // amber-500
+        }); // 1. Swal: minta izin dulu
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading(item.isActive ? "Menonaktifkan akun..." : "Mengaktifkan akun..."); // Swal: loading
             try {
-                await toggleJurusanStatus(nonaktifItem.jurusan_id);
+                await toggleJurusanStatus(item.jurusan_id);
+                Swal.close();
                 setData((prev) =>
-                    prev.map((it) => (it.jurusan_id === nonaktifItem.jurusan_id ? { ...it, isActive: !it.isActive } : it))
+                    prev.map((it) => (it.jurusan_id === item.jurusan_id ? { ...it, isActive: !it.isActive } : it))
                 );
-                toast.success(nonaktifItem.isActive ? "Akun berhasil dinonaktifkan" : "Akun berhasil diaktifkan");
-                setNonaktifItem(null);
+                toast.success(item.isActive ? "Akun berhasil dinonaktifkan" : "Akun berhasil diaktifkan"); // 2. toast: status
             } catch {
+                Swal.close();
                 toast.error("Gagal mengubah status akun");
             }
         });
     };
 
-    const handleDelete = () => {
-        if (!deleteItem) return;
+    const handleDelete = async (item: JurusanAccount) => {
+        const konfirmasi = await confirmHapus(item.nama_jurusan); // 1. Swal: minta izin dulu
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading("Menghapus akun jurusan..."); // Swal: loading
             try {
-                await deleteJurusanAccount(deleteItem.jurusan_id);
-                setData((prev) => prev.filter((it) => it.jurusan_id !== deleteItem.jurusan_id));
-                toast.success("Akun jurusan berhasil dihapus");
-                setDeleteItem(null);
+                await deleteJurusanAccount(item.jurusan_id);
+                Swal.close();
+                setData((prev) => prev.filter((it) => it.jurusan_id !== item.jurusan_id));
+                toast.success("Akun jurusan berhasil dihapus"); // 2. toast: status sukses
             } catch {
-                toast.error("Gagal menghapus akun jurusan");
+                Swal.close();
+                toast.error("Gagal menghapus akun jurusan"); // 2. toast: status gagal
             }
         });
     };
@@ -200,10 +217,20 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                                             <button onClick={() => setDetailItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors" title="Lihat Detail">
                                                 <Eye className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => setNonaktifItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors" title={item.isActive ? "Nonaktifkan" : "Aktifkan"}>
+                                            <button
+                                                onClick={() => handleToggleNonaktif(item)}
+                                                disabled={isPending}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors disabled:opacity-50"
+                                                title={item.isActive ? "Nonaktifkan" : "Aktifkan"}
+                                            >
                                                 <Power className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => setDeleteItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Hapus">
+                                            <button
+                                                onClick={() => handleDelete(item)}
+                                                disabled={isPending}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
+                                                title="Hapus"
+                                            >
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
@@ -223,7 +250,7 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                     onPageSizeChange={(s) => { setPageSize(s); setPage(1); }} />
             </div>
 
-            {/* Tambah Jurusan */}
+            {/* Tambah Jurusan (form, bukan konfirmasi — tetap shadcn Dialog) */}
             <Dialog open={openAdd} onOpenChange={setOpenAdd}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>Tambah Jurusan</DialogTitle></DialogHeader>
@@ -281,7 +308,7 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                 </DialogContent>
             </Dialog>
 
-            {/* Detail */}
+            {/* Detail (bukan aksi — tetap shadcn Dialog) */}
             <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>Detail Akun Jurusan</DialogTitle></DialogHeader>
@@ -327,42 +354,6 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                     )}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDetailItem(null)}>Tutup</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Toggle Aktif/Nonaktif */}
-            <Dialog open={!!nonaktifItem} onOpenChange={() => setNonaktifItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>{nonaktifItem?.isActive ? "Nonaktifkan" : "Aktifkan"} Akun</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-500 py-2">
-                        Apakah Anda yakin ingin {nonaktifItem?.isActive ? "menonaktifkan" : "mengaktifkan"} akun{" "}
-                        <span className="font-semibold text-gray-700">{nonaktifItem?.nama_jurusan}</span>?
-                    </p>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setNonaktifItem(null)}>Batal</Button>
-                        <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={handleToggleNonaktif} disabled={isPending}>
-                            Ya, {nonaktifItem?.isActive ? "Nonaktifkan" : "Aktifkan"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Hapus */}
-            <Dialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader><DialogTitle>Hapus Akun SMK</DialogTitle></DialogHeader>
-                    <p className="text-sm text-gray-500 py-2">
-                        Apakah Anda yakin ingin menghapus akun{" "}
-                        <span className="font-semibold text-gray-700">{deleteItem?.nama_jurusan}</span>? Tindakan ini tidak dapat dibatalkan.
-                    </p>
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setDeleteItem(null)}>Batal</Button>
-                        <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={handleDelete} disabled={isPending}>
-                            Hapus
-                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

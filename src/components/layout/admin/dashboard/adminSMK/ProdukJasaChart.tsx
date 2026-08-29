@@ -11,9 +11,17 @@ const data = [
 
 const RADIAN = Math.PI / 180;
 
-function renderLabel({ cx, cy, midAngle, outerRadius, index }: any) {
+interface PieLabelProps {
+    cx?: number;
+    cy?: number;
+    midAngle?: number;
+    outerRadius?: number;
+    index?: number;
+}
+
+function renderLabel({ cx = 0, cy = 0, midAngle = 0, outerRadius = 0, index = 0 }: PieLabelProps) {
     const item = data[index];
-    if (item.name === "Lainnya") return null;
+    if (!item || item.name === "Lainnya") return null;
 
     const radius = outerRadius + 20;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);

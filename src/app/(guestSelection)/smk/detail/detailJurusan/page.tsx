@@ -5,16 +5,20 @@ import { useRouter } from "next/navigation";
 import JurusanDetailHero from "./JurusanDetailHero";
 import ProdukListClient from "./ProdukListClient";
 import { getJurusanDetail } from "@/lib/getdata/getJurusanDetail";
-import { getProdukListByJurusan } from "@/lib/data/produk-public";
+import { getFavoritIds, FavoritIds } from "@/lib/data/favorit-public";
+import { getProdukPublicList, ProdukPublicListResult } from "@/lib/data/produk-public";
 import { getJasaListByJurusan, JasaListResult } from "@/lib/data/jasa-public";
 import { JurusanDetailData } from "@/types/interfaces/jurusan";
-import { ProdukListResult, ProdukSortOption, ProdukTypeFilter } from "@/types/interfaces/produk";
+import { ProdukSortOption, ProdukTypeFilter } from "@/types/interfaces/produk";
+
+const EMPTY_FAVORIT: FavoritIds = { produkIds: [], jasaIds: [] };
 
 export default function JurusanDetailPage() {
   const router = useRouter();
   const [jurusan, setJurusan] = useState<JurusanDetailData | null>(null);
-  const [produkResult, setProdukResult] = useState<ProdukListResult | null>(null);
+  const [produkResult, setProdukResult] = useState<ProdukPublicListResult | null>(null);
   const [jasaResult, setJasaResult] = useState<JasaListResult | null>(null);
+  const [favoritIds, setFavoritIds] = useState<FavoritIds>(EMPTY_FAVORIT);
 
   const [search, setSearch] = useState("");
   const [type, setType] = useState<ProdukTypeFilter>("semua");
@@ -24,7 +28,6 @@ export default function JurusanDetailPage() {
 
   const initialized = useRef(false);
   const jurusanIdRef = useRef<string | null>(null);
-
   function fetchList(params: {
     page: number;
     perPage: number;
@@ -36,7 +39,7 @@ export default function JurusanDetailPage() {
     if (!jurusanId) return;
 
     if (params.type === "semua" || params.type === "produk") {
-      getProdukListByJurusan({ jurusanId, ...params }).then(setProdukResult);
+      getProdukPublicList({ jurusanId, ...params }).then(setProdukResult);
     } else {
       setProdukResult(null);
     }
@@ -59,8 +62,26 @@ export default function JurusanDetailPage() {
     }
 
     jurusanIdRef.current = jurusanId;
-    getJurusanDetail(jurusanId).then(setJurusan);
-    fetchList({ page: 1, perPage: 10, sort: "terbaru", type: "semua", search: "" });
+
+    const initialParams = {
+      page: 1,
+      perPage: 10,
+      sort: "terbaru" as ProdukSortOption,
+      type: "semua" as ProdukTypeFilter,
+      search: "",
+    };
+
+    Promise.all([
+      getJurusanDetail(jurusanId),
+      getProdukPublicList({ jurusanId, ...initialParams }),
+      getJasaListByJurusan({ jurusanId, ...initialParams }),
+      getFavoritIds().catch(() => EMPTY_FAVORIT),
+    ]).then(([jurusanData, produk, jasa, favorit]) => {
+      setJurusan(jurusanData);
+      setProdukResult(produk);
+      setJasaResult(jasa);
+      setFavoritIds(favorit);
+    });
   }
 
   function handleSearchChange(value: string) {
@@ -108,6 +129,7 @@ export default function JurusanDetailPage() {
       <ProdukListClient
         produkResult={produkResult}
         jasaResult={jasaResult}
+        favoritIds={favoritIds}
         page={page}
         perPage={perPage}
         sort={sort}

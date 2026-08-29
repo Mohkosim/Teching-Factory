@@ -3,6 +3,8 @@
 import { useState, useRef, useTransition } from "react";
 import { User, Camera } from "lucide-react";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { tampilkanLoading } from "@/lib/utils/alert";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -91,6 +93,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         }
 
         startTransition(async () => {
+            tampilkanLoading("Menyimpan perubahan profil..."); // Swal: loading selama request
             try {
                 let imgUrl: string | undefined = undefined;
 
@@ -122,9 +125,11 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     setAvatarBase64(null);
                 }
 
+                Swal.close();
                 toast.success("Perubahan berhasil disimpan");
                 router.refresh();
             } catch (err) {
+                Swal.close();
                 if (err instanceof Error) {
                     if (err.message === "WrongOldPassword") {
                         toast.error("Password lama salah");

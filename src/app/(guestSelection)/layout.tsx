@@ -7,10 +7,10 @@ export default function GuestLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div className=" bg-sky-100">
       <Navbar />
       <main className="pt-16">{children}</main>
       <Footer />
-    </>
+    </div>
   );
 }

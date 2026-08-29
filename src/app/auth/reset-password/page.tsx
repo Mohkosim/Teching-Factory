@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { tampilkanLoading } from "@/lib/utils/alert";
 import { Button } from "@/components/ui/button";
 import FormField from "@/components/auth/FormField";
 import PasswordInput from "@/components/auth/PasswordInput";
@@ -30,6 +32,7 @@ export default function ResetPasswordPage() {
   });
 
   const onSubmit = async (data: ResetPasswordSchema) => {
+    tampilkanLoading("Menyimpan kata sandi baru..."); // Swal: loading selama request
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
@@ -38,6 +41,7 @@ export default function ResetPasswordPage() {
       });
 
       const result = await res.json();
+      Swal.close();
 
       if (!res.ok) {
         toast.error("Gagal mengatur ulang kata sandi", {
@@ -52,6 +56,7 @@ export default function ResetPasswordPage() {
         onAutoClose: () => router.push("/auth/login"),
       });
     } catch (error) {
+      Swal.close();
       console.error(error);
       toast.error("Terjadi kesalahan server");
     }

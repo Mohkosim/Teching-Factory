@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { confirmAksi, tampilkanLoading } from "@/lib/utils/alert";
 import { Star, Trash2, Inbox, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -153,9 +155,13 @@ export default function IncomingContact() {
         const ids = [...selected];
         setMessages((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, isRead: true } : m)));
         setSelected([]);
+        tampilkanLoading("Menandai pesan sebagai dibaca..."); // Swal: loading selama request
         try {
             await bulkUpdatePesan(ids, "markRead");
+            Swal.close();
+            toast.success(`${ids.length} pesan ditandai sebagai dibaca`);
         } catch {
+            Swal.close();
             toast.error("Gagal menandai dibaca");
             loadMessages();
         }
@@ -163,13 +169,25 @@ export default function IncomingContact() {
 
     const deleteSelected = async () => {
         const ids = [...selected];
+        const konfirmasi = await confirmAksi({
+            title: "Pindahkan pesan ke Sampah?",
+            text: `${ids.length} pesan yang dipilih akan dipindahkan ke Sampah.`,
+            icon: "warning",
+            confirmText: "Ya, pindahkan",
+            confirmColor: "#ef4444", // red-500
+        }); // 1. Swal: minta izin dulu
+        if (!konfirmasi) return;
+
         setMessages((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, isDeleted: true } : m)));
         setSelected([]);
+        tampilkanLoading("Memindahkan pesan ke Sampah..."); // Swal: loading selama request
         try {
             await bulkUpdatePesan(ids, "delete");
-            toast.success("Pesan dipindahkan ke sampah");
+            Swal.close();
+            toast.success("Pesan dipindahkan ke sampah"); // 2. toast: status sukses
         } catch {
-            toast.error("Gagal menghapus pesan");
+            Swal.close();
+            toast.error("Gagal menghapus pesan"); // 2. toast: status gagal
             loadMessages();
         }
     };

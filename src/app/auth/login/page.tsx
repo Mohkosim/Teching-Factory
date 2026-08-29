@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { tampilkanLoading } from "@/lib/utils/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import AuthTabs from "@/components/auth/AuthTabs";
@@ -34,11 +36,15 @@ export default function Login() {
   });
 
   const onSubmit = async (data: LoginSchema) => {
+    tampilkanLoading("Sedang masuk..."); // Swal: loading selama request
+
     const result = await signIn("credentials", {
       email: data.email,
       password: data.password,
       redirect: false,
     });
+
+    Swal.close(); // tutup loading, sebelum lapor status via toast
 
     if (result?.error) {
       if (result.error === "AccountDisabled") {
@@ -67,7 +73,10 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
+    tampilkanLoading("Mengarahkan ke Google..."); // Swal: loading sebelum redirect OAuth
     await signIn("google", { callbackUrl: "/" });
+    // Swal.close() tidak perlu dipanggil di sini karena signIn("google", ...)
+    // akan me-redirect keluar halaman sebelum kode berikutnya sempat jalan
   };
 
   return (

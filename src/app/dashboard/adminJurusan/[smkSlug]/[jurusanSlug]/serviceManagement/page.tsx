@@ -3,5 +3,14 @@ import ServiceManagement from "./service-management";
 
 export default async function Page() {
     const jasaList = await getJasaList();
-    return <ServiceManagement initialData={jasaList} />;
+    const first = jasaList[0];
+
+    return (
+        <ServiceManagement
+            initialData={jasaList}
+            jurusanId={first?.jurusan_id ?? ""}
+            jurusanSmkId={first?.jurusan_smk_id ?? ""}
+            jurusanSmkNama={first?.jurusan_smk_nama ?? ""}
+        />
+    );
 }

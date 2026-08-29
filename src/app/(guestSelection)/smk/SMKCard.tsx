@@ -9,8 +9,7 @@ export default function SMKCard({ smk }: { smk: SMKListItem }) {
   const router = useRouter();
 
   function handleClick() {
-    sessionStorage.setItem("selectedSmkId", smk.smk_id);
-    router.push("/smk/detail");
+    router.push(`/smk/detail?id=${smk.smk_id}`);
   }
 
   return (

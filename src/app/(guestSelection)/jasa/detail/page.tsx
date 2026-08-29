@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { getJasaDetailById, getJasaRekomendasi } from "@/lib/data/jasa-public";
+import { getFavoritIds } from "@/lib/data/favorit-public";
 import JasaDetailClient from "./JasaDetailClient";
 
 export default async function JasaDetailPage({
@@ -27,7 +30,19 @@ export default async function JasaDetailPage({
         );
     }
 
-    const rekomendasi = await getJasaRekomendasi(jasa.id, 4);
+    const [rekomendasi, favoritIds, session] = await Promise.all([
+        getJasaRekomendasi(jasa.id, 4),
+        getFavoritIds(),
+        getServerSession(authOptions),
+    ]);
 
-    return <JasaDetailClient key={jasa.id} jasa={jasa} rekomendasi={rekomendasi} />;
+    return (
+        <JasaDetailClient
+            key={jasa.id}
+            jasa={jasa}
+            rekomendasi={rekomendasi}
+            favoritIds={favoritIds}
+            isLoggedIn={!!session?.user?.id}
+        />
+    );
 }

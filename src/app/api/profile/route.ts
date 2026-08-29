@@ -32,11 +32,15 @@ export async function PATCH(req: Request) {
         email,
         img,
         phone,
+        gender,
         // AdminSMK
         kepala_sekolah,
         deskripsi_smk,
         alamat,
+        kecamatan,     // BARU
         kota,
+        kota_id,       // BARU
+        kode_pos,      // BARU
         provinsi,
         map_link,
         tahun_berdiri,
@@ -48,11 +52,15 @@ export async function PATCH(req: Request) {
         name?: string;
         email?: string;
         img?: string;
+        gender?: "Laki_laki" | "Perempuan";
         phone?: string;
         kepala_sekolah?: string;
         deskripsi_smk?: string;
         alamat?: string;
+        kecamatan?: string;
         kota?: string;
+        kota_id?: number | null;
+        kode_pos?: string;
         provinsi?: string;
         map_link?: string;
         tahun_berdiri?: number | string;
@@ -87,9 +95,9 @@ export async function PATCH(req: Request) {
 
     const isNewSmk = currentUser.role === "AdminSMK" && !currentUser.smk?.smk_id;
     if (isNewSmk) {
-        if (!kepala_sekolah || !phone || !alamat || !kota || !provinsi || !tahun_berdiri) {
+        if (!kepala_sekolah || !phone || !alamat || !kota || !provinsi || !tahun_berdiri || !kota_id) {
             return NextResponse.json(
-                { message: "Nama kepala sekolah, nomor telepon, alamat, kota, provinsi, dan tahun berdiri wajib diisi" },
+                { message: "Nama kepala sekolah, nomor telepon, alamat, kecamatan/kota, provinsi, tahun berdiri, dan lokasi peta wajib diisi" },
                 { status: 400 }
             );
         }
@@ -103,6 +111,7 @@ export async function PATCH(req: Request) {
             ...(email !== undefined ? { email } : {}),
             ...(img !== undefined ? { img } : {}),
             ...(phone !== undefined ? { phone } : {}),
+            ...(gender !== undefined ? { gender } : {}),
         },
         select: {
             user_id: true,
@@ -121,7 +130,10 @@ export async function PATCH(req: Request) {
                     ...(kepala_sekolah !== undefined ? { kepala_sekolah } : {}),
                     ...(deskripsi_smk !== undefined ? { deskripsi: deskripsi_smk } : {}),
                     ...(alamat !== undefined ? { alamat } : {}),
+                    ...(kecamatan !== undefined ? { kecamatan } : {}),   // BARU
                     ...(kota !== undefined ? { kota } : {}),
+                    ...(kota_id !== undefined ? { kota_id } : {}),       // BARU
+                    ...(kode_pos !== undefined ? { kode_pos } : {}),     // BARU
                     ...(provinsi !== undefined ? { provinsi } : {}),
                     ...(map_link !== undefined ? { map_link } : {}),
                     ...(tahun_berdiri !== undefined ? { tahun_berdiri: Number(tahun_berdiri) } : {}),
@@ -135,7 +147,10 @@ export async function PATCH(req: Request) {
                     kepala_sekolah: kepala_sekolah!,
                     deskripsi: deskripsi_smk,
                     alamat: alamat!,
+                    kecamatan: kecamatan,     // BARU
                     kota: kota!,
+                    kota_id: kota_id,         // BARU
+                    kode_pos: kode_pos,       // BARU
                     provinsi: provinsi!,
                     map_link,
                     tahun_berdiri: Number(tahun_berdiri),

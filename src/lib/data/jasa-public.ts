@@ -3,9 +3,17 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { ProdukSortOption } from "@/types/interfaces/produk";
+import type { ReviewPublicItem } from "@/lib/data/produk-public";
+
+export interface PortofolioPublicItem {
+  portofolio_id: string;
+  file_path: string;
+  deskripsi: string | null;
+}
 
 export interface JasaPublicItem {
   id: string;
+  jasaId: string;
   nama: string;
   deskripsi: string;
   harga: number;
@@ -18,6 +26,12 @@ export interface JasaPublicItem {
   jumlahReview: number;
   jurusan: string;
   sekolah: string;
+  noWhatsapp?: string;
+  portofolio: PortofolioPublicItem[]; // <-- TAMBAHAN
+  // Field tambahan khusus halaman detail (hanya diisi oleh getJasaDetailById)
+  ratingBreakdown?: Record<1 | 2 | 3 | 4 | 5, number>;
+  persentasePuas?: number;
+  reviews?: ReviewPublicItem[];
 }
 
 export interface JasaListResult {
@@ -37,9 +51,19 @@ export interface GetJasaListParams {
 
 const jasaInclude = {
   foto: true,
-  jasa: true,
-  jurusan: { include: { smk: { include: { user: true } } } },
+  jasa: { include: { portofolio: true } }, // <-- TAMBAHAN: sertakan portofolio
+  jurusan: { include: { user: true, smk: { include: { user: true } } } },
   review: true,
+} as const;
+
+const jasaDetailInclude = {
+  foto: true,
+  jasa: { include: { portofolio: true } }, // <-- TAMBAHAN: sertakan portofolio
+  jurusan: { include: { user: true, smk: { include: { user: true } } } },
+  review: {
+    include: { user: true, foto: true },
+    orderBy: { createdAt: "desc" as const },
+  },
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -47,9 +71,30 @@ function _shapeJasaProduk() {
   return prisma.produk.findFirstOrThrow({ include: jasaInclude });
 }
 
-type ProdukWithJasa = Awaited<ReturnType<typeof _shapeJasaProduk>>;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _shapeJasaProdukDetail() {
+  return prisma.produk.findFirstOrThrow({ include: jasaDetailInclude });
+}
 
-function mapJasaPublicItem(p: ProdukWithJasa): JasaPublicItem {
+type ProdukWithJasa = Awaited<ReturnType<typeof _shapeJasaProduk>>;
+type ProdukWithJasaDetail = Awaited<ReturnType<typeof _shapeJasaProdukDetail>>;
+
+function maskNama(name: string): string {
+  const trimmed = (name || "Pengguna").trim();
+  if (trimmed.length <= 2) return `${trimmed[0] ?? "?"}***`;
+  return `${trimmed[0]}***${trimmed[trimmed.length - 1]}`;
+}
+
+function formatWaktuUlasan(date: Date): string {
+  const diffDays = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
+  if (diffDays < 1) return "Hari ini";
+  if (diffDays < 30) return `${diffDays} hari lalu`;
+  const diffBulan = Math.floor(diffDays / 30);
+  if (diffBulan < 12) return `${diffBulan} bulan lalu`;
+  return "Lebih dari 1 tahun lalu";
+}
+
+function mapJasaPublicItem(p: ProdukWithJasa | ProdukWithJasaDetail): JasaPublicItem {
   const avgRating =
     p.review.length > 0
       ? p.review.reduce((sum, r) => sum + r.rating, 0) / p.review.length
@@ -57,6 +102,7 @@ function mapJasaPublicItem(p: ProdukWithJasa): JasaPublicItem {
 
   return {
     id: p.produk_id,
+    jasaId: p.jasa[0]?.jasa_id ?? "",
     nama: p.nama_produk,
     deskripsi: p.deskripsi ?? "",
     harga: p.harga,
@@ -69,7 +115,39 @@ function mapJasaPublicItem(p: ProdukWithJasa): JasaPublicItem {
     jumlahReview: p.review.length,
     jurusan: p.jurusan.nama_jurusan,
     sekolah: p.jurusan.smk?.user.name ?? "",
+    noWhatsapp: p.jurusan.user.phone ?? undefined,
+    // <-- TAMBAHAN: petakan portofolio dari relasi jasa
+    portofolio: (p.jasa[0]?.portofolio ?? []).map((pf) => ({
+      portofolio_id: pf.portofolio_id,
+      file_path: pf.file_path,
+      deskripsi: pf.deskripsi,
+    })),
   };
+}
+
+function mapJasaDetailItem(p: ProdukWithJasaDetail): JasaPublicItem {
+  const base = mapJasaPublicItem(p);
+
+  const breakdown: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  p.review.forEach((r) => {
+    const bintang = r.rating as 1 | 2 | 3 | 4 | 5;
+    if (breakdown[bintang] !== undefined) breakdown[bintang] += 1;
+  });
+
+  const puas = p.review.filter((r) => r.rating >= 4).length;
+  const persentasePuas = p.review.length > 0 ? Math.round((puas / p.review.length) * 100) : 0;
+
+  const reviews: ReviewPublicItem[] = p.review.map((r) => ({
+    id: r.review_id,
+    namaSamaran: maskNama(r.user.name),
+    rating: r.rating,
+    komentar: r.komentar ?? "",
+    waktu: formatWaktuUlasan(r.createdAt),
+    createdAtRaw: r.createdAt.toISOString(),
+    fotos: r.foto.map((f) => f.url),
+  }));
+
+  return { ...base, ratingBreakdown: breakdown, persentasePuas, reviews };
 }
 
 function getJasaOrderBy(sort: ProdukSortOption): Prisma.ProdukOrderByWithRelationInput {
@@ -108,14 +186,14 @@ export async function getJasaPublicList(): Promise<JasaPublicItem[]> {
 export async function getJasaDetailById(id: string): Promise<JasaPublicItem | null> {
   const p = await prisma.produk.findUnique({
     where: { produk_id: id },
-    include: jasaInclude,
+    include: jasaDetailInclude,
   });
 
   if (!p || p.status_publikasi !== "Published" || p.status === "Nonaktif") {
     return null;
   }
 
-  return mapJasaPublicItem(p);
+  return mapJasaDetailItem(p);
 }
 
 export async function getJasaRekomendasi(excludeId: string, limit = 3): Promise<JasaPublicItem[]> {
@@ -133,10 +211,6 @@ export async function getJasaRekomendasi(excludeId: string, limit = 3): Promise<
   return produkList.map(mapJasaPublicItem);
 }
 
-/**
- * Dipakai di halaman detail Jurusan: list jasa dengan filter jurusan,
- * search, sort, dan pagination.
- */
 export async function getJasaListByJurusan(params: GetJasaListParams): Promise<JasaListResult> {
   const { jurusanId, search = "", sort = "terbaru", page = 1, perPage = 10 } = params;
 

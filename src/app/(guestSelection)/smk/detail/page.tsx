@@ -1,33 +1,24 @@
-"use client";
-
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import SMKDetailHero from "./SMKDetailHero";
 import JurusanListClient from "./JurusanListClient";
 import LokasiMap from "./LokasiMap";
 import { getSMKDetail } from "@/lib/getdata/getSMKDetail";
-import { SMKDetailData } from "@/types/interfaces/smk";
 
-export default function SMKDetailPage() {
-  const router = useRouter();
-  const [smk, setSmk] = useState<SMKDetailData | null>(null);
-  const initialized = useRef(false);
+export default async function SMKDetailPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string }>;
+}) {
+  const { id } = await searchParams;
 
-  function initRef(node: HTMLDivElement | null) {
-    if (!node || initialized.current) return;
-    initialized.current = true;
-
-    const smkId = sessionStorage.getItem("selectedSmkId");
-    if (!smkId) {
-      router.replace("/smk");
-      return;
-    }
-
-    getSMKDetail(smkId).then(setSmk);
+  if (!id) {
+    redirect("/smk");
   }
 
+  const smk = await getSMKDetail(id);
+
   if (!smk) {
-    return <div ref={initRef} className="min-h-screen bg-gray-50" />;
+    redirect("/smk");
   }
 
   return (

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import ProdukCard from "@/components/produkcard";
-import { getProdukListByJurusan } from "@/lib/data/produk-public";
+import { getProdukPublicList } from "@/lib/data/produk-public";
 
 export default async function ProdukSection() {
-    const { data: produkTerbaru } = await getProdukListByJurusan({
+    const { data: produkTerbaru } = await getProdukPublicList({
         sort: "terbaru",
         page: 1,
         perPage: 4,
@@ -32,7 +32,7 @@ export default async function ProdukSection() {
                 {produkTerbaru.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {produkTerbaru.map((p) => (
-                            <ProdukCard key={p.produk_id} produk={p} />
+                            <ProdukCard key={p.id} product={p} /> 
                         ))}
                     </div>
                 )}

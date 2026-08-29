@@ -29,7 +29,15 @@ export async function getJasaList(): Promise<JasaItem[]> {
 
     const jasaList = await prisma.jasa.findMany({
         where: { produk: { jurusan_id: { in: jurusanIdFilter } } },
-        include: { produk: { include: { foto: true, jurusan: true } } },
+        include: {
+            produk: {
+                include: {
+                    foto: true,
+                    jurusan: { include: { smk: true } }, // tambahkan include smk
+                },
+            },
+            portofolio: true,
+        },
         orderBy: { createdAt: "desc" },
     });
 
@@ -39,6 +47,11 @@ export async function getJasaList(): Promise<JasaItem[]> {
         nama_jasa: j.nama_jasa,
         deskripsi: j.produk.deskripsi,
         fotos: j.produk.foto.map((f) => f.url),
+        portofolio: j.portofolio.map((p) => ({
+            portofolio_id: p.portofolio_id,
+            file_path: p.file_path,
+            deskripsi: p.deskripsi,
+        })),
         harga: j.produk.harga,
         status: j.produk.status,
         estimasi_pengerjaan: j.estimasi_pengerjaan,
@@ -48,5 +61,10 @@ export async function getJasaList(): Promise<JasaItem[]> {
         nama_jurusan: j.produk.jurusan.nama_jurusan,
         status_publikasi: j.produk.status_publikasi,
         catatan_revisi: j.produk.catatan_revisi,
+
+        // field yang tadi hilang:
+        jurusan_id: j.produk.jurusan_id,
+        jurusan_smk_id: j.produk.jurusan.smk_id,
+        jurusan_smk_nama: j.produk.jurusan.smk?.kota ?? "",
     }));
 }

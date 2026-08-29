@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import type { FavoritIds } from "@/lib/data/favorit-public";
 import {
     Select,
     SelectContent,
@@ -11,29 +10,27 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     Search,
     ShoppingBag,
     Star,
-    Heart,
-    ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Filter, { FilterValue, emptyFilterValue } from "@/components/filter/produk/filter";
 import Sorting, { SortOption } from "@/components/filter/produk/sorting";
-import type { ProdukPublicItem} from "@/lib/data/produk-public";
+import ProdukCard from "@/components/produkcard";
+import type { ProdukPublicItem } from "@/lib/data/produk-public";
 import Pagination from "@/components/pagination/Pagination";
-
-const rupiah = (n: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
 type UrutanToolbar = "default" | "termurah" | "termahal" | "terlaris";
 
-export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[] }) {
+interface ProdukPageClientProps {
+    produk: ProdukPublicItem[];
+    lokasiOptions: string[];
+    favoritIds: FavoritIds;
+}
+
+export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: ProdukPageClientProps) {
     const [halaman, setHalaman] = useState(1);
     const [perHalaman, setPerHalaman] = useState(12);
 
@@ -65,6 +62,15 @@ export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[
             hasil = [...hasil].sort((a, b) => b.terjual - a.terjual);
         }
 
+        // Produk stok habis selalu didorong ke belakang, apapun sorting-nya.
+        // Sort JS stabil, jadi urutan hasil sorting di atas tetap terjaga
+        // di dalam masing-masing grup (tersedia duluan, habis belakangan).
+        hasil = [...hasil].sort((a, b) => {
+            const aHabis = a.stok <= 0 ? 1 : 0;
+            const bHabis = b.stok <= 0 ? 1 : 0;
+            return aHabis - bHabis;
+        });
+
         return hasil;
     }, [filter, sort, urutanToolbar, produk]);
 
@@ -78,7 +84,6 @@ export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Hero */}
             <section className="relative overflow-hidden bg-linear-to-b from-sky-500 to-sky-600 px-4 py-14 sm:px-6 lg:px-8">
                 <div className="pointer-events-none absolute inset-0 opacity-90">
                     <FloatingIcon className="left-[8%] top-8 -rotate-12" icon={<ShoppingBag className="h-5 w-5 text-sky-500" />} />
@@ -103,7 +108,7 @@ export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[
 
                         <div className="hidden h-8 w-px bg-gray-200 sm:block" />
 
-                        <Filter value={filter} onApply={setFilter} />
+                        <Filter value={filter} onApply={setFilter} lokasiOptions={lokasiOptions} />
 
                         <div className="hidden h-8 w-px bg-gray-200 sm:block" />
 
@@ -112,7 +117,6 @@ export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[
                 </div>
             </section>
 
-            {/* Konten */}
             <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div>
@@ -172,7 +176,11 @@ export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[
                 ) : (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
                         {produkHalamanIni.map((p) => (
-                            <ProdukCard key={p.id} product={p} />
+                            <ProdukCard
+                                key={p.id}
+                                product={p}
+                                initialFavorited={favoritIds.produkIds.includes(p.id)}
+                            />
                         ))}
                     </div>
                 )}
@@ -184,80 +192,6 @@ export default function ProdukPageClient({ produk }: { produk: ProdukPublicItem[
                 />
             </section>
         </div>
-    );
-}
-
-function ProdukCard({ product }: { product: ProdukPublicItem }) {
-    return (
-        <Card className="group rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 bg-white p-0">
-            <div className="relative h-52 overflow-hidden bg-gray-50">
-                <Image
-                    src={product.gambar}
-                    alt={product.nama}
-                    fill
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <Badge className="absolute top-3 left-3 bg-sky-400 hover:bg-sky-500 text-white text-xs font-semibold px-2.5 py-1 rounded-md shadow">
-                    {product.badge}
-                </Badge>
-                <button className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded-full p-1.5 hover:bg-white transition-colors duration-200 shadow">
-                    <Heart size={14} className="text-gray-400 hover:text-red-400 transition-colors" />
-                </button>
-            </div>
-
-            <CardContent className="p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-gray-900 text-sm leading-tight">{product.nama}</h3>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{product.terjual} Terjual</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">
-                        Badge status:{" "}
-                        <span className="text-sky-500 font-medium">{product.badge}</span>
-                    </span>
-                    <div className="flex items-center gap-1">
-                        <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                        <span className="text-xs font-semibold text-gray-700">
-                            {product.rating?.toFixed(1) ?? "0.0"}
-                        </span>
-                    </div>
-                </div>
-
-                <p className="text-end font-bold text-gray-900">{rupiah(product.harga)}</p>
-
-                <div className="border-t border-gray-100 pt-3 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <Avatar className="h-7 w-7 shrink-0">
-                            <AvatarImage
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(product.jurusan)}&background=0ea5e9&color=fff&size=32`}
-                            />
-                            <AvatarFallback className="bg-sky-100 text-sky-600 text-xs">
-                                {product.jurusan.charAt(0)}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                            <p className="text-xs font-semibold text-gray-800 truncate leading-tight">{product.jurusan}</p>
-                            <p className="text-xs text-gray-400 truncate leading-tight">{product.sekolah}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <button className="p-1.5 rounded-md border border-gray-200 hover:border-sky-400 hover:text-sky-500 transition-colors duration-200">
-                            <ShoppingCart size={14} className="text-gray-400 hover:text-sky-500" />
-                        </button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="text-xs font-semibold border-sky-400 text-sky-500 hover:bg-sky-50 hover:text-sky-600 rounded-lg px-3 py-1 h-auto"
-                        >
-                            <Link href={`/produk/detail?id=${product.id}`}>Lihat Produk</Link>
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
     );
 }
 

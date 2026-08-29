@@ -1,4 +1,5 @@
 import { getTefaStats, TefaStats } from '@/lib/getdata/get-stats'
+import Image from 'next/image'
 
 function AnimatedNumber({ target }: { target: number }) {
     return (
@@ -29,8 +30,8 @@ export default async function StatistikTefaSection() {
         },
         {
             img: '/img/team.png',
-            label: 'Jurusan',
-            value: data.jurusan,
+            label: 'Jasa',
+            value: data.jasa,
         },
     ]
 
@@ -96,9 +97,10 @@ export default async function StatistikTefaSection() {
                                 }}
                             >
                                 {/* ICON DI KANAN BAWAH */}
-                                <img
+                                <Image
                                     src={s.img}
                                     alt={s.label}
+                                    fill
                                     className="absolute bottom-0 right-0 w-28 opacity-90"
                                 />
 

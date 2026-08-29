@@ -3,6 +3,8 @@
 import { useRef, useState, useMemo, useTransition } from "react";
 import { Search, Eye, Pencil, Trash2, Plus, Package, ImagePlus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,9 +73,8 @@ export default function ProductManagement({ initialData }: { initialData: Produk
     const [formData, setFormData] = useState<ProdukForm>(emptyForm);
     const [editingId, setEditingId] = useState<string | null>(null);
 
-    const [deleteItem, setDeleteItem] = useState<ProdukItem | null>(null);
-
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [showFullDesc, setShowFullDesc] = useState(false);
 
     const [existingFotos, setExistingFotos] = useState<string[]>([]);
     const [newFiles, setNewFiles] = useState<File[]>([]);
@@ -174,6 +175,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
     const openDetail = (item: ProdukItem) => {
         setDetailItem(item);
         setActiveImageIndex(0);
+        setShowFullDesc(false);
     };
 
     const goPrevImage = () => {
@@ -193,6 +195,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
         }
 
         startTransition(async () => {
+            tampilkanLoading(formMode === "create" ? "Menambahkan produk..." : "Menyimpan perubahan...");
             try {
                 let uploadedUrls: string[] = [];
                 if (newFiles.length > 0) {
@@ -202,6 +205,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
 
                 const parsed = produkSchema.safeParse({ ...formData, fotos });
                 if (!parsed.success) {
+                    Swal.close();
                     toast.error(parsed.error.issues[0]?.message ?? "Data tidak valid");
                     return;
                 }
@@ -223,6 +227,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                         status_publikasi: res.data.status_publikasi ?? "Pending",
                     };
                     setProducts((prev) => [newItem, ...prev]);
+                    Swal.close();
                     toast.success("Produk berhasil ditambahkan");
                 } else if (formMode === "edit" && editingId) {
                     const original = products.find((p) => p.produk_id === editingId);
@@ -252,6 +257,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                         )
                     );
 
+                    Swal.close();
                     toast.success(
                         harusReviewUlang
                             ? "Produk berhasil diperbarui, menunggu review ulang"
@@ -260,6 +266,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                 }
                 closeForm();
             } catch (err) {
+                Swal.close();
                 if (err instanceof Error && err.message === "FileTooLarge") {
                     toast.error("Ukuran salah satu file melebihi 2MB");
                     return;
@@ -273,17 +280,21 @@ export default function ProductManagement({ initialData }: { initialData: Produk
         });
     };
 
-    const handleConfirmDelete = () => {
-        if (!deleteItem) return;
-        startTransition(async () => {
-            try {
-                await deleteProduk(deleteItem.produk_id);
-                setProducts((prev) => prev.filter((p) => p.produk_id !== deleteItem.produk_id));
-                toast.success("Produk berhasil dihapus");
-                setDeleteItem(null);
-            } catch {
-                toast.error("Gagal menghapus produk");
-            }
+    const handleDelete = (item: ProdukItem) => {
+        confirmHapus(item.nama_produk).then((confirmed) => {
+            if (!confirmed) return;
+            startTransition(async () => {
+                tampilkanLoading("Menghapus produk...");
+                try {
+                    await deleteProduk(item.produk_id);
+                    setProducts((prev) => prev.filter((p) => p.produk_id !== item.produk_id));
+                    Swal.close();
+                    toast.success("Produk berhasil dihapus");
+                } catch {
+                    Swal.close();
+                    toast.error("Gagal menghapus produk");
+                }
+            });
         });
     };
 
@@ -407,7 +418,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                             <button onClick={() => openEditForm(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-500 transition-colors" title="Edit Produk">
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => setDeleteItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Hapus Produk">
+                                            <button onClick={() => handleDelete(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Hapus Produk">
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
@@ -429,13 +440,13 @@ export default function ProductManagement({ initialData }: { initialData: Produk
 
             {/* Detail */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
-                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-sky-50/60">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 shrink-0 border-b border-gray-100 bg-sky-50/60">
                         <DialogTitle className="text-base">Detail Produk</DialogTitle>
                     </DialogHeader>
 
                     {detailItem && (
-                        <div className="px-6 py-5">
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {/* Kolom Gambar */}
                                 <div className="space-y-3">
@@ -502,9 +513,20 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                         </p>
                                     </div>
 
-                                    <p className="text-sm text-gray-500 leading-relaxed">
-                                        {detailItem.deskripsi || "-"}
-                                    </p>
+                                    <div>
+                                        <p className={`text-sm text-gray-500 leading-relaxed ${!showFullDesc ? "line-clamp-3" : ""}`}>
+                                            {detailItem.deskripsi || "-"}
+                                        </p>
+                                        {detailItem.deskripsi && detailItem.deskripsi.length > 120 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowFullDesc((v) => !v)}
+                                                className="mt-1 text-xs font-medium text-sky-600 hover:text-sky-700"
+                                            >
+                                                {showFullDesc ? "Sembunyikan" : "Lihat selengkapnya"}
+                                            </button>
+                                        )}
+                                    </div>
 
                                     <p className="text-xs text-gray-400 pt-1">
                                         Stok : {detailItem.stok} &nbsp;·&nbsp; Terjual : {detailItem.sold_count} &nbsp;·&nbsp; Kondisi : {detailItem.kondisi ?? "-"}
@@ -537,12 +559,12 @@ export default function ProductManagement({ initialData }: { initialData: Produk
 
             {/* Tambah / Edit */}
             <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100">
                         <DialogTitle>{formMode === "create" ? "Tambah Produk" : "Edit Produk"}</DialogTitle>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-2">
+                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                         <div className="space-y-1.5">
                             <Label className="text-sm text-gray-600">Nama Produk</Label>
                             <Input
@@ -669,27 +691,10 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                         </div>
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="px-6 py-4 shrink-0 border-t border-gray-100">
                         <Button onClick={closeForm} variant="outline" className="rounded-lg">Batal</Button>
                         <Button onClick={handleSubmitForm} disabled={isPending} className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg">
                             {isPending ? "Menyimpan..." : formMode === "create" ? "Simpan Produk" : "Simpan Perubahan"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Hapus */}
-            <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader><DialogTitle>Hapus Produk</DialogTitle></DialogHeader>
-                    <p className="text-sm text-gray-500">
-                        Apakah Anda yakin ingin menghapus produk{" "}
-                        <span className="font-medium text-gray-700">{deleteItem?.nama_produk}</span>? Tindakan ini tidak dapat dibatalkan.
-                    </p>
-                    <DialogFooter>
-                        <Button onClick={() => setDeleteItem(null)} variant="outline" className="rounded-lg">Batal</Button>
-                        <Button onClick={handleConfirmDelete} disabled={isPending} className="bg-red-500 hover:bg-red-600 text-white rounded-lg">
-                            {isPending ? "Menghapus..." : "Hapus"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

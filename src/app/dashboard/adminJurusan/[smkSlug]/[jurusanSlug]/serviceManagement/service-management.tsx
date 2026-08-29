@@ -1,8 +1,13 @@
 "use client";
 
 import { useRef, useState, useMemo, useTransition } from "react";
-import { Search, Eye, Pencil, Trash2, Plus, Wrench, ImagePlus, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    Search, Eye, Pencil, Trash2, Plus, Wrench, ImagePlus, X,
+    ChevronLeft, ChevronRight, FileText, FilePlus,
+} from "lucide-react";
 import { toast } from "sonner";
+import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,8 +27,33 @@ import {
 import PaginationIconsOnly from "@/components/pagination/page";
 
 import { jasaSchema, type JasaForm } from "@/lib/validations/jasa";
-import { createJasa, updateJasa, deleteJasa, uploadJasaImages } from "@/lib/api/jasa-api";
+import {
+    createJasa,
+    updateJasa,
+    deleteJasa,
+    uploadJasaImages,
+    // TODO: tambahkan fungsi ini di @/lib/api/jasa-api.ts, contoh implementasi:
+    //
+    // export async function uploadJasaPortofolio(files: File[]): Promise<string[]> {
+    //   const formData = new FormData();
+    //   files.forEach((f) => formData.append("files", f));
+    //   const res = await fetch("/api/upload/portofolio", { method: "POST", body: formData });
+    //   if (!res.ok) throw new Error("Gagal upload portofolio");
+    //   const data = await res.json();
+    //   return data.urls; // array of file_path/url
+    // }
+    uploadJasaPortofolio,
+} from "@/lib/api/jasa-api";
 import type { JasaItem } from "@/types/interfaces/jasa";
+
+// TODO: tambahkan tipe ini di @/types/interfaces/jasa.ts, dan tambahkan
+// field `portofolio: PortofolioItem[]` ke interface JasaItem, sesuai model
+// Prisma `Portofolio { portofolio_id, jasa_id, file_path, deskripsi }`
+export interface PortofolioItem {
+    portofolio_id: string;
+    file_path: string;
+    deskripsi: string | null;
+}
 
 const emptyForm: Omit<JasaForm, "fotos"> = {
     nama_jasa: "",
@@ -36,14 +66,33 @@ const emptyForm: Omit<JasaForm, "fotos"> = {
 
 const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
 
+const MAX_PDF_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_PORTOFOLIO_FILES = 10;
+
 function formatRupiah(value: number) {
     return "Rp " + value.toLocaleString("id-ID");
+}
+
+function namaFileDariUrl(url: string) {
+    try {
+        const bersih = url.split("?")[0];
+        return decodeURIComponent(bersih.substring(bersih.lastIndexOf("/") + 1));
+    } catch {
+        return "portofolio.pdf";
+    }
+}
+
+// Item baru (belum diupload) yang dipasangkan dengan deskripsi per-file
+interface NewPortofolioEntry {
+    file: File;
+    deskripsi: string;
 }
 
 function isKontenBerubah(
     original: JasaItem,
     parsed: Omit<JasaForm, "fotos">,
-    fotosBaru: string[]
+    fotosBaru: string[],
+    portofolioBaru: { file_path: string; deskripsi: string | null }[]
 ): boolean {
     return (
         original.nama_jasa !== parsed.nama_jasa ||
@@ -51,11 +100,23 @@ function isKontenBerubah(
         original.harga !== parsed.harga ||
         (original.estimasi_pengerjaan ?? "") !== (parsed.estimasi_pengerjaan ?? "") ||
         original.total_project !== parsed.total_project ||
-        JSON.stringify(original.fotos) !== JSON.stringify(fotosBaru)
+        JSON.stringify(original.fotos) !== JSON.stringify(fotosBaru) ||
+        JSON.stringify((original.portofolio ?? []).map((p) => ({ file_path: p.file_path, deskripsi: p.deskripsi }))) !==
+        JSON.stringify(portofolioBaru)
     );
 }
 
-export default function ServiceManagement({ initialData }: { initialData: JasaItem[] }) {
+export default function ServiceManagement({
+    initialData,
+    jurusanId,
+    jurusanSmkId,
+    jurusanSmkNama,
+}: {
+    initialData: JasaItem[];
+    jurusanId: string;
+    jurusanSmkId: string;
+    jurusanSmkNama: string;
+}) {
     const [services, setServices] = useState<JasaItem[]>(initialData);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("Semua");
@@ -65,18 +126,22 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
 
     const [detailItem, setDetailItem] = useState<JasaItem | null>(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [showFullDesc, setShowFullDesc] = useState(false);
 
     const [formOpen, setFormOpen] = useState(false);
     const [formMode, setFormMode] = useState<"create" | "edit">("create");
     const [formData, setFormData] = useState<Omit<JasaForm, "fotos">>(emptyForm);
     const [editingId, setEditingId] = useState<string | null>(null);
 
-    const [deleteItem, setDeleteItem] = useState<JasaItem | null>(null);
-
     const [existingFotos, setExistingFotos] = useState<string[]>([]);
     const [newFiles, setNewFiles] = useState<File[]>([]);
     const [newPreviews, setNewPreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // --- State untuk portofolio PDF ---
+    const [existingPortofolio, setExistingPortofolio] = useState<PortofolioItem[]>([]);
+    const [newPortofolio, setNewPortofolio] = useState<NewPortofolioEntry[]>([]);
+    const portofolioInputRef = useRef<HTMLInputElement>(null);
 
     const MAX_FILE_SIZE = 2 * 1024 * 1024;
     const MAX_FILES = 5;
@@ -102,6 +167,8 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
         setExistingFotos([]);
         setNewFiles([]);
         setNewPreviews([]);
+        setExistingPortofolio([]);
+        setNewPortofolio([]);
         setFormOpen(true);
     };
 
@@ -119,6 +186,8 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
         setExistingFotos(item.fotos);
         setNewFiles([]);
         setNewPreviews([]);
+        setExistingPortofolio(item.portofolio ?? []);
+        setNewPortofolio([]);
         setFormOpen(true);
     };
 
@@ -171,9 +240,59 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
         setNewPreviews((prev) => prev.filter((_, i) => i !== idx));
     };
 
+    // --- Handler untuk portofolio PDF ---
+    const handlePortofolioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? []);
+        if (files.length === 0) return;
+
+        const totalCount = existingPortofolio.length + newPortofolio.length + files.length;
+        if (totalCount > MAX_PORTOFOLIO_FILES) {
+            toast.error(`Maksimal ${MAX_PORTOFOLIO_FILES} file portofolio`);
+            return;
+        }
+
+        for (const file of files) {
+            if (file.type !== "application/pdf") {
+                toast.error(`${file.name} harus berformat PDF`);
+                return;
+            }
+            if (file.size > MAX_PDF_SIZE) {
+                toast.error(`${file.name} melebihi 5MB`);
+                return;
+            }
+        }
+
+        setNewPortofolio((prev) => [
+            ...prev,
+            ...files.map((file) => ({ file, deskripsi: "" })),
+        ]);
+        e.target.value = "";
+    };
+
+    const removeExistingPortofolio = (idx: number) => {
+        setExistingPortofolio((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const removeNewPortofolio = (idx: number) => {
+        setNewPortofolio((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const updateExistingPortofolioDeskripsi = (idx: number, deskripsi: string) => {
+        setExistingPortofolio((prev) =>
+            prev.map((p, i) => (i === idx ? { ...p, deskripsi } : p))
+        );
+    };
+
+    const updateNewPortofolioDeskripsi = (idx: number, deskripsi: string) => {
+        setNewPortofolio((prev) =>
+            prev.map((p, i) => (i === idx ? { ...p, deskripsi } : p))
+        );
+    };
+
     const openDetail = (item: JasaItem) => {
         setDetailItem(item);
         setActiveImageIndex(0);
+        setShowFullDesc(false);
     };
 
     const goPrevImage = () => {
@@ -193,6 +312,7 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
         }
 
         startTransition(async () => {
+            tampilkanLoading(formMode === "create" ? "Menambahkan jasa..." : "Menyimpan perubahan...");
             try {
                 let uploadedUrls: string[] = [];
                 if (newFiles.length > 0) {
@@ -200,36 +320,67 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                 }
                 const fotos = [...existingFotos, ...uploadedUrls];
 
+                // --- Upload PDF portofolio baru, lalu gabungkan dengan yang lama ---
+                let uploadedPortofolioUrls: string[] = [];
+                if (newPortofolio.length > 0) {
+                    uploadedPortofolioUrls = await uploadJasaPortofolio(
+                        newPortofolio.map((p) => p.file)
+                    );
+                }
+                const portofolio = [
+                    ...existingPortofolio.map((p) => ({
+                        file_path: p.file_path,
+                        deskripsi: p.deskripsi,
+                    })),
+                    ...uploadedPortofolioUrls.map((url, idx) => ({
+                        file_path: url,
+                        deskripsi: newPortofolio[idx]?.deskripsi || null,
+                    })),
+                ];
+
                 const parsed = jasaSchema.safeParse({ ...formData, fotos });
                 if (!parsed.success) {
+                    Swal.close();
                     toast.error(parsed.error.issues[0]?.message ?? "Data tidak valid");
                     return;
                 }
 
                 if (formMode === "create") {
-                    const res = await createJasa(parsed.data);
+                    // TODO: pastikan createJasa menerima field `portofolio` dan
+                    // melakukan nested create ke tabel Portofolio (jasa_id = jasa yang baru dibuat)
+                    const res = await createJasa({ ...parsed.data, portofolio });
                     const newItem: JasaItem = {
                         jasa_id: res.data.jasa[0].jasa_id,
                         produk_id: res.data.produk_id,
                         nama_jasa: parsed.data.nama_jasa,
                         deskripsi: res.data.deskripsi,
                         fotos,
+                        portofolio: res.data.jasa[0].portofolio ?? portofolio.map(
+                            (p: { file_path: string; deskripsi: string | null }, i: number) => ({
+                                portofolio_id: `temp-${i}`,
+                                file_path: p.file_path,
+                                deskripsi: p.deskripsi,
+                            })
+                        ),
                         harga: res.data.harga,
                         status: res.data.status,
                         estimasi_pengerjaan: parsed.data.estimasi_pengerjaan ?? null,
                         total_project: parsed.data.total_project,
                         view_count: res.data.view_count,
-
                         status_publikasi: res.data.status_publikasi ?? "Pending",
                         catatan_revisi: res.data.catatan_revisi ?? null,
+                        jurusan_id: jurusanId,
+                        jurusan_smk_id: jurusanSmkId,
+                        jurusan_smk_nama: jurusanSmkNama,
                     };
                     setServices((prev) => [newItem, ...prev]);
+                    Swal.close();
                     toast.success("Jasa berhasil ditambahkan");
                 } else if (formMode === "edit" && editingId) {
                     const original = services.find((s) => s.jasa_id === editingId);
 
                     const kontenBerubah = original
-                        ? isKontenBerubah(original, parsed.data, fotos)
+                        ? isKontenBerubah(original, parsed.data, fotos, portofolio)
                         : true;
                     const harusReviewUlang =
                         kontenBerubah && original?.status_publikasi === "Published";
@@ -238,19 +389,37 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                         ? "Pending"
                         : original?.status_publikasi ?? "Pending";
 
+                    // TODO: pastikan updateJasa menerima field `portofolio` dan
+                    // melakukan sinkronisasi (hapus yang tidak ada lagi, create yang baru)
+                    // di tabel Portofolio milik jasa ini.
                     await updateJasa(editingId, {
                         ...parsed.data,
+                        portofolio,
                         status_publikasi: nextStatusPublikasi,
                     });
 
                     setServices((prev) =>
                         prev.map((s) =>
                             s.jasa_id === editingId
-                                ? { ...s, ...parsed.data, fotos, status_publikasi: nextStatusPublikasi }
+                                ? {
+                                    ...s,
+                                    ...parsed.data,
+                                    fotos,
+                                    portofolio: portofolio.map(
+                                        (p: { file_path: string; deskripsi: string | null }, i: number) => ({
+                                            portofolio_id:
+                                                existingPortofolio[i]?.portofolio_id ?? `temp-${i}`,
+                                            file_path: p.file_path,
+                                            deskripsi: p.deskripsi,
+                                        })
+                                    ),
+                                    status_publikasi: nextStatusPublikasi,
+                                }
                                 : s
                         )
                     );
 
+                    Swal.close();
                     toast.success(
                         harusReviewUlang
                             ? "Jasa berhasil diperbarui, menunggu review ulang"
@@ -259,8 +428,9 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                 }
                 closeForm();
             } catch (err) {
+                Swal.close();
                 if (err instanceof Error && err.message === "FileTooLarge") {
-                    toast.error("Ukuran salah satu file melebihi 2MB");
+                    toast.error("Ukuran salah satu file melebihi batas maksimal");
                     return;
                 }
                 if (err instanceof Error && err.message === "FileTipeSalah") {
@@ -272,17 +442,21 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
         });
     };
 
-    const handleConfirmDelete = () => {
-        if (!deleteItem) return;
-        startTransition(async () => {
-            try {
-                await deleteJasa(deleteItem.jasa_id);
-                setServices((prev) => prev.filter((s) => s.jasa_id !== deleteItem.jasa_id));
-                toast.success("Jasa berhasil dihapus");
-                setDeleteItem(null);
-            } catch {
-                toast.error("Gagal menghapus jasa");
-            }
+    const handleDelete = (item: JasaItem) => {
+        confirmHapus(item.nama_jasa).then((confirmed) => {
+            if (!confirmed) return;
+            startTransition(async () => {
+                tampilkanLoading("Menghapus jasa...");
+                try {
+                    await deleteJasa(item.jasa_id);
+                    setServices((prev) => prev.filter((s) => s.jasa_id !== item.jasa_id));
+                    Swal.close();
+                    toast.success("Jasa berhasil dihapus");
+                } catch {
+                    Swal.close();
+                    toast.error("Gagal menghapus jasa");
+                }
+            });
         });
     };
 
@@ -393,8 +567,8 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status_publikasi === "Published" ? "bg-emerald-100 text-emerald-600" :
-                                                item.status_publikasi === "Revisi" ? "bg-red-100 text-red-600" :
-                                                    "bg-amber-100 text-amber-600"
+                                            item.status_publikasi === "Revisi" ? "bg-red-100 text-red-600" :
+                                                "bg-amber-100 text-amber-600"
                                             }`}>
                                             {item.status_publikasi}
                                         </span>
@@ -407,7 +581,7 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                                             <button onClick={() => openEditForm(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-500 transition-colors" title="Edit Jasa">
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => setDeleteItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Hapus Jasa">
+                                            <button onClick={() => handleDelete(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Hapus Jasa">
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
@@ -429,13 +603,13 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
 
             {/* Detail */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
-                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-sky-50/60">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 shrink-0 border-b border-gray-100 bg-sky-50/60">
                         <DialogTitle className="text-base">Detail Jasa</DialogTitle>
                     </DialogHeader>
 
                     {detailItem && (
-                        <div className="px-6 py-5">
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 {/* Kolom Gambar */}
                                 <div className="space-y-3">
@@ -502,13 +676,45 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                                         </p>
                                     </div>
 
-                                    <p className="text-sm text-gray-500 leading-relaxed">
-                                        {detailItem.deskripsi || "-"}
-                                    </p>
+                                    <div>
+                                        <p className={`text-sm text-gray-500 leading-relaxed ${!showFullDesc ? "line-clamp-3" : ""}`}>
+                                            {detailItem.deskripsi || "-"}
+                                        </p>
+                                        {detailItem.deskripsi && detailItem.deskripsi.length > 120 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowFullDesc((v) => !v)}
+                                                className="mt-1 text-xs font-medium text-sky-600 hover:text-sky-700"
+                                            >
+                                                {showFullDesc ? "Sembunyikan" : "Lihat selengkapnya"}
+                                            </button>
+                                        )}
+                                    </div>
 
                                     <p className="text-xs text-gray-400 pt-1">
                                         Estimasi : {detailItem.estimasi_pengerjaan ?? "-"} &nbsp;·&nbsp; Total Project : {detailItem.total_project} &nbsp;·&nbsp; Status : {detailItem.status}
                                     </p>
+
+                                    {/* Daftar portofolio PDF pada detail */}
+                                    {(detailItem.portofolio?.length ?? 0) > 0 && (
+                                        <div className="pt-2 space-y-1.5">
+                                            <p className="text-xs font-semibold text-gray-500">Portofolio</p>
+                                            {detailItem.portofolio!.map((p: PortofolioItem) => (
+                                                <a
+                                                    key={p.portofolio_id}
+                                                    href={p.file_path}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"
+                                                >
+                                                    <FileText className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                                                    <span className="truncate">
+                                                        {p.deskripsi || namaFileDariUrl(p.file_path)}
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -518,12 +724,12 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
 
             {/* Tambah / Edit */}
             <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100">
                         <DialogTitle>{formMode === "create" ? "Tambah Jasa" : "Edit Jasa"}</DialogTitle>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-2">
+                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                         <div className="space-y-1.5">
                             <Label className="text-sm text-gray-600">Nama Jasa</Label>
                             <Input
@@ -596,6 +802,90 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                             />
                         </div>
 
+                        {/* --- Bagian Portofolio PDF --- */}
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">
+                                Portofolio PDF (maks {MAX_PORTOFOLIO_FILES}, @5MB)
+                            </Label>
+
+                            <div className="space-y-2">
+                                {existingPortofolio.map((p, idx) => (
+                                    <div
+                                        key={p.portofolio_id}
+                                        className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                                    >
+                                        <FileText className="h-4 w-4 shrink-0 text-red-500" />
+                                        <a
+                                            href={p.file_path}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs text-sky-600 hover:underline truncate max-w-28 shrink-0"
+                                        >
+                                            {namaFileDariUrl(p.file_path)}
+                                        </a>
+                                        <Input
+                                            value={p.deskripsi ?? ""}
+                                            onChange={(e) => updateExistingPortofolioDeskripsi(idx, e.target.value)}
+                                            placeholder="Keterangan (opsional)"
+                                            className="h-8 flex-1 bg-white border-gray-200 rounded-md text-xs"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeExistingPortofolio(idx)}
+                                            className="h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-red-500"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {newPortofolio.map((p, idx) => (
+                                    <div
+                                        key={`new-pf-${idx}`}
+                                        className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50/40 px-3 py-2"
+                                    >
+                                        <FileText className="h-4 w-4 shrink-0 text-red-500" />
+                                        <span className="text-xs text-gray-600 truncate max-w-28 shrink-0">
+                                            {p.file.name}
+                                        </span>
+                                        <Input
+                                            value={p.deskripsi}
+                                            onChange={(e) => updateNewPortofolioDeskripsi(idx, e.target.value)}
+                                            placeholder="Keterangan (opsional)"
+                                            className="h-8 flex-1 bg-white border-gray-200 rounded-md text-xs"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeNewPortofolio(idx)}
+                                            className="h-6 w-6 shrink-0 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-red-500"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {existingPortofolio.length + newPortofolio.length < MAX_PORTOFOLIO_FILES && (
+                                    <button
+                                        type="button"
+                                        onClick={() => portofolioInputRef.current?.click()}
+                                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-gray-300 py-2.5 text-xs text-gray-400 hover:border-sky-400 hover:text-sky-500 transition-colors"
+                                    >
+                                        <FilePlus className="h-4 w-4" />
+                                        Tambah PDF Portofolio
+                                    </button>
+                                )}
+                            </div>
+
+                            <input
+                                ref={portofolioInputRef}
+                                type="file"
+                                accept="application/pdf"
+                                multiple
+                                className="hidden"
+                                onChange={handlePortofolioFileChange}
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label className="text-sm text-gray-600">Harga</Label>
@@ -650,27 +940,10 @@ export default function ServiceManagement({ initialData }: { initialData: JasaIt
                         </div>
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="px-6 py-4 shrink-0 border-t border-gray-100">
                         <Button onClick={closeForm} variant="outline" className="rounded-lg">Batal</Button>
                         <Button onClick={handleSubmitForm} disabled={isPending} className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg">
                             {isPending ? "Menyimpan..." : formMode === "create" ? "Simpan Jasa" : "Simpan Perubahan"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Hapus */}
-            <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
-                <DialogContent className="sm:max-w-sm">
-                    <DialogHeader><DialogTitle>Hapus Jasa</DialogTitle></DialogHeader>
-                    <p className="text-sm text-gray-500">
-                        Apakah Anda yakin ingin menghapus jasa{" "}
-                        <span className="font-medium text-gray-700">{deleteItem?.nama_jasa}</span>? Tindakan ini tidak dapat dibatalkan.
-                    </p>
-                    <DialogFooter>
-                        <Button onClick={() => setDeleteItem(null)} variant="outline" className="rounded-lg">Batal</Button>
-                        <Button onClick={handleConfirmDelete} disabled={isPending} className="bg-red-500 hover:bg-red-600 text-white rounded-lg">
-                            {isPending ? "Menghapus..." : "Hapus"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

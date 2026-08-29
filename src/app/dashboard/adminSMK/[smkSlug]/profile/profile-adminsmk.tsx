@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import Swal from "sweetalert2";
 import { User, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { tampilkanLoading } from "@/lib/utils/alert";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +23,14 @@ import {
 } from "@/components/ui/breadcrumb";
 
 import { uploadAvatar, updateProfile, updatePassword } from "@/lib/api/profile-api";
+import { searchOngkirDestination, type OngkirDestination } from "@/lib/api/ongkir-api";
 import type { ProfileData } from "@/types/interfaces/profile";
+import type { ReverseGeocodeResult } from "@/components/AddressMapPicker";
+
+const AddressMapPicker = dynamic(
+    () => import("@/components/AddressMapPicker"),
+    { ssr: false, loading: () => <div className="h-64 rounded-xl bg-gray-100 animate-pulse" /> }
+);
 
 export default function ProfileClient({ initialData }: { initialData: ProfileData }) {
     const { update } = useSession();
@@ -33,7 +43,10 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         kepala_sekolah: initialData.kepala_sekolah ?? "",
         deskripsi_smk: initialData.deskripsi_smk ?? "",
         alamat: initialData.alamat ?? "",
+        kecamatan: initialData.kecamatan ?? "",       // BARU
         kota: initialData.kota ?? "",
+        kota_id: initialData.kota_id ?? null as number | null, // BARU
+        kode_pos: initialData.kode_pos ?? "",         // BARU
         provinsi: initialData.provinsi ?? "",
         map_link: initialData.map_link ?? "",
         tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
@@ -52,6 +65,10 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
 
     const [prevInitialData, setPrevInitialData] = useState(initialData);
 
+    // ==== State pencarian kecamatan manual (fallback kalau map picker tidak akurat) ====
+    const [destinationOptions, setDestinationOptions] = useState<OngkirDestination[]>([]);
+    const [searchingDestination, setSearchingDestination] = useState(false);
+
     if (initialData !== prevInitialData) {
         setPrevInitialData(initialData);
         setProfileForm({
@@ -61,7 +78,10 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             kepala_sekolah: initialData.kepala_sekolah ?? "",
             deskripsi_smk: initialData.deskripsi_smk ?? "",
             alamat: initialData.alamat ?? "",
+            kecamatan: initialData.kecamatan ?? "",
             kota: initialData.kota ?? "",
+            kota_id: initialData.kota_id ?? null,
+            kode_pos: initialData.kode_pos ?? "",
             provinsi: initialData.provinsi ?? "",
             map_link: initialData.map_link ?? "",
             tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
@@ -96,6 +116,64 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         reader.readAsDataURL(file);
     };
 
+    // ==== BARU: pilih lokasi gudang lewat peta ====
+    const handleLocationSelect = async (result: ReverseGeocodeResult) => {
+        setProfileForm((prev) => ({
+            ...prev,
+            alamat: result.alamat_lengkap,
+            kecamatan: result.kecamatan,
+            kota: result.kota,
+            provinsi: result.provinsi,
+            kode_pos: result.kode_pos,
+            kota_id: null,
+        }));
+
+        try {
+            const query = [result.kecamatan, result.kota].filter(Boolean).join(", ");
+            const matches = await searchOngkirDestination(query || result.kota);
+            if (matches.length > 0) {
+                setProfileForm((prev) => ({ ...prev, kota_id: matches[0].id }));
+                toast.success("Lokasi terhubung otomatis dengan sistem ongkir");
+            } else {
+                toast.error("Kecamatan tidak ditemukan otomatis, cari manual di bawah");
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Gagal mencocokkan lokasi";
+            toast.error(message);
+        }
+    };
+
+    // ==== BARU: cari manual kecamatan (fallback) ====
+    const handleSearchKecamatan = async (query: string) => {
+        if (query.length < 3) {
+            setDestinationOptions([]);
+            return;
+        }
+        setSearchingDestination(true);
+        try {
+            const results = await searchOngkirDestination(query);
+            setDestinationOptions(results);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Gagal mencari kecamatan";
+            toast.error(message);
+            setDestinationOptions([]);
+        } finally {
+            setSearchingDestination(false);
+        }
+    };
+
+    const handleSelectKecamatan = (dest: OngkirDestination) => {
+        const [kecamatanLabel, kotaLabel] = dest.label.split(",").map((s) => s.trim());
+        setProfileForm((prev) => ({
+            ...prev,
+            kota_id: dest.id,
+            kecamatan: kecamatanLabel || prev.kecamatan,
+            kota: kotaLabel || prev.kota,
+            provinsi: dest.provinsi || prev.provinsi,
+        }));
+        setDestinationOptions([]);
+    };
+
     const handleSimpanPerubahan = () => {
         const isGantiPassword =
             passwordForm.passwordLama ||
@@ -117,20 +195,24 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             return;
         }
 
+        if (!profileForm.kota_id) {
+            toast.error("Pilih lokasi sekolah di peta atau cari kecamatan agar sistem ongkir bisa menghitung pengiriman");
+            return;
+        }
+
         if (profileForm.map_link && !profileForm.map_link.includes("google.com/maps/embed")) {
             toast.error("Link peta harus berupa link embed Google Maps (Bagikan → Sematkan peta)");
             return;
         }
 
         startTransition(async () => {
+            tampilkanLoading("Menyimpan perubahan...");
             try {
-                // 1. Upload avatar dulu (kalau ada foto baru) untuk dapat URL-nya
                 let imgUrl: string | undefined;
                 if (avatarBase64) {
                     imgUrl = await uploadAvatar(avatarBase64);
                 }
 
-                // 2. Update profil pakai URL avatar (bukan base64)
                 const updated = await updateProfile({
                     name: profileForm.nama,
                     email: profileForm.email,
@@ -139,27 +221,43 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     kepala_sekolah: profileForm.kepala_sekolah,
                     deskripsi_smk: profileForm.deskripsi_smk,
                     alamat: profileForm.alamat,
+                    kecamatan: profileForm.kecamatan,
                     kota: profileForm.kota,
+                    kota_id: profileForm.kota_id,
+                    kode_pos: profileForm.kode_pos,
                     provinsi: profileForm.provinsi,
                     map_link: profileForm.map_link,
                     tahun_berdiri: Number(profileForm.tahun_berdiri),
                 });
 
-                // 3. Update password (argumen terpisah, bukan object)
                 if (isGantiPassword) {
                     await updatePassword(passwordForm.passwordLama, passwordForm.passwordBaru);
                     setPasswordForm({ passwordLama: "", passwordBaru: "", konfirmasiPassword: "" });
                 }
 
-                await update({
+                const updatedSession = await update({
                     name: updated.name,
                     image: updated.img,
                 });
 
                 setAvatarBase64(null);
+                Swal.close();
                 toast.success("Perubahan berhasil disimpan");
+                const newSmkSlug = updatedSession?.user?.smkSlug;
+
+                if (newSmkSlug) {
+                    const segments = window.location.pathname.split("/");
+                    segments[3] = newSmkSlug;
+                    const newPath = segments.join("/");
+
+                    if (newPath !== window.location.pathname) {
+                        router.replace(newPath);
+                        return;
+                    }
+                }
                 router.refresh();
             } catch (error) {
+                Swal.close();
                 console.error(error);
                 let message = "Terjadi kesalahan saat menyimpan perubahan";
                 if (error instanceof Error) {
@@ -172,7 +270,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             }
         });
     };
-
 
     return (
         <div className="space-y-6 px-6">
@@ -312,52 +409,117 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="alamat" className="text-sm text-gray-600">
-                            Alamat
-                        </Label>
-                        <Input
-                            id="alamat"
-                            type="text"
-                            value={profileForm.alamat}
-                            onChange={(e) =>
-                                setProfileForm({ ...profileForm, alamat: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                            placeholder="alamat SMK"
-                        />
-                    </div>
+                    {/* ==== BARU: Section Lokasi Gudang / Alamat Pengiriman ==== */}
+                    <div className="pt-2 space-y-4">
+                        <div>
+                            <Label className="text-sm text-gray-600 font-semibold">
+                                Lokasi Gudang / Alamat Pengiriman
+                            </Label>
+                            <p className="text-xs text-gray-400 mt-1">
+                                Lokasi ini dipakai sebagai titik asal pengiriman untuk semua produk sekolah Anda.
+                                {profileForm.kota_id && (
+                                    <span className="text-green-600 font-medium"> ✓ Terhubung dengan sistem ongkir</span>
+                                )}
+                            </p>
+                        </div>
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="kota" className="text-sm text-gray-600">
-                            Kota
-                        </Label>
-                        <Input
-                            id="kota"
-                            type="text"
-                            value={profileForm.kota}
-                            onChange={(e) =>
-                                setProfileForm({ ...profileForm, kota: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                            placeholder="kota"
-                        />
-                    </div>
+                        <AddressMapPicker onLocationSelect={handleLocationSelect} />
 
-                    <div className="space-y-1.5">
-                        <Label htmlFor="provinsi" className="text-sm text-gray-600">
-                            Provinsi
-                        </Label>
-                        <Input
-                            id="provinsi"
-                            type="text"
-                            value={profileForm.provinsi}
-                            onChange={(e) =>
-                                setProfileForm({ ...profileForm, provinsi: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                            placeholder="provinsi"
-                        />
+                        <div className="space-y-1.5">
+                            <Label htmlFor="alamat" className="text-sm text-gray-600">
+                                Alamat
+                            </Label>
+                            <Input
+                                id="alamat"
+                                type="text"
+                                value={profileForm.alamat}
+                                onChange={(e) =>
+                                    setProfileForm({ ...profileForm, alamat: e.target.value })
+                                }
+                                className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
+                                placeholder="alamat SMK"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5 relative">
+                                <Label htmlFor="kecamatan" className="text-sm text-gray-600">
+                                    Kecamatan{" "}
+                                    {profileForm.kota_id && (
+                                        <span className="text-xs text-green-600 font-normal">✓ Terhubung</span>
+                                    )}
+                                </Label>
+                                <Input
+                                    id="kecamatan"
+                                    placeholder="Ketik nama kecamatan..."
+                                    value={profileForm.kecamatan}
+                                    autoComplete="off"
+                                    onChange={(e) => {
+                                        setProfileForm((prev) => ({ ...prev, kecamatan: e.target.value, kota_id: null }));
+                                        handleSearchKecamatan(e.target.value);
+                                    }}
+                                    className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
+                                />
+                                {searchingDestination && <p className="text-xs text-gray-400">Mencari...</p>}
+                                {destinationOptions.length > 0 && (
+                                    <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-40 overflow-y-auto shadow-sm">
+                                        {destinationOptions.map((dest) => (
+                                            <button
+                                                key={dest.id}
+                                                type="button"
+                                                onClick={() => handleSelectKecamatan(dest)}
+                                                className="w-full text-left px-3 py-2 text-sm hover:bg-sky-50 transition-colors"
+                                            >
+                                                {dest.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="kota" className="text-sm text-gray-600">
+                                    Kota
+                                </Label>
+                                <Input
+                                    id="kota"
+                                    type="text"
+                                    value={profileForm.kota}
+                                    readOnly
+                                    className="bg-gray-100 border-gray-200 rounded-lg h-10 text-sm shadow-none"
+                                    placeholder="Terisi otomatis"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="provinsi" className="text-sm text-gray-600">
+                                    Provinsi
+                                </Label>
+                                <Input
+                                    id="provinsi"
+                                    type="text"
+                                    value={profileForm.provinsi}
+                                    readOnly
+                                    className="bg-gray-100 border-gray-200 rounded-lg h-10 text-sm shadow-none"
+                                    placeholder="Terisi otomatis"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="kode_pos" className="text-sm text-gray-600">
+                                    Kode Pos
+                                </Label>
+                                <Input
+                                    id="kode_pos"
+                                    type="text"
+                                    value={profileForm.kode_pos}
+                                    onChange={(e) =>
+                                        setProfileForm({ ...profileForm, kode_pos: e.target.value })
+                                    }
+                                    className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-1.5">

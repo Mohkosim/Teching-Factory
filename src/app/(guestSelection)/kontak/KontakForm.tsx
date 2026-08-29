@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,14 +32,17 @@ export default function KontakForm() {
 
     if (loading) return;
     setLoading(true);
+    tampilkanLoading("Mengirim pesan...");
 
     try {
       await kirimPesanKontak(form);
+      Swal.close();
       toast.success("Pesan berhasil dikirim!", {
         description: "Terima kasih, pesan anda telah dikirim.",
       });
       setForm(initialForm);
     } catch (error) {
+      Swal.close();
       toast.error("Gagal mengirim pesan", {
         description:
           error instanceof Error ? error.message : "Silakan coba lagi",

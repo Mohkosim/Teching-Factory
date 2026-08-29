@@ -10,8 +10,10 @@ import {
 import Pagination from "@/components/pagination/Pagination";
 import ProdukCard from "@/components/produkcard";
 import JasaCard from "@/components/jasa.card";
-import { ProdukListResult, ProdukSortOption } from "@/types/interfaces/produk";
+import type { ProdukSortOption } from "@/types/interfaces/produk";
+import type { ProdukPublicListResult } from "@/lib/data/produk-public";
 import { JasaListResult } from "@/lib/data/jasa-public";
+import type { FavoritIds } from "@/lib/data/favorit-public";
 
 const PER_PAGE_OPTIONS = [10, 20, 50];
 
@@ -30,15 +32,17 @@ export default function ProdukListClient({
   page,
   perPage,
   sort,
+  favoritIds,
   onPerPageChange,
   onSortChange,
   onPageChange,
 }: {
-  produkResult: ProdukListResult | null;
+  produkResult: ProdukPublicListResult | null;
   jasaResult: JasaListResult | null;
   page: number;
   perPage: number;
   sort: ProdukSortOption;
+  favoritIds: FavoritIds;
   onPerPageChange: (value: number) => void;
   onSortChange: (value: ProdukSortOption) => void;
   onPageChange: (value: number) => void;
@@ -90,7 +94,11 @@ export default function ProdukListClient({
           <h3 className="mb-4 text-lg font-semibold text-gray-900">Produk</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {produkItems.map((p) => (
-              <ProdukCard key={p.produk_id} produk={p} />
+              <ProdukCard
+                key={p.id}
+                product={p}
+                initialFavorited={favoritIds.produkIds.includes(p.id)}
+              />
             ))}
           </div>
         </div>
@@ -101,7 +109,7 @@ export default function ProdukListClient({
           <h3 className="mb-4 text-lg font-semibold text-gray-900">Jasa</h3>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {jasaItems.map((j) => (
-              <JasaCard key={j.id} jasa={j} />
+              <JasaCard key={j.id} jasa={j} initialFavorited={favoritIds.jasaIds.includes(j.jasaId)} />
             ))}
           </div>
         </div>

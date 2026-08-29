@@ -8,8 +8,7 @@ export default function JurusanCard({ jurusan }: { jurusan: JurusanListItem }) {
   const router = useRouter();
 
   function handleClick() {
-    sessionStorage.setItem("selectedJurusanId", jurusan.jurusan_id);
-    router.push("/smk/detail/detailJurusan");
+    router.push(`/smk/detail/detailJurusan?id=${jurusan.jurusan_id}`);
   }
 
   return (

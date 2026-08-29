@@ -80,3 +80,22 @@ export async function revisiJasa(id: string, catatan_revisi: string) {
     }
     return res.json();
 }
+
+export async function uploadJasaPortofolio(files: File[]): Promise<string[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+ 
+  const res = await fetch("/api/jasa/upload/portofolio", {
+    method: "POST",
+    body: formData,
+  });
+ 
+  if (!res.ok) {
+    if (res.status === 413) throw new Error("FileTooLarge");
+    if (res.status === 415) throw new Error("FileTipeSalah");
+    throw new Error("Gagal upload portofolio");
+  }
+ 
+  const data = await res.json();
+  return data.urls as string[];
+}

@@ -9,8 +9,7 @@ import {
     Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 
-const lokasiOptions = ["Jabodetabek", "Jawa Timur"];
-const ratingOptions = [5, 3, 2];
+const ratingOptions = [5, 4, 3, 2, 1];
 
 export interface FilterValue {
     lokasi: string[];
@@ -29,9 +28,11 @@ export const emptyFilterValue: FilterValue = {
 interface FilterProps {
     value: FilterValue;
     onApply: (value: FilterValue) => void;
+    /** Opsi lokasi dinamis, diambil dari data produk (provinsi SMK) yang benar-benar ada di DB */
+    lokasiOptions: string[];
 }
 
-export default function Filter({ value, onApply }: FilterProps) {
+export default function Filter({ value, onApply, lokasiOptions }: FilterProps) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<FilterValue>(value);
 
@@ -41,7 +42,6 @@ export default function Filter({ value, onApply }: FilterProps) {
             setDraft(value);
         }
     };
-
 
     const toggleLokasi = (v: string) => {
         setDraft((prev) => ({
@@ -87,20 +87,24 @@ export default function Filter({ value, onApply }: FilterProps) {
 
                 <div className="border-t border-gray-100 px-5 py-4 space-y-3">
                     <p className="text-sm font-medium text-gray-400">Lokasi</p>
-                    {lokasiOptions.map((loc) => (
-                        <label key={loc} className="flex items-center gap-3 cursor-pointer">
-                            <Checkbox
-                                checked={draft.lokasi.includes(loc)}
-                                onCheckedChange={() => toggleLokasi(loc)}
-                                className="h-5 w-5 rounded-sm data-[state=checked]:bg-gray-800 data-[state=checked]:border-gray-800"
-                            />
-                            <span className="text-base font-semibold text-gray-900">{loc}</span>
-                        </label>
-                    ))}
+                    {lokasiOptions.length === 0 ? (
+                        <p className="text-xs text-gray-400">Belum ada data lokasi</p>
+                    ) : (
+                        lokasiOptions.map((loc) => (
+                            <label key={loc} className="flex items-center gap-3 cursor-pointer">
+                                <Checkbox
+                                    checked={draft.lokasi.includes(loc)}
+                                    onCheckedChange={() => toggleLokasi(loc)}
+                                    className="h-5 w-5 rounded-sm data-[state=checked]:bg-gray-800 data-[state=checked]:border-gray-800"
+                                />
+                                <span className="text-base font-semibold text-gray-900">{loc}</span>
+                            </label>
+                        ))
+                    )}
                 </div>
 
                 <div className="border-t border-gray-100 px-5 py-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-400">Penilaian</p>
+                    <p className="text-sm font-medium text-gray-400">Penilaian minimal</p>
                     {ratingOptions.map((r) => (
                         <label key={r} className="flex items-center gap-3 cursor-pointer">
                             <Checkbox

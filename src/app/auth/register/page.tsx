@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { tampilkanLoading } from "@/lib/utils/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import AuthTabs from "@/components/auth/AuthTabs";
@@ -24,6 +26,7 @@ export default function Register() {
     });
 
     const onSubmit = async (data: RegisterSchema) => {
+        tampilkanLoading("Membuat akun..."); // Swal: loading selama request
         try {
             const res = await fetch("/api/auth/register", {
                 method: "POST",
@@ -32,6 +35,7 @@ export default function Register() {
             });
 
             const json = await res.json();
+            Swal.close();
 
             if (!res.ok) {
                 throw new Error(json.message ?? "Terjadi kesalahan");
@@ -45,6 +49,7 @@ export default function Register() {
                 },
             });
         } catch (err) {
+            Swal.close();
             const errormassage = err instanceof Error ? err.message : "Terjadi kesalahan";
             toast.error("Gagal membuat akun", {
                 description: errormassage,

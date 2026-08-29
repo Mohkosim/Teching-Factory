@@ -1,24 +1,56 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { Star, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { toggleFavoritJasa } from "@/lib/api/favorit";
 import { JasaPublicItem } from "@/lib/data/jasa-public";
 import Link from "next/link";
 
 const rupiah = (n: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
-export default function JasaCard({ jasa }: { jasa: JasaPublicItem }) {
+export default function JasaCard({
+    jasa,
+    initialFavorited = false,
+}: {
+    jasa: JasaPublicItem;
+    initialFavorited?: boolean;
+}) {
     const router = useRouter();
+    const [favorited, setFavorited] = useState(initialFavorited);
 
     function handleClick() {
-        sessionStorage.setItem("selectedProdukId", jasa.id);
-        router.push("/jasa/detail");
+        router.push(`/jasa/detail?id=${jasa.id}`);
+    }
+
+    async function handleToggleFavorit(e: React.MouseEvent) {
+        e.stopPropagation();
+        const sebelumnya = favorited;
+        setFavorited(!sebelumnya);
+        tampilkanLoading(!sebelumnya ? "Menambahkan ke favorit..." : "Menghapus dari favorit...");
+        try {
+            const res = await toggleFavoritJasa(jasa.jasaId);
+            Swal.close();
+            if (!res.ok) {
+                setFavorited(sebelumnya);
+                toast.error(res.status === 401 ? "Silakan login untuk menambah favorit" : "Gagal memperbarui favorit");
+                return;
+            }
+            toast.success(!sebelumnya ? "Ditambahkan ke favorit" : "Dihapus dari favorit");
+        } catch {
+            setFavorited(sebelumnya);
+            Swal.close();
+            toast.error("Gagal memperbarui favorit");
+        }
     }
 
     return (
@@ -39,10 +71,17 @@ export default function JasaCard({ jasa }: { jasa: JasaPublicItem }) {
                     </Badge>
                 )}
                 <button
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={handleToggleFavorit}
                     className="absolute top-3 right-3 bg-white/80 backdrop-blur-sm rounded-full p-1.5 hover:bg-white transition-colors duration-200 shadow"
                 >
-                    <Heart size={14} className="text-gray-400 hover:text-red-400 transition-colors" />
+                    <Heart
+                        size={14}
+                        className={
+                            favorited
+                                ? "text-red-500 fill-red-500"
+                                : "text-gray-400 hover:text-red-400 transition-colors"
+                        }
+                    />
                 </button>
             </div>
 

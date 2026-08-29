@@ -1,7 +1,7 @@
-import { getGaleriList } from "@/lib/getdata/get-galeri";
+import { getMyGaleriList } from "@/lib/getdata/get-galeri";
 import GalleryManagement from "./gallery-management";
 
 export default async function Page() {
-    const galeriList = await getGaleriList();
+    const galeriList = await getMyGaleriList();
     return <GalleryManagement initialData={galeriList} />;
 }

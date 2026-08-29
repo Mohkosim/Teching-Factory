@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, ChevronLeft, ChevronRight, FileDown, MoreVertical, Printer } from "lucide-react";
+import { Search, FileDown, MoreVertical, Printer } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,7 +123,7 @@ function DonutSummaryCard({
     data: { name: string; value: number; color: string }[];
 }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex-1 min-w-[240px]">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex-1 min-w-24">
             <p className="text-sm font-semibold text-gray-700">{title}</p>
             <p className="text-xs text-gray-400 mb-3">
                 {subtitleLabel}: Rp {formatRupiah(total)}
@@ -230,14 +230,6 @@ export default function LaporanKeuangan() {
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-    const getPageNumbers = () => {
-        const pages: number[] = [];
-        const start = Math.max(1, page - 1);
-        const end = Math.min(totalPages, start + 2);
-        for (let p = start; p <= end; p++) pages.push(p);
-        return pages;
-    };
-
     // TODO: hubungkan ke endpoint export PDF (Laravel API) sesuai filter & rentang tanggal aktif
     const handleExportPDF = () => {
         // TODO: panggil endpoint export, contoh: /api/laporan-keuangan/export?start=...&end=...
@@ -270,7 +262,7 @@ export default function LaporanKeuangan() {
             {/* Ringkasan: tabel Keterangan/Jumlah + 2 donut chart */}
             <div className="flex flex-wrap gap-4">
                 {/* Kartu Keterangan / Jumlah */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-[1.4] min-w-[280px]">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-[1.4] min-w-28">
                     <div className="grid grid-cols-2 px-5 py-3 border-b border-gray-100">
                         <span className="text-sm font-semibold text-gray-700">Keterangan</span>
                         <span className="text-sm font-semibold text-gray-700">Jumlah (Rp)</span>
@@ -311,7 +303,7 @@ export default function LaporanKeuangan() {
                 {/* Toolbar: Search, date range, filter, export */}
                 <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-gray-100">
                     <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative flex-1 min-w-[200px] max-w-sm">
+                        <div className="relative flex-1 min-w-20 max-w-sm">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input
                                 placeholder="Search"

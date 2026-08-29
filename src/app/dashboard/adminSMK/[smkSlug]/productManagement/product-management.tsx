@@ -3,6 +3,8 @@
 import { useState, useMemo, useTransition } from "react";
 import { Search, Eye, Package, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
+import { confirmAksi, tampilkanLoading } from "@/lib/utils/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +52,7 @@ export default function ProductManagement({
 
     const [detailItem, setDetailItem] = useState<ProdukItem | null>(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [showFullDesc, setShowFullDesc] = useState(false);
     const [showRevisiForm, setShowRevisiForm] = useState(false);
     const [revisiText, setRevisiText] = useState("");
 
@@ -77,12 +80,14 @@ export default function ProductManagement({
     const openDetail = (item: ProdukItem) => {
         setDetailItem(item);
         setActiveImageIndex(0);
+        setShowFullDesc(false);
         setShowRevisiForm(false);
         setRevisiText("");
     };
 
     const closeDetail = () => {
         setDetailItem(null);
+        setShowFullDesc(false);
         setShowRevisiForm(false);
         setRevisiText("");
     };
@@ -97,11 +102,22 @@ export default function ProductManagement({
         setActiveImageIndex((i) => (i === detailItem.fotos.length - 1 ? 0 : i + 1));
     };
 
-    const handlePublikasi = () => {
+    const handlePublikasi = async () => {
         if (!detailItem) return;
+        const konfirmasi = await confirmAksi({
+            title: "Publikasikan produk ini?",
+            text: `"${detailItem.nama_produk}" akan tayang dan dapat dilihat publik.`,
+            icon: "question",
+            confirmText: "Ya, publikasikan",
+            confirmColor: "#10b981", // emerald-500
+        }); // 1. Swal: minta izin dulu
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading("Mempublikasikan produk..."); // Swal: loading
             try {
                 await publikasiProduk(detailItem.produk_id);
+                Swal.close();
                 setProducts((prev) =>
                     prev.map((p) =>
                         p.produk_id === detailItem.produk_id
@@ -109,23 +125,36 @@ export default function ProductManagement({
                             : p
                     )
                 );
-                toast.success("Produk berhasil dipublikasikan");
+                toast.success("Produk berhasil dipublikasikan"); // 2. toast: status sukses
                 closeDetail();
             } catch {
-                toast.error("Gagal mempublikasikan produk");
+                Swal.close();
+                toast.error("Gagal mempublikasikan produk"); // 2. toast: status gagal
             }
         });
     };
 
-    const handleSubmitRevisi = () => {
+    const handleSubmitRevisi = async () => {
         if (!detailItem) return;
         if (!revisiText.trim()) {
             toast.error("Catatan revisi wajib diisi");
             return;
         }
+
+        const konfirmasi = await confirmAksi({
+            title: "Kirim catatan revisi?",
+            text: `Produk "${detailItem.nama_produk}" akan ditandai perlu revisi dan catatan ini akan dikirim ke vendor.`,
+            icon: "warning",
+            confirmText: "Ya, kirim",
+            confirmColor: "#ef4444", // red-500
+        }); // 1. Swal: minta izin dulu
+        if (!konfirmasi) return;
+
         startTransition(async () => {
+            tampilkanLoading("Mengirim catatan revisi..."); // Swal: loading
             try {
                 await revisiProduk(detailItem.produk_id, revisiText);
+                Swal.close();
                 setProducts((prev) =>
                     prev.map((p) =>
                         p.produk_id === detailItem.produk_id
@@ -133,10 +162,11 @@ export default function ProductManagement({
                             : p
                     )
                 );
-                toast.success("Catatan revisi berhasil dikirim");
+                toast.success("Catatan revisi berhasil dikirim"); // 2. toast: status sukses
                 closeDetail();
             } catch {
-                toast.error("Gagal mengirim revisi");
+                Swal.close();
+                toast.error("Gagal mengirim revisi"); // 2. toast: status gagal
             }
         });
     };
@@ -295,15 +325,15 @@ export default function ProductManagement({
 
             {/* Dialog Detail */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && closeDetail()}>
-                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b border-gray-100 bg-sky-50/60">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 shrink-0 border-b border-gray-100 bg-sky-50/60">
                         <DialogTitle className="text-base">
                             {showRevisiForm ? "Form Revisi | Detail Produk" : "Detail Produk"}
                         </DialogTitle>
                     </DialogHeader>
 
                     {detailItem && (
-                        <div className="px-6 py-5">
+                        <div className="flex-1 overflow-y-auto px-6 py-5">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-3">
                                     <div className="relative h-48 w-full rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
@@ -347,7 +377,23 @@ export default function ProductManagement({
                                         <p className="text-xs text-gray-400">Harga</p>
                                         <p className="text-lg font-bold text-sky-600">{formatRupiah(detailItem.harga)}</p>
                                     </div>
-                                    <p className="text-sm text-gray-500 leading-relaxed">{detailItem.deskripsi || "-"}</p>
+                                    <div>
+                                        <p
+                                            className={`text-sm text-gray-500 leading-relaxed ${!showFullDesc ? "line-clamp-3" : ""
+                                                }`}
+                                        >
+                                            {detailItem.deskripsi || "-"}
+                                        </p>
+                                        {detailItem.deskripsi && detailItem.deskripsi.length > 120 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowFullDesc((v) => !v)}
+                                                className="text-xs font-medium text-sky-600 hover:text-sky-700 mt-1"
+                                            >
+                                                {showFullDesc ? "Sembunyikan" : "Lihat selengkapnya"}
+                                            </button>
+                                        )}
+                                    </div>
 
                                     {detailItem.catatan_revisi && (
                                         <div className="mt-2 p-3 rounded-lg bg-red-50 border border-red-200">

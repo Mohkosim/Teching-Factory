@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getProdukDetailById, getProdukRekomendasi } from "@/lib/data/produk-public";
+import { getFavoritIds } from "@/lib/data/favorit-public";
 import ProdukDetailClient from "./ProdukDetailClient";
 
 export default async function ProdukDetailPage({
@@ -28,6 +29,16 @@ export default async function ProdukDetailPage({
   }
 
   const rekomendasi = await getProdukRekomendasi(produk.id);
-
-  return <ProdukDetailClient key={produk.id} produk={produk} rekomendasi={rekomendasi} />;
+  const favoritIds = await getFavoritIds();
+  const initialFavorited = favoritIds.produkIds.includes(produk.id);
+  
+  return (
+    <ProdukDetailClient
+      key={produk.id}
+      produk={produk}
+      rekomendasi={rekomendasi}
+      initialFavorited={initialFavorited}
+      favoritIds={favoritIds}
+    />
+  );
 }

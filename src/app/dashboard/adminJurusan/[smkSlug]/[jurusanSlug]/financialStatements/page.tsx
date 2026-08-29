@@ -7,7 +7,6 @@ import {
     Eye,
     Pencil,
     Trash2,
-    Printer,
     Download,
     Bell,
     Calendar as CalendarIcon,

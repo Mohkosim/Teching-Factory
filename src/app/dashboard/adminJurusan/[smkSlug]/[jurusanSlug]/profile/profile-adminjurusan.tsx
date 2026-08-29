@@ -3,6 +3,8 @@
 import { useState, useRef, useTransition } from "react";
 import { User, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { tampilkanLoading } from "@/lib/utils/alert";
+import Swal from "sweetalert2";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -100,10 +102,10 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         }
 
         startTransition(async () => {
+            tampilkanLoading("Menyimpan perubahan...");
             try {
                 let imgUrl: string | undefined = undefined;
 
-                // Kalau ada foto baru, upload dulu ke disk, dapat URL pendek
                 if (avatarBase64 !== null) {
                     imgUrl = await uploadAvatar(avatarBase64);
                 }
@@ -123,8 +125,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     setPasswordForm({ passwordLama: "", passwordBaru: "", konfirmasiPassword: "" });
                 }
 
-                // Kirim URL pendek ke token — bukan base64
-                await update({
+                const updatedSession = await update({
                     name: profileForm.nama,
                     email: profileForm.email,
                     ...(imgUrl !== undefined ? { image: imgUrl } : {}),
@@ -135,9 +136,27 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     setAvatarBase64(null);
                 }
 
+                Swal.close();
                 toast.success("Perubahan berhasil disimpan");
+
+                const newSmkSlug = updatedSession?.user?.smkSlug;
+                const newJurusanSlug = updatedSession?.user?.jurusanSlug;
+
+                if (newSmkSlug && newJurusanSlug) {
+                    const segments = window.location.pathname.split("/");
+                    segments[3] = newSmkSlug;
+                    segments[4] = newJurusanSlug;
+                    const newPath = segments.join("/");
+
+                    if (newPath !== window.location.pathname) {
+                        router.replace(newPath);
+                        return;
+                    }
+                }
+
                 router.refresh();
             } catch (err) {
+                Swal.close();
                 if (err instanceof Error) {
                     if (err.message === "WrongOldPassword") {
                         toast.error("Password lama salah");
