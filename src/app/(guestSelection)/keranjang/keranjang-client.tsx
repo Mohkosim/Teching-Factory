@@ -10,6 +10,7 @@ import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
 import { ubahJumlahKeranjang, hapusDariKeranjang } from "@/lib/api/keranjang";
 import type { KeranjangItem } from "@/types/interfaces/keranjang";
+import { buildWhatsappLink } from "@/lib/utils/whatsapp";
 
 function formatRupiah(value: number) {
     return `Rp ${value.toLocaleString("id-ID")}`;
@@ -65,11 +66,6 @@ export default function KeranjangClient({ initialItems }: { initialItems: Keranj
         });
     };
 
-    const handleChatPenjual = (tokoName: string) => {
-        // TODO: sambungkan ke fitur chat/hubungi penjual
-        console.log("Chat dengan toko:", tokoName);
-    };
-
     const handleUpdateQuantity = async (item: KeranjangItem, delta: number) => {
         if (item.kuantitas + delta < 1) return;
         if (delta > 0 && item.kuantitas + delta > item.stok) return;
@@ -100,6 +96,7 @@ export default function KeranjangClient({ initialItems }: { initialItems: Keranj
         const konfirmasi = await confirmHapus(nama);
         if (!konfirmasi) return;
 
+        const item = items.find((i) => i.id === id);
         const sebelumnya = items;
         setItems((prev) => prev.filter((item) => item.id !== id));
         setSelectedIds((prev) => {
@@ -110,7 +107,7 @@ export default function KeranjangClient({ initialItems }: { initialItems: Keranj
 
         tampilkanLoading("Menghapus produk...");
         try {
-            const res = await hapusDariKeranjang(id);
+            const res = await hapusDariKeranjang(id, item?.kuantitas ?? 0);
             Swal.close();
             if (!res.ok) {
                 setItems(sebelumnya);
@@ -136,6 +133,17 @@ export default function KeranjangClient({ initialItems }: { initialItems: Keranj
         if (selectedItems.length === 0) return;
         const ids = selectedItems.map((item) => item.id).join(",");
         router.push(`/keranjang/checkout?items=${encodeURIComponent(ids)}`);
+    };
+
+    const handleChatPenjual = (tokoItems: KeranjangItem[]) => {
+        const nomor = tokoItems[0]?.noWhatsapp;
+        if (!nomor) {
+            toast.error("Nomor WhatsApp toko tidak tersedia");
+            return;
+        }
+        const namaProduk = tokoItems.map((i) => i.nama).join(", ");
+        const pesan = `Halo, saya ingin bertanya tentang pesanan saya di keranjang:\n${namaProduk}`;
+        window.open(buildWhatsappLink(nomor, pesan), "_blank", "noopener,noreferrer");
     };
 
     return (
@@ -177,7 +185,7 @@ export default function KeranjangClient({ initialItems }: { initialItems: Keranj
                                             <Store className="w-4 h-4 text-gray-500" />
                                             <span className="text-sm font-semibold text-gray-800">{tokoName}</span>
                                             <button
-                                                onClick={() => handleChatPenjual(tokoName)}
+                                                onClick={() => handleChatPenjual(tokoItems)}
                                                 className="ml-auto flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors"
                                             >
                                                 <MessageCircle className="w-3.5 h-3.5" />

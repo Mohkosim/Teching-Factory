@@ -13,6 +13,7 @@ export default function JurusanCard({ jurusan }: { jurusan: JurusanListItem }) {
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       className="group flex w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
     >

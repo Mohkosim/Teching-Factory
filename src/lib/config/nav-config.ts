@@ -5,6 +5,7 @@ import { IoMdMailUnread } from "react-icons/io";
 import { IoWallet } from "react-icons/io5";
 import { BsBoxFill } from "react-icons/bs";
 import { RiGalleryFill } from "react-icons/ri";
+import { GiWallet } from "react-icons/gi";
 
 import { IconType } from "react-icons";
 
@@ -41,6 +42,12 @@ const navConfig: Record<Role, (params: NavParams) => NavGroup[]> = {
         { href: "/dashboard/superAdmin/accountManagement", label: "Manajemen Akun", icon: MdManageAccounts },
         { href: "/dashboard/superAdmin/aboutTefa", label: "Tentang Tefa", icon: AiFillExclamationCircle },
         { href: "/dashboard/superAdmin/incomingContact", label: "Kontak Masuk", icon: IoMdMailUnread },
+      ],
+    },
+    {
+      label: "WITHDRAWAL",
+      items: [
+        { href: "/dashboard/superAdmin/penarikan-saldo", label: "Penarikan Saldo", icon: GiWallet },
       ],
     },
   ],

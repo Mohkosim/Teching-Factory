@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { tampilkanLoading } from "@/lib/utils/alert";
+import { tampilkanLoading, confirmAksi } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
 import {
     Star,
@@ -34,6 +34,7 @@ import JasaCard from "@/components/jasa.card";
 import type { FavoritIds } from "@/lib/data/favorit-public";
 import RingkasanRatingJasa from "./RingkasanRatingJasa";
 import DaftarUlasanJasa from "./DaftarUlasanJasa";
+import DeskripsiFormatted from "./DeskripsiFormatted";
 
 const rupiah = (n: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
@@ -106,11 +107,6 @@ export default function JasaDetailClient({
 
     // Popup WhatsApp muncul setelah Snap selesai (baik sukses maupun pending/ditutup)
     const [waPopupOpen, setWaPopupOpen] = useState(false);
-    const [pesananBelumBayar, setPesananBelumBayar] = useState<{
-        orderId: string;
-        snapToken: string;
-    } | null>(null);
-    const [isCancelling, setIsCancelling] = useState(false);
 
     const galeri = jasa.fotos.length > 0 ? jasa.fotos : [jasa.gambar];
 
@@ -167,8 +163,8 @@ export default function JasaDetailClient({
                 });
             },
             onClose: () => {
-                // Jangan langsung batalkan — tanya dulu mau lanjut bayar atau batal
-                setPesananBelumBayar({ orderId, snapToken });
+                // Jangan langsung batalkan — tanya dulu mau lanjut bayar atau batal, pakai Swal
+                handlePesananBelumBayar(orderId, snapToken);
             },
         });
     };
@@ -203,27 +199,28 @@ export default function JasaDetailClient({
         }
     };
 
-    const handleLanjutkanBayar = () => {
-        if (!pesananBelumBayar || !snapReady || !window.snap) return;
-        const { snapToken, orderId } = pesananBelumBayar;
-        setPesananBelumBayar(null);
-        bukaSnapPay(snapToken, orderId);
-    };
+    const handlePesananBelumBayar = async (orderId: string, snapToken: string) => {
+        const lanjutkanBayar = await confirmAksi({
+            title: "Pembayaran Belum Selesai",
+            text: "Pesanan kamu belum dibayar. Mau lanjutkan pembayaran sekarang, atau batalkan pesanan ini (pesanan akan dihapus)?",
+            icon: "warning",
+            confirmText: "Lanjutkan Pembayaran",
+            cancelText: "Batalkan Pesanan",
+        });
 
-    const handleBatalkanPesanan = async () => {
-        if (!pesananBelumBayar) return;
-        setIsCancelling(true);
+        if (lanjutkanBayar) {
+            bukaSnapPay(snapToken, orderId);
+            return;
+        }
+
         tampilkanLoading("Membatalkan pesanan...");
         try {
-            await batalkanPesananJasa(pesananBelumBayar.orderId);
+            await batalkanPesananJasa(orderId);
             Swal.close();
             toast.success("Pesanan dibatalkan");
-            setPesananBelumBayar(null);
         } catch (err) {
             Swal.close();
             toast.error(err instanceof Error ? err.message : "Gagal membatalkan pesanan");
-        } finally {
-            setIsCancelling(false);
         }
     };
 
@@ -342,9 +339,7 @@ export default function JasaDetailClient({
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                        {tabAktif === "deskripsi" && (
-                            <p className="text-sm leading-relaxed text-gray-500">{jasa.deskripsi}</p>
-                        )}
+                        {tabAktif === "deskripsi" && <DeskripsiFormatted teks={jasa.deskripsi} />}
                         {tabAktif === "portofolio" && (
                             jasa.portofolio.length > 0 ? (
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -482,47 +477,6 @@ export default function JasaDetailClient({
                             className="w-full rounded-full bg-sky-500 hover:bg-sky-600 text-white"
                         >
                             {isPending ? "Memproses..." : "Submit"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={!!pesananBelumBayar}
-                onOpenChange={(open) => {
-                    if (!open && pesananBelumBayar) {
-                        setPesananBelumBayar(null);
-                        toast.info("Pesanan tersimpan, kamu bisa lanjutkan pembayaran dari halaman Pesanan Saya");
-                    }
-                }}
-            >
-                <DialogContent className="w-[92vw] max-w-sm rounded-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-bold text-gray-900">
-                            Pembayaran Belum Selesai
-                        </DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-500">
-                        Pesanan kamu belum dibayar. Mau lanjutkan pembayaran sekarang, atau batalkan
-                        pesanan ini (pesanan akan dihapus)?
-                    </p>
-                    <DialogFooter className="sm:justify-between gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleBatalkanPesanan}
-                            disabled={isCancelling}
-                            className="rounded-full text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                            {isCancelling ? "Membatalkan..." : "Batalkan Pesanan"}
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={handleLanjutkanBayar}
-                            disabled={isCancelling}
-                            className="rounded-full bg-sky-500 hover:bg-sky-600 text-white"
-                        >
-                            Lanjutkan Pembayaran
                         </Button>
                     </DialogFooter>
                 </DialogContent>

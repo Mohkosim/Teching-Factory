@@ -13,8 +13,8 @@ import { ChevronRight } from "lucide-react";
 
 const backgrounds = [
     { src: "/img/image1.png", alt: "Karya Siswa 1" },
-    { src: "/img/image1.png", alt: "Karya Siswa 2" },
-    { src: "/img/image1.png", alt: "Karya Siswa 3" },
+    { src: "/img/image2.png", alt: "Karya Siswa 2" },
+    { src: "/img/image3.png", alt: "Karya Siswa 3" },
 ];
 
 const floatingIcons = [

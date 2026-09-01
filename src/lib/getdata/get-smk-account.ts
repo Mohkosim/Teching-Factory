@@ -18,24 +18,36 @@ export async function getSMKAccounts(): Promise<SMKAccount[]> {
         orderBy: { createdAt: "desc" },
         include: {
             smk: true,
+            alamat: {
+                orderBy: { isUtama: "desc" }, // alamat utama duluan
+                take: 1,
+            },
         },
     });
 
-    const accounts: SMKAccount[] = users.map((u) => ({
-        user_id: u.user_id,
-        name: u.name,
-        email: u.email,
-        phone: u.phone ?? null,
-        img: u.img ?? null,
-        role: u.role,
-        isActive: u.isActive,
-        smk_id: u.smk?.smk_id ?? null,
-        kepala_sekolah: u.smk?.kepala_sekolah ?? null,
-        alamat: u.smk?.alamat ?? null,
-        kota: u.smk?.kota ?? null,
-        provinsi: u.smk?.provinsi ?? null,
-        status_verifikasi: u.smk?.status_verifikasi ?? null,
-    }));
+    const accounts: SMKAccount[] = users.map((u) => {
+        const alamatUtama = u.alamat[0];
+        const alamatText = u.smk?.alamat
+            ?? (alamatUtama
+                ? `${alamatUtama.alamat_lengkap}, ${alamatUtama.kecamatan}, ${alamatUtama.kota}, ${alamatUtama.provinsi}`
+                : null);
+
+        return {
+            user_id: u.user_id,
+            name: u.name,
+            email: u.email,
+            phone: u.phone ?? null,
+            img: u.img ?? null,
+            role: u.role,
+            isActive: u.isActive,
+            smk_id: u.smk?.smk_id ?? null,
+            kepala_sekolah: u.smk?.kepala_sekolah ?? null,
+            alamat: alamatText,
+            kota: u.smk?.kota ?? alamatUtama?.kota ?? null,
+            provinsi: u.smk?.provinsi ?? alamatUtama?.provinsi ?? null,
+            status_verifikasi: u.smk?.status_verifikasi ?? null,
+        };
+    });
 
     return accounts;
 }

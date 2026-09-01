@@ -10,4 +10,5 @@ export interface KeranjangItem {
     harga: number;
     thumbnail: string;
     kuantitas: number;
+    noWhatsapp?: string;
 }

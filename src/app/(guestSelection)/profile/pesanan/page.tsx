@@ -17,7 +17,6 @@ export default async function PesananPage() {
         }),
     ]);
 
-    // suntik data pembeli yang benar dari session/user, bukan dari query order
     const pembeli = {
         nama: user?.name ?? "",
         nomor: user?.phone ?? "-",

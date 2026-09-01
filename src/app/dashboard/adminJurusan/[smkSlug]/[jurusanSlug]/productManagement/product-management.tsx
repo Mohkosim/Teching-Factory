@@ -90,7 +90,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
             const matchSearch =
                 item.nama_produk.toLowerCase().includes(q) ||
                 (item.deskripsi ?? "").toLowerCase().includes(q);
-            const matchStatus = statusFilter === "Semua" || item.status === statusFilter;
+            const matchStatus = statusFilter === "Semua" || getStatusTampil(item) === statusFilter;
             return matchSearch && matchStatus;
         });
     }, [products, search, statusFilter]);
@@ -133,8 +133,26 @@ export default function ProductManagement({ initialData }: { initialData: Produk
     };
 
     const handleFormChange = <K extends keyof ProdukForm>(field: K, value: ProdukForm[K]) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
+        setFormData((prev) => {
+            const next = { ...prev, [field]: value };
+
+            if (field === "stok") {
+                const stokBaru = value as number;
+                if (stokBaru <= 0) {
+                    next.status = "Habis";
+                } else if (prev.stok <= 0 && prev.status === "Habis") {
+                    // dulu 0 & auto-Habis, sekarang diisi lagi → balikin ke Tersedia
+                    next.status = "Tersedia";
+                }
+            }
+
+            return next as ProdukForm;
+        });
     };
+
+    function getStatusTampil(item: Pick<ProdukItem, "stok" | "status">) {
+        return item.stok === 0 ? "Habis" : item.status;
+    }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
@@ -393,12 +411,17 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                     </TableCell>
                                     <TableCell className="text-gray-600 text-sm py-4 px-6">{item.stok}</TableCell>
                                     <TableCell className="py-4 px-6">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === "Tersedia" ? "bg-green-100 text-green-600" :
-                                            item.status === "Habis" ? "bg-amber-100 text-amber-600" :
-                                                "bg-red-100 text-red-600"
-                                            }`}>
-                                            {item.status}
-                                        </span>
+                                        {(() => {
+                                            const statusTampil = getStatusTampil(item);
+                                            return (
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusTampil === "Tersedia" ? "bg-green-100 text-green-600" :
+                                                    statusTampil === "Habis" ? "bg-amber-100 text-amber-600" :
+                                                        "bg-red-100 text-red-600"
+                                                    }`}>
+                                                    {statusTampil}
+                                                </span>
+                                            );
+                                        })()}
                                     </TableCell>
 
                                     <TableCell className="py-4 px-6">
@@ -677,7 +700,11 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-sm text-gray-600">Status</Label>
-                                <Select value={formData.status} onValueChange={(v) => handleFormChange("status", v as ProdukForm["status"])}>
+                                <Select
+                                    value={formData.status}
+                                    onValueChange={(v) => handleFormChange("status", v as ProdukForm["status"])}
+                                    disabled={formData.stok === 0}
+                                >
                                     <SelectTrigger className="bg-gray-50 border-gray-200 rounded-lg">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -687,6 +714,9 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                         <SelectItem value="Nonaktif">Nonaktif</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {formData.stok === 0 && (
+                                    <p className="text-[11px] text-amber-600">Status otomatis habis karena stok 0</p>
+                                )}
                             </div>
                         </div>
                     </div>

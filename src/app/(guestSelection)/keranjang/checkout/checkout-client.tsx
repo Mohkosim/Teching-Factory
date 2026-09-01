@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, Plus, Check, Truck, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
+import { confirmAksi, confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,7 @@ export default function CheckoutClient({
     const [selectedAlamat, setSelectedAlamat] = useState<AlamatData | null>(
         () => initialAlamatList.find((a) => a.isUtama) ?? initialAlamatList[0] ?? null
     );
+    const router = useRouter();
 
     const [isPilihDialogOpen, setIsPilihDialogOpen] = useState(false);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -94,13 +96,6 @@ export default function CheckoutClient({
     }>({ kota: [], kecamatan: [] });
     const [searchingDestination, setSearchingDestination] = useState({ kota: false, kecamatan: false });
 
-    // Pesanan yang sudah dibuat (Snap token & kode invoice sudah ada) tapi popup Snap
-    // ditutup sebelum pembayaran selesai. Selama tidak null, dialog konfirmasi tampil.
-    const [pesananBelumBayar, setPesananBelumBayar] = useState<{
-        kodeInvoice: string;
-        snapToken: string;
-    } | null>(null);
-    const [isCancelling, setIsCancelling] = useState(false);
 
     const groupedByToko = useMemo(() => {
         const map = new Map<string, KeranjangItem[]>();
@@ -376,7 +371,7 @@ export default function CheckoutClient({
                 toast.error("Pembayaran gagal, silakan coba lagi");
             },
             onClose: () => {
-                setPesananBelumBayar({ kodeInvoice, snapToken });
+                handlePesananBelumBayar(kodeInvoice, snapToken);
             },
         });
     };
@@ -432,30 +427,31 @@ export default function CheckoutClient({
         }
     };
 
-    const handleLanjutkanBayar = () => {
-        if (!pesananBelumBayar || !snapReady || !window.snap) return;
-        const { snapToken, kodeInvoice } = pesananBelumBayar;
-        setPesananBelumBayar(null);
-        bukaSnapPay(snapToken, kodeInvoice);
-    };
+    const handlePesananBelumBayar = async (kodeInvoice: string, snapToken: string) => {
+        const lanjutkanBayar = await confirmAksi({
+            title: "Pembayaran Belum Selesai",
+            text: `Pesanan kamu sudah dibuat (Order #${kodeInvoice}) tapi pembayaran belum diselesaikan. Mau lanjutkan pembayaran sekarang, atau batalkan pesanan ini?`,
+            icon: "warning",
+            confirmText: "Lanjutkan Pembayaran",
+            cancelText: "Batalkan Pesanan",
+        });
 
-    const handleBatalkanPesanan = async () => {
-        if (!pesananBelumBayar) return;
-        setIsCancelling(true);
+        if (lanjutkanBayar) {
+            bukaSnapPay(snapToken, kodeInvoice);
+            return;
+        }
+
         tampilkanLoading("Membatalkan pesanan...");
         try {
-            await batalkanPesananCheckout(pesananBelumBayar.kodeInvoice);
+            await batalkanPesananCheckout(kodeInvoice);
             Swal.close();
             toast.success("Pesanan dibatalkan");
-            window.location.href = "/keranjang";
+            router.push("/keranjang");
         } catch (err) {
             Swal.close();
             toast.error(err instanceof Error ? err.message : "Gagal membatalkan pesanan");
-        } finally {
-            setIsCancelling(false);
         }
     };
-
     return (
         <div className="min-h-screen py-6 px-4 md:px-8">
             <div className="max-w-4xl mx-auto space-y-4">
@@ -931,51 +927,6 @@ export default function CheckoutClient({
                             })
                         )}
                     </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Dialog konfirmasi kalau popup Snap ditutup tanpa pembayaran selesai */}
-            <Dialog
-                open={!!pesananBelumBayar}
-                onOpenChange={(open) => {
-                    // Ditutup lewat X/ESC/klik luar -> anggap "nanti saja", pesanan
-                    // tetap tersimpan dan bisa dilanjutkan dari halaman Pesanan Saya
-                    if (!open && pesananBelumBayar) {
-                        const invoice = pesananBelumBayar.kodeInvoice;
-                        setPesananBelumBayar(null);
-                        toast.info("Pesanan tersimpan, kamu bisa lanjutkan pembayaran dari halaman Pesanan Saya");
-                        window.location.href = `/profile/pesanan?invoice=${invoice}`;
-                    }
-                }}
-            >
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Pembayaran Belum Selesai</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-gray-600">
-                        Pesanan kamu sudah dibuat (Order #{pesananBelumBayar?.kodeInvoice}) tapi
-                        pembayaran belum diselesaikan. Mau lanjutkan pembayaran sekarang, atau
-                        batalkan pesanan ini?
-                    </p>
-                    <DialogFooter className="sm:justify-between gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleBatalkanPesanan}
-                            disabled={isCancelling}
-                            className="rounded-lg text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                            {isCancelling ? "Membatalkan..." : "Batalkan Pesanan"}
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={handleLanjutkanBayar}
-                            disabled={isCancelling}
-                            className="rounded-lg bg-sky-400 hover:bg-sky-500 text-white font-semibold"
-                        >
-                            Lanjutkan Pembayaran
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

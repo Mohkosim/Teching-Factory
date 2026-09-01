@@ -64,3 +64,26 @@ export async function selesaikanJasaAction(
     });
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
 }
+
+export async function setujuiRefundAction(
+    refund_id: string,
+    slugs: { smkSlug: string; jurusanSlug: string }
+) {
+    await prisma.refundRequest.update({
+        where: { refund_id },
+        data: { status: "Disetujui" },
+    });
+    revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
+}
+
+export async function tolakRefundAction(
+    refund_id: string,
+    catatanAdmin: string,
+    slugs: { smkSlug: string; jurusanSlug: string }
+) {
+    await prisma.refundRequest.update({
+        where: { refund_id },
+        data: { status: "Ditolak", catatanAdmin },
+    });
+    revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
+}

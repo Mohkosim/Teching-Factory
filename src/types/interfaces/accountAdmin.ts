@@ -20,6 +20,7 @@ export interface JurusanAccount {
   jurusan_id: string;
   user_id: string;
   smk_id: string;
+  img: string | null;
   nama_jurusan: string;
   deskripsi: string | null;
   kepala_jurusan: string | null;

@@ -1,8 +1,9 @@
+// JasaChart.tsx
 "use client";
 
 import {
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -18,17 +19,16 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-const data = [
-    { bulan: "Jun '24", nilai: 88 },
-    { bulan: "Jul '24", nilai: 65 },
-    { bulan: "Ags '24", nilai: 75 },
-    { bulan: "Sep '24", nilai: 185 },
-    { bulan: "Okt '24", nilai: 145 },
-    { bulan: "Nov '24", nilai: 165 },
-    { bulan: "Des '24", nilai: 120 },
-];
+type Point = { bulan: string; nilai: number };
 
-export function JasaChart() {
+function formatRupiahSingkat(value: number) {
+    if (value >= 1_000_000_000) return `Rp${(value / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+    if (value >= 1_000_000) return `Rp${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}jt`;
+    if (value >= 1_000) return `Rp${(value / 1_000).toFixed(0)}rb`;
+    return `Rp${value}`;
+}
+
+export function JasaChart({ data }: { data: Point[] }) {
     return (
         <Card className="border-0 shadow-sm bg-white">
             <CardHeader className="px-8 border-b">
@@ -46,15 +46,14 @@ export function JasaChart() {
             </CardHeader>
             <CardContent className="px-8">
                 <ResponsiveContainer width="100%" height={200}>
-                    <LineChart
-                        data={data}
-                        margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
-                    >
-                        <CartesianGrid
-                            strokeDasharray="4 4"
-                            stroke="hsl(214, 32%, 88%)"
-                            vertical={false}
-                        />
+                    <AreaChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id="colorNilai" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 4" stroke="hsl(214, 32%, 90%)" vertical={false} />
                         <XAxis
                             dataKey="bulan"
                             tick={{ fontSize: 11, fill: "hsl(215, 16%, 55%)" }}
@@ -65,19 +64,23 @@ export function JasaChart() {
                             tick={{ fontSize: 11, fill: "hsl(215, 16%, 55%)" }}
                             axisLine={false}
                             tickLine={false}
-                            ticks={[0, 50, 100, 150, 200]}
+                            tickFormatter={formatRupiahSingkat}
+                            width={55}
                         />
                         <Tooltip
                             contentStyle={{ background: "white", border: "1px solid hsl(214, 32%, 88%)", borderRadius: "8px", fontSize: "12px" }}
+                            formatter={(value) => [`Rp ${Number(value).toLocaleString("id-ID")}`, "Penjualan"]}
                         />
-                        <Line
-                            type="monotone"
+                        <Area
+                            type="natural"
                             dataKey="nilai"
-                            stroke="hsl(207, 90%, 40%)"
-                            strokeWidth={2.5} dot={{ fill: "hsl(207, 90%, 40%)", r: 4, strokeWidth: 0 }}
-                            activeDot={{ r: 6 }}
+                            stroke="#3b82f6"
+                            strokeWidth={2.5}
+                            fill="url(#colorNilai)"
+                            dot={false}
+                            activeDot={{ r: 5, fill: "#3b82f6", strokeWidth: 0 }}
                         />
-                    </LineChart>
+                    </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
         </Card>

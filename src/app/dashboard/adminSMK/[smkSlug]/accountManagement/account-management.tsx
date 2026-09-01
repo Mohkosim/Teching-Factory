@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useMemo, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -192,43 +193,63 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                             paginated.map((item, idx) => (
                                 <TableRow
                                     key={item.jurusan_id}
-                                    className={`transition-colors h-16 ${!item.isActive ? "bg-gray-50/60 opacity-60" : "hover:bg-blue-50/30"}`}
+                                    className={`transition-colors h-16 ${!item.isActive ? "bg-gray-50/60" : "hover:bg-blue-50/30"}`}
                                 >
-                                    <TableCell className="text-gray-500 font-medium py-4 px-6">
+                                    <TableCell className={`text-gray-500 font-medium py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         {(page - 1) * pageSize + idx + 1}
                                     </TableCell>
-                                    <TableCell className="font-medium text-gray-700 py-4 px-6">{item.nama_jurusan}</TableCell>
-                                    <TableCell className="py-4 px-6">
-                                        <div className="h-10 w-10 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm">
-                                            <School className="h-5 w-5 text-blue-500" />
+                                    <TableCell className={`font-medium text-gray-700 py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
+                                        {item.nama_jurusan}
+                                    </TableCell>
+                                    <TableCell className={`py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm overflow-hidden">
+                                            {item.img ? (
+                                                <Image
+                                                    src={item.img}
+                                                    alt={item.nama_jurusan}
+                                                    width={40}
+                                                    height={40}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <School className="h-5 w-5 text-blue-500" />
+                                            )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-gray-500 max-w-xs py-4 px-6">
+                                    <TableCell className={`text-gray-500 max-w-xs py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         <span className="line-clamp-2 text-sm">{item.email}</span>
                                     </TableCell>
-                                    <TableCell className="text-gray-600 font-mono text-sm py-4 px-6">{item.phoneNumber ?? "-"}</TableCell>
-                                    <TableCell className="py-4 px-6">
+                                    <TableCell className={`text-gray-600 font-mono text-sm py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
+                                        {item.phoneNumber ?? "-"}
+                                    </TableCell>
+                                    <TableCell className={`py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${!item.isActive ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
                                             {item.isActive ? "Aktif" : "Nonaktif"}
                                         </span>
                                     </TableCell>
+                                    {/* Cell Aksi TIDAK diberi opacity-60, supaya tombol Power tetap terlihat normal */}
                                     <TableCell className="py-4 px-6">
                                         <div className="flex items-center justify-end gap-1.5">
-                                            <button onClick={() => setDetailItem(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors" title="Lihat Detail">
+                                            <button
+                                                onClick={() => setDetailItem(item)}
+                                                disabled={!item.isActive}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-50"
+                                                title="Lihat Detail"
+                                            >
                                                 <Eye className="h-3.5 w-3.5" />
                                             </button>
                                             <button
                                                 onClick={() => handleToggleNonaktif(item)}
                                                 disabled={isPending}
-                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors disabled:opacity-50"
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors"
                                                 title={item.isActive ? "Nonaktifkan" : "Aktifkan"}
                                             >
                                                 <Power className="h-3.5 w-3.5" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(item)}
-                                                disabled={isPending}
-                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
+                                                disabled={!item.isActive || isPending}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-50"
                                                 title="Hapus"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -315,8 +336,18 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
                     {detailItem && (
                         <div className="space-y-4 py-2">
                             <div className="flex items-center gap-4">
-                                <div className="h-14 w-14 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm">
-                                    <School className="h-7 w-7 text-blue-500" />
+                                <div className="h-14 w-14 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm overflow-hidden">
+                                    {detailItem.img ? (
+                                        <Image
+                                            src={detailItem.img}
+                                            alt={detailItem.nama_jurusan}
+                                            width={56}
+                                            height={56}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <School className="h-7 w-7 text-blue-500" />
+                                    )}
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-800">{detailItem.nama_jurusan}</p>

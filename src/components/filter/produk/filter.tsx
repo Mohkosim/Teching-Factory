@@ -28,7 +28,6 @@ export const emptyFilterValue: FilterValue = {
 interface FilterProps {
     value: FilterValue;
     onApply: (value: FilterValue) => void;
-    /** Opsi lokasi dinamis, diambil dari data produk (provinsi SMK) yang benar-benar ada di DB */
     lokasiOptions: string[];
 }
 
@@ -51,6 +50,8 @@ export default function Filter({ value, onApply, lokasiOptions }: FilterProps) {
                 : [...prev.lokasi, v],
         }));
     };
+
+    
 
     const handleHapus = () => {
         setDraft(emptyFilterValue);

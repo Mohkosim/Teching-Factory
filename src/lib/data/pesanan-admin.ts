@@ -13,6 +13,7 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
         include: {
             user: true,
             pengiriman: true,
+            refundRequest: { include: { bukti: true } }, // ⬅️ tambahan
             orderDetail: {
                 include: {
                     produk: {
@@ -58,6 +59,20 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
             kurir: order.pengiriman?.kurir ?? "-",
             nomorResi: (order.pengiriman as { nomor_resi?: string } | null)?.nomor_resi ?? null,
             estimasi: order.pengiriman?.estimasi_tiba ?? null,
+            refund: order.refundRequest // ⬅️ tambahan
+                ? {
+                    id: order.refundRequest.refund_id,
+                    status: order.refundRequest.status,
+                    alasan: order.refundRequest.alasan,
+                    deskripsi: order.refundRequest.deskripsi,
+                    catatanAdmin: order.refundRequest.catatanAdmin,
+                    bukti: order.refundRequest.bukti.map((b) => ({
+                        id: b.bukti_id,
+                        url: b.url,
+                        tipe: b.tipe,
+                    })),
+                }
+                : null,
         };
     });
 }

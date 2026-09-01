@@ -77,7 +77,7 @@ export async function getStatsAdminJurusan() {
         return { totalProduk: 0, totalJasa: 0, totalPesanan: 0 };
     }
 
-    const [totalProduk, totalJasa] = await Promise.all([
+    const [totalProduk, totalJasa, totalPesanan] = await Promise.all([
         prisma.produk.count({
             where: {
                 jurusan_id: jurusan.jurusan_id,
@@ -87,27 +87,30 @@ export async function getStatsAdminJurusan() {
         prisma.jasa.count({
             where: { produk: { jurusan_id: jurusan.jurusan_id } },
         }),
+        prisma.order_Detail.count({
+            where: {
+                produk: { jurusan_id: jurusan.jurusan_id },
+            },
+        }),
     ]);
-
-    const totalPesanan = 0;
 
     return { totalProduk, totalJasa, totalPesanan };
 }
 
 export interface TefaStats {
-  smk: number;
-  jurusan: number;
-  produk: number;
-  jasa: number;
+    smk: number;
+    jurusan: number;
+    produk: number;
+    jasa: number;
 }
 
 export async function getTefaStats(): Promise<TefaStats> {
-  const [smk, jurusan, produk, jasa] = await Promise.all([
-    prisma.sMK.count(),
-    prisma.jurusan.count(),
-    prisma.barang.count(),
-    prisma.jasa.count(),
-  ]);
+    const [smk, jurusan, produk, jasa] = await Promise.all([
+        prisma.sMK.count(),
+        prisma.jurusan.count(),
+        prisma.barang.count(),
+        prisma.jasa.count(),
+    ]);
 
-  return { smk, jurusan, produk, jasa };
+    return { smk, jurusan, produk, jasa };
 }

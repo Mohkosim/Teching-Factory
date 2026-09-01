@@ -9,6 +9,8 @@ import type {
   ProdukListResult,
 } from "@/types/interfaces/produk";
 
+import { normalizeProvinsi } from "@/lib/utils/lokasi";
+
 const produkPublicInclude = {
   foto: true,
   barang: true,
@@ -23,7 +25,7 @@ type ProdukWithRelations = Prisma.ProdukGetPayload<{
 const produkDetailInclude = {
   foto: true,
   barang: true,
-  jurusan: { include: { smk: { include: { user: true } } } },
+  jurusan: { include: { user: true, smk: { include: { user: true } } } },
   review: {
     include: { user: true, foto: true },
     orderBy: { createdAt: "desc" as const },
@@ -47,6 +49,7 @@ export interface ReviewPublicItem {
 export interface ProdukPublicItem {
   id: string;
   nama: string;
+  noWhatsapp?: string;
   deskripsi: string;
   gambar: string;
   fotos: string[];
@@ -115,6 +118,7 @@ function mapProdukPublicItem(p: ProdukWithRelations | ProdukDetailWithRelations)
     id: p.produk_id,
     nama: p.nama_produk,
     deskripsi: p.deskripsi ?? "",
+    noWhatsapp: p.jurusan.smk.user.phone ?? undefined, 
     gambar: fotos[0] ?? "",
     fotos: fotos.length > 0 ? fotos : [],
     harga: p.harga,
@@ -124,7 +128,7 @@ function mapProdukPublicItem(p: ProdukWithRelations | ProdukDetailWithRelations)
     stok: p.barang.reduce((sum, b) => sum + (b.stok ?? 0), 0),
     jurusan: p.jurusan.nama_jurusan,
     sekolah: p.jurusan.smk?.user.name ?? "",
-    lokasi: p.jurusan.smk?.provinsi ?? "",
+    lokasi: normalizeProvinsi(p.jurusan.smk?.provinsi) ?? null,
     badge: getBadge(p),
     kondisi: p.barang[0]?.kondisi ?? null,
   };

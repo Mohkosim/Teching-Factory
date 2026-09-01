@@ -21,6 +21,7 @@ export async function findCartOrder(userId: string) {
                             barang: true,
                             jurusan: {
                                 include: {
+                                    user: true, // <-- tambahan: untuk nomor WA AdminJurusan
                                     smk: {
                                         include: { user: true }, // ambil nama sekolah dari User
                                     },
@@ -55,6 +56,7 @@ export async function getKeranjangItems(): Promise<KeranjangItem[]> {
             harga: d.harga_satuan,
             thumbnail: p.foto[0]?.url ?? "",
             kuantitas: d.jumlah,
+            noWhatsapp: p.jurusan?.user?.phone ?? undefined,
         };
     });
 }

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -25,10 +25,25 @@ interface StatisticsChartProps {
   };
 }
 
+const FALLBACK_BULAN = [
+  "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+  "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+];
+
 export function StatisticsChart({ data }: StatisticsChartProps) {
   const [filter] = useState<"semua">("semua");
 
-  const chartData = data[filter];
+  const rawData = data[filter];
+
+  // Kalau array datanya kosong (bukan cuma nilai 0), AreaChart recharts
+  // tidak punya titik sama sekali untuk digambar dan area-nya hilang total.
+  // Jadi kalau kosong, pakai 12 bulan placeholder dengan nilai 0 supaya
+  // garis/area tetap ada (flat di angka 0).
+  const chartData: ChartDataPoint[] =
+    rawData.length > 0
+      ? rawData
+      : FALLBACK_BULAN.map((bulan) => ({ bulan, nilai: 0 }));
+
   const rawMax = Math.max(...chartData.map((d) => d.nilai));
   const maxNilai = rawMax > 0 ? rawMax : 10;
 
@@ -47,10 +62,16 @@ export function StatisticsChart({ data }: StatisticsChartProps) {
       </CardHeader>
       <CardContent className="px-8">
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart
+          <AreaChart
             data={chartData}
             margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
           >
+            <defs>
+              <linearGradient id="colorSmkTerdaftar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(207, 90%, 40%)" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="hsl(207, 90%, 40%)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               strokeDasharray="4 4"
               stroke="hsl(214, 32%, 88%)"
@@ -77,15 +98,16 @@ export function StatisticsChart({ data }: StatisticsChartProps) {
                 fontSize: "12px",
               }}
             />
-            <Line
-              type="monotone"
+            <Area
+              type="natural"
               dataKey="nilai"
               stroke="hsl(207, 90%, 40%)"
               strokeWidth={2.5}
-              dot={{ fill: "hsl(207, 90%, 40%)", r: 4, strokeWidth: 0 }}
-              activeDot={{ r: 6 }}
+              fill="url(#colorSmkTerdaftar)"
+              dot={false}
+              activeDot={{ r: 6, fill: "hsl(207, 90%, 40%)", strokeWidth: 0 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

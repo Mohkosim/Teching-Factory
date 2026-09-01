@@ -52,9 +52,10 @@ import {
     kirimPesananAction,
     tandaiDikerjakanAction,
     selesaikanJasaAction,
+    setujuiRefundAction,
+    tolakRefundAction,
 } from "@/lib/getdata/get-pesanan-admin";
-import type { OrderRow, StatusPembayaranOrder, StatusOrderPengiriman } from "@/types/interfaces/pesananAdmin";
-
+import type { OrderRow, StatusPembayaranOrder, StatusOrderPengiriman, StatusRefund } from "@/types/interfaces/pesananAdmin";
 const kategoriOptions = ["Semua", "Produk", "Jasa"];
 
 // Label timeline beda antara Produk (dikirim lewat kurir) dan Jasa (dikerjakan langsung)
@@ -125,6 +126,23 @@ function shippingBadgeClass(status: StatusOrderPengiriman) {
     return "bg-red-50 text-red-500"; // Menunggu
 }
 
+function refundBadgeClass(status: StatusRefund) {
+    switch (status) {
+        case "Diajukan": return "bg-amber-50 text-amber-600";
+        case "Diproses": return "bg-sky-50 text-sky-600";
+        case "Disetujui": return "bg-emerald-50 text-emerald-600";
+        case "Ditolak": return "bg-red-50 text-red-500";
+    }
+}
+function refundLabel(status: StatusRefund) {
+    switch (status) {
+        case "Diajukan": return "Refund Diajukan";
+        case "Diproses": return "Refund Diproses";
+        case "Disetujui": return "Refund Disetujui";
+        case "Ditolak": return "Refund Ditolak";
+    }
+}
+
 // Menentukan index step aktif di timeline berdasarkan status asli dari database
 function getActiveStepIndex(order: OrderRow) {
     if (order.statusPembayaran !== "Lunas") return 0;
@@ -169,6 +187,10 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
     const [shipFormOpen, setShipFormOpen] = useState(false);
     const [shipForm, setShipForm] = useState({ resiNumber: "", estimation: "" });
 
+    const [tolakFormOpen, setTolakFormOpen] = useState(false);
+    const [catatanTolak, setCatatanTolak] = useState("");
+    const [previewBukti, setPreviewBukti] = useState<{ url: string; tipe: "Foto" | "Video" } | null>(null);
+
     const filtered = useMemo(() => {
         return orders.filter((item) => {
             const q = search.toLowerCase();
@@ -194,6 +216,8 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
         setDetailItem(null);
         setShipFormOpen(false);
         setShipForm({ resiNumber: "", estimation: "" });
+        setTolakFormOpen(false);
+        setCatatanTolak("");
     };
 
     // Update satu pesanan di state (dicocokkan lewat order_id yang sudah unik dari DB)
@@ -245,6 +269,59 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                 updateOrder(order_id, { statusPengiriman: previousStatus });
                 Swal.close();
                 toast.error("Gagal menandai pesanan dikerjakan");
+            }
+        });
+    };
+
+    const handleSetujuiRefund = () => {
+        if (!detailItem?.refund) return;
+        const order_id = detailItem.order_id;
+        const refund = detailItem.refund;
+        const previousRefund = refund;
+
+        updateOrder(order_id, { refund: { ...refund, status: "Disetujui" } });
+
+        startTransition(async () => {
+            tampilkanLoading("Menyetujui refund...");
+            try {
+                await setujuiRefundAction(refund.id, slugs);
+                Swal.close();
+                toast.success("Refund disetujui");
+                router.refresh();
+            } catch {
+                updateOrder(order_id, { refund: previousRefund });
+                Swal.close();
+                toast.error("Gagal menyetujui refund");
+            }
+        });
+    };
+
+    const handleTolakRefund = () => {
+        if (!detailItem?.refund) return;
+        if (!catatanTolak.trim()) {
+            toast.error("Catatan penolakan wajib diisi");
+            return;
+        }
+        const order_id = detailItem.order_id;
+        const refund = detailItem.refund;
+        const previousRefund = refund;
+        const catatan = catatanTolak;
+
+        updateOrder(order_id, { refund: { ...refund, status: "Ditolak", catatanAdmin: catatan } });
+        setTolakFormOpen(false);
+
+        startTransition(async () => {
+            tampilkanLoading("Menolak refund...");
+            try {
+                await tolakRefundAction(refund.id, catatan, slugs);
+                Swal.close();
+                toast.success("Refund ditolak");
+                setCatatanTolak("");
+                router.refresh();
+            } catch {
+                updateOrder(order_id, { refund: previousRefund });
+                Swal.close();
+                toast.error("Gagal menolak refund");
             }
         });
     };
@@ -429,6 +506,7 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                             <TableHead className="font-semibold text-gray-600 px-6">Kategori</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Pembeli</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status Pembayaran</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Refund</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status Pengiriman</TableHead>
                             <TableHead className="font-semibold text-gray-600 text-right px-6">Aksi</TableHead>
                         </TableRow>
@@ -444,7 +522,10 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                             paginated.map((item, idx) => (
                                 <TableRow
                                     key={item.order_id}
-                                    className="h-16 hover:bg-blue-50/30 transition-colors"
+                                    className={`h-16 transition-colors hover:bg-blue-50/30 ${item.refund && (item.refund.status === "Diajukan" || item.refund.status === "Diproses")
+                                        ? "bg-red-50/40"
+                                        : ""
+                                        }`}
                                 >
                                     <TableCell className="text-gray-500 font-medium py-4 px-6">
                                         {(page - 1) * pageSize + idx + 1}
@@ -474,6 +555,19 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                         </span>
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
+                                        {item.refund ? (
+                                            <span
+                                                className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${refundBadgeClass(
+                                                    item.refund.status
+                                                )}`}
+                                            >
+                                                {refundLabel(item.refund.status)}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-300 text-xs">-</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="py-4 px-6">
                                         <span
                                             className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${shippingBadgeClass(
                                                 item.statusPengiriman
@@ -493,6 +587,7 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                             </button>
                                         </div>
                                     </TableCell>
+
                                 </TableRow>
                             ))
                         )}
@@ -586,6 +681,113 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                         />
                                     </div>
                                 </div>
+
+                                {/* Detail Refund — hanya tampil kalau pembeli mengajukan refund untuk pesanan ini */}
+                                {detailItem.refund && (
+                                    <div className="pt-3 border-t border-gray-100 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-semibold text-gray-700">Pengajuan Refund</h3>
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${refundBadgeClass(
+                                                    detailItem.refund.status
+                                                )}`}
+                                            >
+                                                {refundLabel(detailItem.refund.status)}
+                                            </span>
+                                        </div>
+
+                                        <div className="bg-red-50/60 border border-red-100 rounded-xl p-3 space-y-2 text-sm">
+                                            <div>
+                                                <p className="text-gray-500 text-xs">Alasan</p>
+                                                <p className="text-gray-800 font-medium">{detailItem.refund.alasan}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-gray-500 text-xs">Deskripsi</p>
+                                                <p className="text-gray-700">{detailItem.refund.deskripsi}</p>
+                                            </div>
+
+                                            {detailItem.refund.bukti.length > 0 && (
+                                                <div>
+                                                    <p className="text-gray-500 text-xs mb-1.5">Bukti</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {detailItem.refund.bukti.map((b) => (
+                                                            <button
+                                                                key={b.id}
+                                                                type="button"
+                                                                onClick={() => setPreviewBukti({ url: b.url, tipe: b.tipe })}
+                                                                className="relative h-16 w-16 rounded-lg overflow-hidden border border-red-200 bg-gray-900"
+                                                            >
+                                                                {b.tipe === "Video" ? (
+                                                                    <video src={b.url} className="h-full w-full object-cover" muted />
+                                                                ) : (
+                                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                                    <img src={b.url} alt="Bukti refund" className="h-full w-full object-cover" />
+                                                                )}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {detailItem.refund.catatanAdmin && (
+                                                <div>
+                                                    <p className="text-gray-500 text-xs">Catatan Admin</p>
+                                                    <p className="text-gray-700">{detailItem.refund.catatanAdmin}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Aksi tindak lanjut — cuma muncul selama refund belum diputuskan */}
+                                        {(detailItem.refund.status === "Diajukan" || detailItem.refund.status === "Diproses") && (
+                                            !tolakFormOpen ? (
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        onClick={handleSetujuiRefund}
+                                                        disabled={isPending}
+                                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-9 text-sm"
+                                                    >
+                                                        Setujui Refund
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => setTolakFormOpen(true)}
+                                                        disabled={isPending}
+                                                        variant="outline"
+                                                        className="flex-1 border-red-300 text-red-500 hover:bg-red-50 rounded-lg h-9 text-sm"
+                                                    >
+                                                        Tolak Refund
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2 bg-gray-50 rounded-xl p-3">
+                                                    <Label className="text-sm text-gray-600">Catatan Penolakan</Label>
+                                                    <Input
+                                                        value={catatanTolak}
+                                                        onChange={(e) => setCatatanTolak(e.target.value)}
+                                                        placeholder="Jelaskan alasan refund ditolak"
+                                                        className="bg-white border-gray-200 rounded-lg"
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex justify-end gap-2 pt-1">
+                                                        <Button
+                                                            onClick={() => { setTolakFormOpen(false); setCatatanTolak(""); }}
+                                                            variant="outline"
+                                                            className="rounded-lg h-8 text-sm"
+                                                        >
+                                                            Batal
+                                                        </Button>
+                                                        <Button
+                                                            onClick={handleTolakRefund}
+                                                            disabled={!catatanTolak.trim() || isPending}
+                                                            className="bg-red-500 hover:bg-red-600 text-white rounded-lg h-8 text-sm"
+                                                        >
+                                                            Kirim Penolakan
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Sub total & ongkir */}
                                 <div className="space-y-1.5 pt-1">
@@ -784,6 +986,26 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                     )}
                             </div>
                         </>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!previewBukti} onOpenChange={(open) => !open && setPreviewBukti(null)}>
+                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden bg-black/90 border-0">
+                    <button
+                        type="button"
+                        onClick={() => setPreviewBukti(null)}
+                        className="absolute top-3 right-3 z-10 h-8 w-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                    >
+                        <XIcon className="h-4 w-4" />
+                    </button>
+                    {previewBukti && (
+                        previewBukti.tipe === "Video" ? (
+                            <video src={previewBukti.url} controls className="w-full max-h-[85vh]" />
+                        ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={previewBukti.url} alt="Preview bukti refund" className="w-full max-h-[85vh] object-contain" />
+                        )
                     )}
                 </DialogContent>
             </Dialog>

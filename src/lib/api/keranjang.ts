@@ -1,7 +1,7 @@
 import type { KeranjangItem } from "@/types/interfaces/keranjang";
 
-function notifyCartUpdated() {
-    window.dispatchEvent(new Event("cart-updated"));
+function notifyCartUpdated(delta: number) {
+    window.dispatchEvent(new CustomEvent("cart-updated", { detail: { delta } }));
 }
 
 export async function fetchKeranjang(): Promise<KeranjangItem[]> {
@@ -17,7 +17,7 @@ export async function tambahKeKeranjang(produkId: string, jumlah = 1) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ produkId, jumlah }),
     });
-    if (res.ok) notifyCartUpdated();
+    if (res.ok) notifyCartUpdated(jumlah);
     return res;
 }
 
@@ -27,12 +27,12 @@ export async function ubahJumlahKeranjang(id: string, delta: number) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ delta }),
     });
-    if (res.ok) notifyCartUpdated();
+    if (res.ok) notifyCartUpdated(delta);
     return res;
 }
 
-export async function hapusDariKeranjang(id: string) {
+export async function hapusDariKeranjang(id: string, jumlahDihapus: number) {
     const res = await fetch(`/api/keranjang/${id}`, { method: "DELETE" });
-    if (res.ok) notifyCartUpdated();
+    if (res.ok) notifyCartUpdated(-jumlahDihapus);
     return res;
 }

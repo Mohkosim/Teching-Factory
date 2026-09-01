@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,12 +9,9 @@ import {
     Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 
-const tipeLayananOptions = ["Home Service", "Walk-in", "Online"]; // <-- Opsi Tipe Layanan
-const lokasiOptions = ["Jabodetabek", "Jawa Timur"];
 const ratingOptions = [5, 3, 2];
 
 export interface FilterJasaValue {
-    tipeLayanan: string[]; // <-- Tambahan tipe layanan
     lokasi: string[];
     rating: number | null;
     hargaMin: string;
@@ -22,7 +19,6 @@ export interface FilterJasaValue {
 }
 
 export const emptyFilterJasaValue: FilterJasaValue = {
-    tipeLayanan: [], // <-- Tambahan tipe layanan
     lokasi: [],
     rating: null,
     hargaMin: "",
@@ -32,9 +28,10 @@ export const emptyFilterJasaValue: FilterJasaValue = {
 interface FilterProps {
     value: FilterJasaValue;
     onApply: (value: FilterJasaValue) => void;
+    lokasiOptions: string[]; // <-- diambil dari data asli, bukan hardcode
 }
 
-export default function FilterJasa({ value, onApply }: FilterProps) {
+export default function FilterJasa({ value, onApply, lokasiOptions }: FilterProps) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<FilterJasaValue>(value);
 
@@ -45,16 +42,6 @@ export default function FilterJasa({ value, onApply }: FilterProps) {
         }
     };
 
-    // <-- Fungsi Toggle untuk Tipe Layanan
-    const toggleTipeLayanan = (v: string) => {
-        setDraft((prev) => ({
-            ...prev,
-            tipeLayanan: prev.tipeLayanan.includes(v)
-                ? prev.tipeLayanan.filter((x) => x !== v)
-                : [...prev.tipeLayanan, v],
-        }));
-    };
-
     const toggleLokasi = (v: string) => {
         setDraft((prev) => ({
             ...prev,
@@ -63,6 +50,10 @@ export default function FilterJasa({ value, onApply }: FilterProps) {
                 : [...prev.lokasi, v],
         }));
     };
+
+    const lokasiUnik = useMemo(() => {
+        return Array.from(new Set(lokasiOptions));
+    }, [lokasiOptions]);
 
     const handleHapus = () => {
         setDraft(emptyFilterJasaValue);
@@ -76,7 +67,7 @@ export default function FilterJasa({ value, onApply }: FilterProps) {
     };
 
     const isFilterAktif =
-        value.tipeLayanan.length > 0 || value.lokasi.length > 0 || value.rating !== null || value.hargaMin !== "" || value.hargaMax !== "";
+        value.lokasi.length > 0 || value.rating !== null || value.hargaMin !== "" || value.hargaMax !== "";
 
     return (
         <Popover open={open} onOpenChange={handleOpenChange}>
@@ -92,40 +83,28 @@ export default function FilterJasa({ value, onApply }: FilterProps) {
                 </button>
             </PopoverTrigger>
 
-            {/* Tambahkan h-96 overflow-y-auto jika konten terlalu panjang ke bawah */}
             <PopoverContent className="w-80 p-0 rounded-2xl max-h-[80vh] overflow-y-auto" align="start">
                 <div className="px-5 py-4">
                     <h3 className="text-lg font-bold text-gray-900">Filter Jasa</h3>
                 </div>
 
-                {/* --- BLOK TIPE LAYANAN --- */}
-                <div className="border-t border-gray-100 px-5 py-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-400">Tipe Layanan</p>
-                    {tipeLayananOptions.map((tipe) => (
-                        <label key={tipe} className="flex items-center gap-3 cursor-pointer">
-                            <Checkbox
-                                checked={draft.tipeLayanan.includes(tipe)}
-                                onCheckedChange={() => toggleTipeLayanan(tipe)}
-                                className="h-5 w-5 rounded-sm data-[state=checked]:bg-gray-800 data-[state=checked]:border-gray-800"
-                            />
-                            <span className="text-base font-semibold text-gray-900">{tipe}</span>
-                        </label>
-                    ))}
-                </div>
-
                 {/* --- BLOK LOKASI --- */}
                 <div className="border-t border-gray-100 px-5 py-4 space-y-3">
                     <p className="text-sm font-medium text-gray-400">Lokasi</p>
-                    {lokasiOptions.map((loc) => (
-                        <label key={loc} className="flex items-center gap-3 cursor-pointer">
-                            <Checkbox
-                                checked={draft.lokasi.includes(loc)}
-                                onCheckedChange={() => toggleLokasi(loc)}
-                                className="h-5 w-5 rounded-sm data-[state=checked]:bg-gray-800 data-[state=checked]:border-gray-800"
-                            />
-                            <span className="text-base font-semibold text-gray-900">{loc}</span>
-                        </label>
-                    ))}
+                    {lokasiUnik.length === 0 ? (
+                        <p className="text-sm text-gray-400">Belum ada data lokasi</p>
+                    ) : (
+                        lokasiUnik.map((loc) => (
+                            <label key={loc} className="flex items-center gap-3 cursor-pointer">
+                                <Checkbox
+                                    checked={draft.lokasi.includes(loc)}
+                                    onCheckedChange={() => toggleLokasi(loc)}
+                                    className="h-5 w-5 rounded-sm data-[state=checked]:bg-gray-800 data-[state=checked]:border-gray-800"
+                                />
+                                <span className="text-base font-semibold text-gray-900">{loc}</span>
+                            </label>
+                        ))
+                    )}
                 </div>
 
                 {/* --- BLOK RATING --- */}

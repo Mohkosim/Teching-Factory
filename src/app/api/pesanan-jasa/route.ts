@@ -41,22 +41,22 @@ export async function POST(request: Request) {
     const kodeInvoice = `INV-JASA-${Date.now()}`;
 
     const order = await prisma.order.create({
-    data: {
-        user_id: session.user.id,
-        kode_invoice: kodeInvoice,
-        total_harga: produk.harga,
-        status_order: "Menunggu",
-        status_pembayaran: "Menunggu_Konfirmasi",
-        orderDetail: {
-            create: {
-                produk_id: produk.produk_id,
-                jumlah: 1,
-                harga_satuan: produk.harga,
-                subtotal: produk.harga,
+        data: {
+            user_id: session.user.id,
+            kode_invoice: kodeInvoice,
+            total_harga: produk.harga,
+            status_order: "Menunggu",
+            status_pembayaran: "Menunggu_Konfirmasi",
+            orderDetail: {
+                create: {
+                    produk_id: produk.produk_id,
+                    jumlah: 1,
+                    harga_satuan: produk.harga,
+                    subtotal: produk.harga,
+                },
             },
         },
-    },
-});
+    });
 
     const midtransOrderId = `JASA-${order.order_id}`;
 

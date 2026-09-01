@@ -20,6 +20,7 @@ export async function getJurusanAccounts(adminSmkUserId: string): Promise<Jurusa
         jurusan_id: j.jurusan_id,
         user_id: j.user_id,
         smk_id: j.smk_id,
+        img: j.user.img,
         nama_jurusan: j.nama_jurusan,
         deskripsi: j.deskripsi,
         kepala_jurusan: j.kepala_jurusan,

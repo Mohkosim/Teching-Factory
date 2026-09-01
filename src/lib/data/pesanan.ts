@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { StatusOrder, StatusPembayaran } from "@/generated/prisma/enums";
-import type { ProdukItem, JasaItem } from "@/types/interfaces/pesanan";
+import type { ProdukItem, JasaItem, RefundInfo } from "@/types/interfaces/pesanan";
 
 function mapStatusKeStep(statusPembayaran: StatusPembayaran, statusOrder: StatusOrder): 0 | 1 | 2 | 3 {
     if (statusPembayaran !== "Lunas") return 0;
@@ -43,6 +43,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
             },
             transaksi: true,
             pengiriman: true,
+            refundRequest: { include: { bukti: true } },
         },
         orderBy: { createdAt: "desc" },
     });
@@ -51,8 +52,23 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
     const jasa: JasaItem[] = [];
 
     for (const order of orders) {
-        const kodeInvoice = order.kode_invoice ?? order.order_id;
+        const kodeInvoice = order.kode_invoice ?? "";
         const timelineStep = mapStatusKeStep(order.status_pembayaran, order.status_order);
+
+        const refund: RefundInfo | null = order.refundRequest
+            ? {
+                id: order.refundRequest.refund_id,
+                status: order.refundRequest.status,
+                alasan: order.refundRequest.alasan,
+                deskripsi: order.refundRequest.deskripsi,
+                catatanAdmin: order.refundRequest.catatanAdmin,
+                bukti: order.refundRequest.bukti.map((b) => ({
+                    id: b.bukti_id,
+                    url: b.url,
+                    tipe: b.tipe,
+                })),
+            }
+            : null;
 
         const alamatUtama = order.user.alamat[0];
         const alamatPembeliLengkap = alamatUtama
@@ -78,7 +94,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                     jumlah: detail.jumlah,
                     statusBayar: order.status_pembayaran === "Lunas" ? "Dibayar" : "Belum Dibayar",
                     statusKirim:
-                        order.status_order === "Selesai" ? "Telah Dikirim" :
+                        order.status_order === "Selesai" ? "Diterima" :
                             order.status_order === "Dikirim" ? "Sedang Dikirim" : "Diproses",
                     tanggal: order.createdAt.toISOString(),
                     timelineStep,
@@ -86,6 +102,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                     rating: review?.rating,
                     ulasan: review?.komentar ?? undefined,
                     fotoUlasan,
+                    refund,
                     pembeli: {
                         nama: order.user.name,
                         nomor: order.user.phone ?? "-",
@@ -112,6 +129,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
 
                 jasa.push({
                     id: detail.order_detail_id,
+                    kodeInvoice,
                     orderId: order.order_id,
                     produkId: p.produk_id,
                     nama: p.nama_produk,
@@ -145,7 +163,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                         .map((t) => ({
                             id: t.transaksi_id,
                             nominal: t.nominal,
-                            metode: t.metode,
+                            metode: t.metode ?? "-",
                             tanggal: t.tanggal_transaksi.toISOString(),
                             buktiNama: t.bukti ?? undefined,
                         })),

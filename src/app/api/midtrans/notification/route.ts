@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { coreApi } from "@/lib/midtrans";
 import type { MetodePembayaran, StatusPembayaran } from "@/generated/prisma/enums";
 import { decodeCicilanOrderId } from "@/lib/utils/invoice";
+import { hitungBiayaMidtrans } from "@/lib/midtrans/hitungBiaya";
 
 interface MidtransNotification {
     order_id: string;
@@ -66,22 +67,23 @@ export async function POST(req: Request) {
     const gagal = GAGAL.includes(transactionStatus);
 
     if (!berhasil && !gagal) {
-        // status "pending" atau lainnya -> belum ada yang perlu diubah
         return NextResponse.json({ message: "OK" });
     }
 
     const midtransOrderId = body.order_id;
     const nominal = Math.round(Number(statusResponse.gross_amount));
-    const metodeEnum = mapPaymentTypeKeEnum(body.payment_type);
+    // Pakai payment_type dari statusResponse (lebih otoritatif drpd body notifikasi mentah)
+    const paymentType = (statusResponse.payment_type as string) ?? body.payment_type;
+    const metodeEnum = mapPaymentTypeKeEnum(paymentType);
+    const biayaMidtrans = berhasil ? hitungBiayaMidtrans(paymentType, nominal) : 0;
 
     try {
         if (midtransOrderId.startsWith("CICIL-")) {
-            await prosesCicilan(midtransOrderId, nominal, metodeEnum, berhasil);
+            await prosesCicilan(midtransOrderId, nominal, metodeEnum, berhasil, biayaMidtrans);
         } else if (midtransOrderId.startsWith("JASA-")) {
-            await prosesJasaBooking(midtransOrderId, nominal, metodeEnum, berhasil);
+            await prosesJasaBooking(midtransOrderId, nominal, metodeEnum, berhasil, biayaMidtrans);
         } else {
-            // sisanya: checkout produk, order_id Midtrans = kodeInvoice
-            await prosesCheckoutProduk(midtransOrderId, metodeEnum, berhasil);
+            await prosesCheckoutProduk(midtransOrderId, metodeEnum, berhasil, paymentType);
         }
     } catch (err) {
         console.error("Webhook error:", err);
@@ -92,19 +94,21 @@ export async function POST(req: Request) {
 }
 
 // ==== Cicilan/pelunasan jasa: order_id format CICIL-<orderId>-<timestamp> ====
-async function prosesCicilan(midtransOrderId: string, nominal: number, metode: MetodePembayaran, berhasil: boolean) {
+async function prosesCicilan(
+    midtransOrderId: string,
+    nominal: number,
+    metode: MetodePembayaran,
+    berhasil: boolean,
+    biayaMidtrans: number
+) {
     if (!berhasil) return;
-
-    // Cegah duplikasi kalau Midtrans kirim notifikasi yang sama lebih dari sekali
-    const sudahAda = await prisma.transaksi.findFirst({
-        where: { kode_pembayaran: midtransOrderId },
-    });
-    if (sudahAda) return;
 
     const orderId = decodeCicilanOrderId(midtransOrderId);
 
     const order = await prisma.order.findUnique({ where: { order_id: orderId }, include: { transaksi: true } });
     if (!order) return;
+
+    const kodePembayaran = order.kode_invoice ?? midtransOrderId;
 
     await prisma.$transaction(async (tx) => {
         await tx.transaksi.create({
@@ -114,7 +118,8 @@ async function prosesCicilan(midtransOrderId: string, nominal: number, metode: M
                 jenis_transaksi: "Pemasukan",
                 nominal,
                 metode,
-                kode_pembayaran: midtransOrderId,
+                kode_pembayaran: kodePembayaran,
+                biaya_midtrans: biayaMidtrans,
             },
         });
 
@@ -135,7 +140,13 @@ async function prosesCicilan(midtransOrderId: string, nominal: number, metode: M
 }
 
 // ==== Booking jasa awal: order_id format JASA-<orderId> ====
-async function prosesJasaBooking(midtransOrderId: string, nominal: number, metode: MetodePembayaran, berhasil: boolean) {
+async function prosesJasaBooking(
+    midtransOrderId: string,
+    nominal: number,
+    metode: MetodePembayaran,
+    berhasil: boolean,
+    biayaMidtrans: number
+) {
     const orderId = midtransOrderId.replace("JASA-", "");
     const order = await prisma.order.findUnique({
         where: { order_id: orderId },
@@ -148,9 +159,7 @@ async function prosesJasaBooking(midtransOrderId: string, nominal: number, metod
         return;
     }
 
-    // Cegah duplikasi kalau Midtrans kirim notifikasi yang sama lebih dari sekali
-    const sudahAda = order.transaksi.some((t) => t.kode_pembayaran === midtransOrderId);
-    if (sudahAda) return;
+    const kodePembayaran = order.kode_invoice ?? midtransOrderId;
 
     await prisma.$transaction(async (tx) => {
         await tx.transaksi.create({
@@ -160,7 +169,8 @@ async function prosesJasaBooking(midtransOrderId: string, nominal: number, metod
                 jenis_transaksi: "Pemasukan",
                 nominal,
                 metode,
-                kode_pembayaran: midtransOrderId,
+                kode_pembayaran: kodePembayaran,
+                biaya_midtrans: biayaMidtrans,
             },
         });
 
@@ -182,7 +192,12 @@ async function prosesJasaBooking(midtransOrderId: string, nominal: number, metod
 }
 
 // ==== Checkout produk: order_id Midtrans = kodeInvoice, bisa mencakup beberapa Order (per toko) ====
-async function prosesCheckoutProduk(kodeInvoice: string, metode: MetodePembayaran, berhasil: boolean) {
+async function prosesCheckoutProduk(
+    kodeInvoice: string,
+    metode: MetodePembayaran,
+    berhasil: boolean,
+    paymentType: string
+) {
     const orders = await prisma.order.findMany({ where: { kode_invoice: kodeInvoice } });
     if (orders.length === 0) return;
 
@@ -194,22 +209,28 @@ async function prosesCheckoutProduk(kodeInvoice: string, metode: MetodePembayara
         return;
     }
 
+    // Biaya Midtrans dihitung per-toko, proporsional terhadap total_harga masing2 Order
+    // (karena satu invoice bisa terdiri dari beberapa Order/toko dgn 1 gross_amount gabungan)
     await prisma.$transaction(
-        orders.flatMap((order) => [
-            prisma.transaksi.create({
-                data: {
-                    order_id: order.order_id,
-                    user_id: order.user_id,
-                    jenis_transaksi: "Pemasukan",
-                    nominal: order.total_harga,
-                    metode,
-                    kode_pembayaran: kodeInvoice,
-                },
-            }),
-            prisma.order.update({
-                where: { order_id: order.order_id },
-                data: { status_pembayaran: "Lunas", status_order: "Diproses" },
-            }),
-        ])
+        orders.flatMap((order) => {
+            const biayaPerToko = hitungBiayaMidtrans(paymentType, order.total_harga);
+            return [
+                prisma.transaksi.create({
+                    data: {
+                        order_id: order.order_id,
+                        user_id: order.user_id,
+                        jenis_transaksi: "Pemasukan",
+                        nominal: order.total_harga,
+                        metode,
+                        kode_pembayaran: order.kode_invoice ?? kodeInvoice,
+                        biaya_midtrans: biayaPerToko,
+                    },
+                }),
+                prisma.order.update({
+                    where: { order_id: order.order_id },
+                    data: { status_pembayaran: "Lunas", status_order: "Diproses" },
+                }),
+            ];
+        })
     );
 }

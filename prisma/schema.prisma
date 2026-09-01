@@ -72,11 +72,39 @@ enum JenisTransaksi {
   Pengeluaran
 }
 
+enum StatusSettlementTransaksi {
+  Selesai
+  Menunggu
+  Gagal
+  Dibatalkan
+  Dikembalikan
+}
+
+enum StatusPenarikan {
+  Pending
+  Diproses
+  Selesai
+  Ditolak
+}
+
 enum MetodePembayaran {
   Transfer
+  Tunai
   COD
   QRIS
   E_Wallet
+}
+
+enum StatusRefund {
+  Diajukan
+  Diproses
+  Disetujui
+  Ditolak
+}
+
+enum TipeBuktiRefund {
+  Foto
+  Video
 }
 
 // Model Database
@@ -104,6 +132,8 @@ model User {
 
   order     Order[]
   transaksi Transaksi[]
+  penarikanSaldo PenarikanSaldo[]
+  refundRequest RefundRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,6 +179,8 @@ model Jurusan {
 
   produk Produk[]
   kurirAktif KurirAktif[]
+  transaksi Transaksi[]
+  penarikan PenarikanSaldo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -357,6 +389,7 @@ model Order {
   orderDetail Order_Detail[]
   transaksi   Transaksi[]
   pengiriman  Pengiriman?
+  refundRequest RefundRequest?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -385,18 +418,46 @@ model Order_Detail {
 model Transaksi {
   transaksi_id String @id @default(uuid())
 
-  order_id String
-  order    Order  @relation(fields: [order_id], references: [order_id])
+  order_id String?
+  order    Order?  @relation(fields: [order_id], references: [order_id])
 
   user_id String
   user    User   @relation(fields: [user_id], references: [user_id])
 
+  jurusan_id String?
+  jurusan    Jurusan? @relation(fields: [jurusan_id], references: [jurusan_id])
+
   tanggal_transaksi DateTime         @default(now())
   jenis_transaksi   JenisTransaksi
+  kategori          String?
+  nama              String?
+  deskripsi         String?          @db.Text
   nominal           Int
-  bukti             String?
-  metode            MetodePembayaran
-  kode_pembayaran   String? 
+  bukti             String?            
+  metode            MetodePembayaran?
+  kode_pembayaran   String?
+  biaya_midtrans Int? @default(0)
+  status_settlement StatusSettlementTransaksi @default(Selesai)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PenarikanSaldo {
+  penarikan_id String @id @default(uuid())
+
+  jurusan_id String
+  jurusan    Jurusan @relation(fields: [jurusan_id], references: [jurusan_id])
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  nominal        Int
+  nama_bank      String
+  nomor_rekening String
+  atas_nama      String
+
+  status         StatusPenarikan @default(Pending)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -448,4 +509,36 @@ model KurirAktif {
   updatedAt DateTime @updatedAt
 
   @@unique([jurusan_id, kode_kurir])
+}
+
+model RefundRequest {
+  refund_id String @id @default(uuid())
+
+  order_id String @unique
+  order    Order  @relation(fields: [order_id], references: [order_id])
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [user_id])
+
+  alasan       String
+  deskripsi    String @db.Text
+  status       StatusRefund @default(Diajukan)
+  catatanAdmin String?
+
+  bukti RefundBukti[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefundBukti {
+  bukti_id String @id @default(uuid())
+
+  refund_id String
+  refund    RefundRequest @relation(fields: [refund_id], references: [refund_id], onDelete: Cascade)
+
+  url  String
+  tipe TipeBuktiRefund
+
+  createdAt DateTime @default(now())
 }

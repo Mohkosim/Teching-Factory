@@ -19,13 +19,14 @@ import Pagination from "@/components/pagination/Pagination";
 
 type UrutanToolbar = "default" | "termurah" | "termahal" | "terlaris";
 
-export default function JasaPageClient({
-    jasa,
-    favoritIds,
-}: {
+interface JasaPageClientProps {
     jasa: JasaPublicItem[];
+    lokasiOptions: string[];
     favoritIds: FavoritIds;
-}) {
+}
+
+export default function JasaPageClient({ jasa, lokasiOptions, favoritIds }: JasaPageClientProps) {
+    const [search, setSearch] = useState("");
     const [halaman, setHalaman] = useState(1);
     const [perHalaman, setPerHalaman] = useState(12);
 
@@ -33,14 +34,16 @@ export default function JasaPageClient({
     const [urutanToolbar, setUrutanToolbar] = useState<UrutanToolbar>("default");
 
     const jasaTersaring = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+
         let hasil = jasa.filter((j) => {
-            // NOTE: filter.tipeLayanan belum bisa dicocokkan — field ini belum ada di schema/JasaPublicItem.
-            const matchLokasi = filter.lokasi.length === 0 || (j.lokasi ? filter.lokasi.includes(j.lokasi) : false);
+            const matchSearch = keyword === "" || j.nama.toLowerCase().includes(keyword);
+            const matchLokasi = filter.lokasi.length === 0 || (j.provinsi ? filter.lokasi.includes(j.provinsi) : false);
             const matchRating = filter.rating === null || j.rating >= filter.rating;
             const matchHargaMin = filter.hargaMin === "" || j.harga >= Number(filter.hargaMin);
             const matchHargaMax = filter.hargaMax === "" || j.harga <= Number(filter.hargaMax);
 
-            return matchLokasi && matchRating && matchHargaMin && matchHargaMax;
+            return matchSearch && matchLokasi && matchRating && matchHargaMin && matchHargaMax;
         });
 
         if (urutanToolbar === "termurah") {
@@ -52,7 +55,7 @@ export default function JasaPageClient({
         }
 
         return hasil;
-    }, [filter, urutanToolbar, jasa]);
+    }, [filter, search, urutanToolbar, jasa]); // <- tambahkan `search`
 
     const totalJasa = jasaTersaring.length;
     const totalHalaman = Math.max(1, Math.ceil(totalJasa / perHalaman));
@@ -82,13 +85,18 @@ export default function JasaPageClient({
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                             <Input
                                 placeholder="Cari jasa..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setHalaman(1);
+                                }}
                                 className="border-0 pl-9 shadow-none focus-visible:ring-0"
                             />
                         </div>
 
                         <div className="hidden h-8 w-px bg-gray-200 sm:block" />
 
-                        <FilterJasa value={filter} onApply={setFilter} />
+                        <FilterJasa value={filter} onApply={setFilter} lokasiOptions={lokasiOptions} />
                     </div>
                 </div>
             </section>

@@ -22,13 +22,14 @@ export interface ProdukItem {
     thumbnail: string;
     jumlah: number;
     statusBayar: "Dibayar" | "Belum Dibayar";
-    statusKirim: "Telah Dikirim" | "Sedang Dikirim" | "Diproses";
+    statusKirim: "Diterima" | "Sedang Dikirim" | "Diproses";
     tanggal: string;
     timelineStep: 0 | 1 | 2 | 3;
     biayaOngkir: number;
     rating?: number;
     ulasan?: string;
     fotoUlasan?: FotoUlasan[];
+    refund: RefundInfo | null;
     pembeli: {
         nama: string;
         nomor: string;
@@ -45,6 +46,7 @@ export interface ProdukItem {
 export interface JasaItem {
     id: string;
     orderId: string;
+    kodeInvoice: string;
     produkId: string;
     nama: string;
     total: number;
@@ -71,4 +73,15 @@ export interface JasaItem {
     ulasan?: string;
     fotoUlasan?: FotoUlasan[];
     riwayatPembayaran: RiwayatPembayaran[];
+}
+
+export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Ditolak";
+
+export interface RefundInfo {
+  id: string;
+  status: StatusRefund;
+  alasan: string;
+  deskripsi: string;
+  catatanAdmin?: string | null;
+  bukti: { id: string; url: string; tipe: "Foto" | "Video" }[];
 }

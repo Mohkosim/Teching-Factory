@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
-import { Star, Heart, ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Heart, ShoppingCart, MessageCircle, Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProdukCard from "@/components/produkcard";
 import RingkasanRating from "./RingkasanRating";
@@ -17,6 +17,7 @@ import { tambahKeKeranjang } from "@/lib/api/keranjang";
 import { toggleFavoritProduk } from "@/lib/api/favorit";
 import type { ProdukPublicItem } from "@/lib/data/produk-public";
 import type { FavoritIds } from "@/lib/data/favorit-public";
+import { buildWhatsappLink } from "@/lib/utils/whatsapp";
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
@@ -44,11 +45,7 @@ export default function ProdukDetailClient({
   // Produk stok habis didorong ke belakang, urutan lain (sold_count) tetap
   // terjaga di dalam masing-masing grup karena sort JS stabil.
   const rekomendasiTersaring = useMemo(() => {
-    return [...rekomendasi].sort((a, b) => {
-      const aHabis = a.stok <= 0 ? 1 : 0;
-      const bHabis = b.stok <= 0 ? 1 : 0;
-      return aHabis - bHabis;
-    });
+    return rekomendasi.filter((p) => p.stok > 0);
   }, [rekomendasi]);
 
   const handleAddToCart = async () => {
@@ -94,6 +91,15 @@ export default function ProdukDetailClient({
     } finally {
       setTogglingFavorit(false);
     }
+  };
+
+  const handleChatPenjual = () => {
+    if (!produk.noWhatsapp) {
+      toast.error("Nomor WhatsApp penjual tidak tersedia");
+      return;
+    }
+    const pesan = `Halo, saya tertarik dengan produk "${produk.nama}" di TEFA. Apakah masih tersedia?`;
+    window.open(buildWhatsappLink(produk.noWhatsapp, pesan), "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -175,8 +181,8 @@ export default function ProdukDetailClient({
               <span>{produk.terjual.toLocaleString("id-ID")} Terjual</span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <div className="flex items-center rounded-full border border-gray-300">
+            <div className="space-y-3 pt-2">
+              <div className="flex w-fit items-center rounded-full border border-gray-300">
                 <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-3 py-2 text-gray-500 hover:text-sky-500">
                   <Minus className="h-4 w-4" />
                 </button>
@@ -186,28 +192,39 @@ export default function ProdukDetailClient({
                 </button>
               </div>
 
-              <Button
-                onClick={handleAddToCart}
-                disabled={addingToCart}
-                className="gap-2 rounded-full bg-sky-500 px-6 hover:bg-sky-600"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Add to cart
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={addingToCart}
+                  className="gap-2 rounded-full bg-sky-500 px-6 hover:bg-sky-600"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Add to cart
+                </Button>
 
-              <button
-                onClick={handleToggleFavorit}
-                disabled={togglingFavorit}
-                aria-pressed={favorited}
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors disabled:opacity-50",
-                  favorited
-                    ? "border-red-300 bg-red-50 text-red-500"
-                    : "border-gray-300 text-gray-400 hover:border-red-300 hover:text-red-400"
-                )}
-              >
-                <Heart className={cn("h-4 w-4", favorited && "fill-red-500")} />
-              </button>
+                <Button
+                  onClick={handleChatPenjual}
+                  variant="outline"
+                  className="gap-2 rounded-full border-green-500 text-green-600 hover:bg-green-50"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Chat Penjual
+                </Button>
+
+                <button
+                  onClick={handleToggleFavorit}
+                  disabled={togglingFavorit}
+                  aria-pressed={favorited}
+                  className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors disabled:opacity-50",
+                    favorited
+                      ? "border-red-300 bg-red-50 text-red-500"
+                      : "border-gray-300 text-gray-400 hover:border-red-300 hover:text-red-400"
+                  )}
+                >
+                  <Heart className={cn("h-4 w-4", favorited && "fill-red-500")} />
+                </button>
+              </div>
             </div>
           </div>
         </div>

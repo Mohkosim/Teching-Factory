@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { ProdukSortOption } from "@/types/interfaces/produk";
 import type { ReviewPublicItem } from "@/lib/data/produk-public";
+import { normalizeProvinsi } from "@/lib/utils/lokasi";
 
 export interface PortofolioPublicItem {
   portofolio_id: string;
@@ -22,6 +23,7 @@ export interface JasaPublicItem {
   fotos: string[];
   estimasiPengerjaan?: string;
   lokasi?: string;
+  provinsi?: string;
   rating: number;
   jumlahReview: number;
   jurusan: string;
@@ -111,6 +113,7 @@ function mapJasaPublicItem(p: ProdukWithJasa | ProdukWithJasaDetail): JasaPublic
     fotos: p.foto.map((f) => f.url),
     estimasiPengerjaan: p.jasa[0]?.estimasi_pengerjaan ?? undefined,
     lokasi: p.jurusan.smk?.alamat,
+    provinsi: normalizeProvinsi(p.jurusan.smk?.provinsi),
     rating: avgRating,
     jumlahReview: p.review.length,
     jurusan: p.jurusan.nama_jurusan,

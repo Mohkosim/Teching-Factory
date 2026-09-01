@@ -9,6 +9,7 @@ import {
   Menu, X, Bell, ShoppingCart, ChevronDown,
   User as UserIcon, LogOut, Heart, Package,
 } from "lucide-react";
+import type { NotifikasiItem } from "@/types/interfaces/notifikasi";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu"; // sudah diimport, pastikan tidak dobel
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { KeranjangItem } from "@/types/interfaces/keranjang";
 
@@ -45,6 +46,18 @@ export default function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [pesananCount, setPesananCount] = useState(0);
+  const [notifikasiList, setNotifikasiList] = useState<NotifikasiItem[]>([]);
+
+  const fetchNotifikasi = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifikasi");
+      if (!res.ok) return;
+      const data: { notifikasi: NotifikasiItem[] } = await res.json();
+      setNotifikasiList(data.notifikasi ?? []);
+    } catch {
+      // biarkan notifikasiList tetap seperti sebelumnya jika gagal fetch
+    }
+  }, []);
 
   const fetchCartCount = useCallback(async () => {
     try {
@@ -86,20 +99,65 @@ export default function Navbar() {
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch async, setState terjadi setelah await, bukan sinkron di badan effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCartCount();
     fetchFavoriteCount();
     fetchPesananCount();
+    fetchNotifikasi();
 
-    window.addEventListener("cart-updated", fetchCartCount);
-    window.addEventListener("favorite-updated", fetchFavoriteCount);
-    window.addEventListener("pesanan-updated", fetchPesananCount);
-    return () => {
-      window.removeEventListener("cart-updated", fetchCartCount);
-      window.removeEventListener("favorite-updated", fetchFavoriteCount);
-      window.removeEventListener("pesanan-updated", fetchPesananCount);
+    // Optimistic: kalau event bawa detail angka baru, langsung pakai—tanpa fetch ulang
+    const handleCartUpdate = (e: Event) => {
+      const custom = e as CustomEvent<{ count?: number }>;
+      if (typeof custom.detail?.count === "number") {
+        setCartCount(custom.detail.count);
+      } else {
+        fetchCartCount(); // fallback kalau event lama tanpa detail
+      }
     };
-  }, [isLoggedIn, fetchCartCount, fetchFavoriteCount, fetchPesananCount]);
+
+    const handleFavoriteUpdate = (e: Event) => {
+      const custom = e as CustomEvent<{ count?: number }>;
+      if (typeof custom.detail?.count === "number") {
+        setFavoriteCount(custom.detail.count);
+      } else {
+        fetchFavoriteCount();
+      }
+    };
+
+    const handlePesananUpdate = (e: Event) => {
+      const custom = e as CustomEvent<{ count?: number }>;
+      if (typeof custom.detail?.count === "number") {
+        setPesananCount(custom.detail.count);
+      } else {
+        fetchPesananCount();
+      }
+      fetchNotifikasi(); // notifikasi tetap fetch karena isinya list, bukan cuma angka
+    };
+
+    window.addEventListener("cart-updated", handleCartUpdate);
+    window.addEventListener("favorite-updated", handleFavoriteUpdate);
+    window.addEventListener("pesanan-updated", handlePesananUpdate);
+
+    // Sinkron ulang saat tab kembali aktif (menangkap perubahan dari tab lain)
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchCartCount();
+        fetchFavoriteCount();
+        fetchPesananCount();
+        fetchNotifikasi();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("cart-updated", handleCartUpdate);
+      window.removeEventListener("favorite-updated", handleFavoriteUpdate);
+      window.removeEventListener("pesanan-updated", handlePesananUpdate);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [isLoggedIn, fetchCartCount, fetchFavoriteCount, fetchPesananCount, fetchNotifikasi]);
+
+  const displayedNotifikasiCount = isLoggedIn ? notifikasiList.length : 0;
 
   const displayedCartCount = isLoggedIn ? cartCount : 0;
   const displayedFavoriteCount = isLoggedIn ? favoriteCount : 0;
@@ -144,13 +202,57 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-4">
             {isLoggedIn ? (
               <>
-                <button
-                  type="button"
-                  className="relative p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
-                  aria-label="Notifikasi"
-                >
-                  <Bell size={20} />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="relative p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+                      aria-label="Notifikasi"
+                    >
+                      <Bell size={20} />
+                      {displayedNotifikasiCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                          {displayedNotifikasiCount > 99 ? "99+" : displayedNotifikasiCount}
+                        </span>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="font-normal">
+                      <p className="text-sm font-semibold text-gray-900">Notifikasi</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+
+                    {notifikasiList.length === 0 ? (
+                      <div className="px-2 py-6 text-center text-xs text-gray-400">
+                        Belum ada notifikasi
+                      </div>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifikasiList.map((n) => (
+                          <DropdownMenuItem key={n.id} asChild>
+                            <Link href={n.href} className="flex items-start gap-3 cursor-pointer py-2">
+                              <div className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                                {n.thumbnail && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={n.thumbnail} alt={n.judul} className="w-full h-full object-cover" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-gray-800 truncate">{n.judul}</p>
+                                <p className={`text-xs truncate ${n.jenis === "jasa_bayar" ? "text-yellow-600" : "text-gray-500"}`}>
+                                  {n.pesan}
+                                </p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{n.tanggal}</p>
+                              </div>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 <Link
                   href="/keranjang"

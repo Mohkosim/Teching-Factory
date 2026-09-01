@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import JurusanDetailHero from "./JurusanDetailHero";
 import ProdukListClient from "./ProdukListClient";
 import { getJurusanDetail } from "@/lib/getdata/getJurusanDetail";
@@ -15,6 +15,7 @@ const EMPTY_FAVORIT: FavoritIds = { produkIds: [], jasaIds: [] };
 
 export default function JurusanDetailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [jurusan, setJurusan] = useState<JurusanDetailData | null>(null);
   const [produkResult, setProdukResult] = useState<ProdukPublicListResult | null>(null);
   const [jasaResult, setJasaResult] = useState<JasaListResult | null>(null);
@@ -55,7 +56,7 @@ export default function JurusanDetailPage() {
     if (!node || initialized.current) return;
     initialized.current = true;
 
-    const jurusanId = sessionStorage.getItem("selectedJurusanId");
+    const jurusanId = searchParams.get("id");
     if (!jurusanId) {
       router.replace("/smk");
       return;

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
-import { Search, ChevronDown, Star, Wallet, PackageCheck, Camera, Check } from "lucide-react";
+import { Search, ChevronDown, Star, Wallet, PackageCheck, Camera, Check, Undo2, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,8 @@ import ProfileSidebar from "@/components/profile/ProfileSidebar";
 import { tambahPembayaran, simpanRating } from "@/lib/api/pesanan-api";
 import { konfirmasiPesananDiterimaAction } from "@/lib/getdata/get-pesanan";
 import { useMidtransSnap } from "@/lib/hooks/useMidtransSnap";
-import type { ProdukItem, JasaItem, FotoUlasan } from "@/types/interfaces/pesanan";
+import type { ProdukItem, JasaItem, FotoUlasan, StatusRefund } from "@/types/interfaces/pesanan";
+import { ajukanRefund } from "@/lib/api/refund";
 import {
     Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
@@ -200,10 +201,10 @@ export default function PesananClient({
     const handleKonfirmasiDiterimaProduk = (items: ProdukItem[]) => {
         const orderId = items[0].orderId;
         setProdukData((prev) =>
-            prev.map((p) => (p.orderId === orderId ? { ...p, timelineStep: 3, statusKirim: "Telah Dikirim" } : p))
+            prev.map((p) => (p.orderId === orderId ? { ...p, timelineStep: 3, statusKirim: "Diterima" } : p))
         );
         setSelectedOrder((prev) =>
-            prev ? prev.map((p) => (p.orderId === orderId ? { ...p, timelineStep: 3, statusKirim: "Telah Dikirim" } : p)) : prev
+            prev ? prev.map((p) => (p.orderId === orderId ? { ...p, timelineStep: 3, statusKirim: "Diterima" } : p)) : prev
         );
         startConfirmTransition(async () => {
             tampilkanLoading("Mengonfirmasi pesanan diterima...");
@@ -308,6 +309,22 @@ export default function PesananClient({
         ? jasaData.filter((j) => j.nama.toLowerCase().includes(searchLower))
         : jasaData;
 
+    const [refundTarget, setRefundTarget] = useState<{ orderId: string; nama: string } | null>(null);
+
+    const handleSubmitRefund = async (formData: FormData) => {
+        tampilkanLoading("Mengirim pengajuan refund...");
+        try {
+            await ajukanRefund(formData);
+            Swal.close();
+            toast.success("Pengajuan refund berhasil dikirim, tunggu tindak lanjut dari toko");
+            setRefundTarget(null);
+            router.refresh();
+        } catch (err) {
+            Swal.close();
+            toast.error(err instanceof Error ? err.message : "Gagal mengajukan refund");
+        }
+    };
+
     return (
         <div className="min-h-screen py-6 px-4 md:px-8">
             <div className="max-w-6xl mx-auto flex items-center gap-1.5 text-xs text-gray-500 mb-4">
@@ -377,6 +394,7 @@ export default function PesananClient({
                                         onBeliLagi={handleBeliLagi}
                                         onBeriNilai={handleBeriNilaiProduk}
                                         onKonfirmasiDiterima={handleKonfirmasiDiterimaProduk}
+                                        onAjukanRefund={(orderId, nama) => setRefundTarget({ orderId, nama })}
                                         isConfirmPending={isConfirmPending}
                                     />
                                 ))}
@@ -429,18 +447,28 @@ export default function PesananClient({
                     onSave={handleTambahPembayaran}
                 />
             )}
+
+            {refundTarget && (
+                <RefundModal
+                    orderId={refundTarget.orderId}
+                    namaPesanan={refundTarget.nama}
+                    onClose={() => setRefundTarget(null)}
+                    onSubmit={handleSubmitRefund}
+                />
+            )}
         </div>
     );
 }
 
 function OrderCard({
-    items, onLihatDetailToko, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, isConfirmPending,
+    items, onLihatDetailToko, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onAjukanRefund, isConfirmPending,
 }: {
     items: ProdukItem[];
     onLihatDetailToko: (items: ProdukItem[]) => void;
     onBeliLagi: (item: ProdukItem) => void;
     onBeriNilai: (item: ProdukItem) => void;
     onKonfirmasiDiterima: (items: ProdukItem[]) => void;
+    onAjukanRefund: (orderId: string, nama: string) => void;
     isConfirmPending: boolean;
 }) {
     const first = items[0];
@@ -472,6 +500,7 @@ function OrderCard({
                         onBeliLagi={onBeliLagi}
                         onBeriNilai={onBeriNilai}
                         onKonfirmasiDiterima={onKonfirmasiDiterima}
+                        onAjukanRefund={onAjukanRefund}
                         isConfirmPending={isConfirmPending}
                     />
                 ))}
@@ -492,19 +521,21 @@ function OrderCard({
 }
 
 function TokoSection({
-    items, onLihatDetail, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, isConfirmPending,
+    items, onLihatDetail, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onAjukanRefund, isConfirmPending,
 }: {
     items: ProdukItem[];
     onLihatDetail: () => void;
     onBeliLagi: (item: ProdukItem) => void;
     onBeriNilai: (item: ProdukItem) => void;
     onKonfirmasiDiterima: (items: ProdukItem[]) => void;
+    onAjukanRefund: (orderId: string, nama: string) => void;
     isConfirmPending: boolean;
 }) {
     const first = items[0];
     const namaToko = (first as ProdukItem & { toko?: string }).toko ?? "Toko";
     const sudahDiterima = first.timelineStep === 3;
     const sedangDikirim = first.timelineStep === 2;
+    const sudahLunas = items.every((i) => i.statusBayar === "Dibayar");
 
     return (
         <div className="px-4 py-3">
@@ -551,6 +582,20 @@ function TokoSection({
             </div>
 
             <div className="mt-2 flex justify-end gap-2">
+                {first.refund ? (
+                    <RefundStatusBadge status={first.refund.status} />
+                ) : (
+                    sudahDiterima && sudahLunas && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onAjukanRefund(first.orderId, first.nama)}
+                            className="rounded-full text-red-500 border-red-300 text-xs px-4 gap-1.5"
+                        >
+                            <Undo2 className="w-3.5 h-3.5" /> Ajukan Refund
+                        </Button>
+                    )
+                )}
                 {sedangDikirim && (
                     <Button
                         size="sm"
@@ -827,7 +872,7 @@ function DetailJasaModal({ item, onClose, onTambahPembayaran, onKonfirmasiSelesa
             <div className="flex items-center justify-between mb-4">
                 <div className="text-xs text-gray-500">
                     <p>Tanggal : {item.tanggal}</p>
-                    <p>ID : {item.id}</p>
+                    <p>Invoice : {item.kodeInvoice}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === "lunas" ? "bg-green-50 text-green-600" : "bg-yellow-50 text-yellow-600"}`}>
                     {statusLabel(item.timelineStep, timelineLabels)}
@@ -1214,6 +1259,181 @@ function FormPembayaranModal({ item, onClose, onSave }: {
 
             <Button onClick={handleSubmit} disabled={!isValid || isPending} className="w-full mt-4 rounded-full bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50">
                 {isPending ? "Memproses..." : "Submit"}
+            </Button>
+        </ModalShell>
+    );
+}
+
+function RefundStatusBadge({ status }: { status: StatusRefund }) {
+    const cfg: Record<StatusRefund, { label: string; className: string }> = {
+        Diajukan: { label: "Refund Diajukan", className: "bg-amber-50 text-amber-600" },
+        Diproses: { label: "Refund Diproses", className: "bg-sky-50 text-sky-600" },
+        Disetujui: { label: "Refund Disetujui", className: "bg-emerald-50 text-emerald-600" },
+        Ditolak: { label: "Refund Ditolak", className: "bg-red-50 text-red-500" },
+    };
+    const c = cfg[status];
+    return <span className={`text-xs px-2.5 py-1 rounded-md font-medium ${c.className}`}>{c.label}</span>;
+}
+
+function RefundModal({
+    orderId, namaPesanan, onClose, onSubmit,
+}: {
+    orderId: string;
+    namaPesanan: string;
+    onClose: () => void;
+    onSubmit: (formData: FormData) => Promise<void>;
+}) {
+    const MAX_BUKTI = 5;
+    const MAX_SIZE = 20 * 1024 * 1024;
+
+    const [alasan, setAlasan] = useState("");
+    const [deskripsi, setDeskripsi] = useState("");
+    const [files, setFiles] = useState<File[]>([]);
+    const [previews, setPreviews] = useState<{ url: string; tipe: "Foto" | "Video" }[]>([]);
+    const [isPending, setIsPending] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handlePilihFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const picked = Array.from(e.target.files ?? []);
+        if (picked.length === 0) return;
+
+        const sisaSlot = MAX_BUKTI - files.length;
+        if (sisaSlot <= 0) {
+            toast.error(`Maksimal ${MAX_BUKTI} bukti`);
+            e.target.value = "";
+            return;
+        }
+
+        const valid = picked.slice(0, sisaSlot).filter((f) => {
+            const isImage = f.type.startsWith("image/");
+            const isVideo = f.type.startsWith("video/");
+            if (!isImage && !isVideo) {
+                toast.error(`${f.name} bukan foto atau video`);
+                return false;
+            }
+            if (f.size > MAX_SIZE) {
+                toast.error(`${f.name} melebihi 20MB`);
+                return false;
+            }
+            return true;
+        });
+
+        setFiles((prev) => [...prev, ...valid]);
+        setPreviews((prev) => [
+            ...prev,
+            ...valid.map((f) => ({
+                url: URL.createObjectURL(f),
+                tipe: (f.type.startsWith("video") ? "Video" : "Foto") as "Foto" | "Video",
+            })),
+        ]);
+        e.target.value = "";
+    };
+
+    const handleHapusFile = (index: number) => {
+        setPreviews((prev) => {
+            URL.revokeObjectURL(prev[index].url);
+            return prev.filter((_, i) => i !== index);
+        });
+        setFiles((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const isValid = alasan.trim() !== "" && deskripsi.trim() !== "" && files.length > 0;
+
+    const handleSubmit = async () => {
+        if (!isValid) return;
+        setIsPending(true);
+        const fd = new FormData();
+        fd.append("orderId", orderId);
+        fd.append("alasan", alasan);
+        fd.append("deskripsi", deskripsi);
+        files.forEach((f) => fd.append("bukti", f));
+        try {
+            await onSubmit(fd);
+        } finally {
+            setIsPending(false);
+        }
+    };
+
+    return (
+        <ModalShell title="Ajukan Refund" onClose={onClose}>
+            <p className="text-xs text-gray-400 mb-4">
+                Ajukan refund untuk pesanan <span className="font-medium text-gray-600">{namaPesanan}</span>.
+                Sertakan bukti (foto/video) dan deskripsi jelas agar cepat ditindaklanjuti toko.
+            </p>
+
+            <div className="space-y-4">
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">Alasan Refund</label>
+                    <Input
+                        value={alasan}
+                        onChange={(e) => setAlasan(e.target.value)}
+                        placeholder="Contoh: Barang rusak, tidak sesuai deskripsi, dll"
+                        className="rounded-lg bg-gray-50 border-gray-200"
+                    />
+                </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">Deskripsi</label>
+                    <Textarea
+                        value={deskripsi}
+                        onChange={(e) => setDeskripsi(e.target.value)}
+                        placeholder="Jelaskan detail masalahnya..."
+                        className="min-h-25 resize-none rounded-xl bg-gray-50 border-gray-200"
+                    />
+                </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">
+                        Bukti Foto/Video ({files.length}/{MAX_BUKTI})
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {previews.map((p, i) => (
+                            <div key={p.url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-900">
+                                {p.tipe === "Video" ? (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <VideoIcon className="w-6 h-6 text-white" />
+                                    </div>
+                                ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={p.url} alt="Bukti" className="w-full h-full object-cover" />
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => handleHapusFile(i)}
+                                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        ))}
+                        {files.length < MAX_BUKTI && (
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-red-300 hover:text-red-400"
+                            >
+                                <Camera className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        className="hidden"
+                        onChange={handlePilihFile}
+                    />
+                    <p className="text-xs text-gray-400">Wajib minimal 1 file. Maks {MAX_BUKTI} file, tiap file maks 20MB.</p>
+                </div>
+            </div>
+
+            <Button
+                onClick={handleSubmit}
+                disabled={!isValid || isPending}
+                className="w-full mt-5 rounded-full bg-red-500 hover:bg-red-600 text-white disabled:opacity-50"
+            >
+                {isPending ? "Mengirim..." : "Ajukan Refund"}
             </Button>
         </ModalShell>
     );

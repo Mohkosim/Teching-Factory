@@ -1,5 +1,9 @@
 import type { ProdukItem, JasaItem } from "@/types/interfaces/pesanan";
 
+function notifyPesananUpdated(delta: number) {
+    window.dispatchEvent(new CustomEvent("pesanan-updated", { detail: { delta } }));
+}
+
 export async function fetchPesanan(): Promise<{ produk: ProdukItem[]; jasa: JasaItem[] }> {
     const res = await fetch("/api/pesanan");
     if (!res.ok) throw new Error("Gagal memuat pesanan");
@@ -18,7 +22,6 @@ export async function tambahPembayaran(
     if (!res.ok) throw new Error("Gagal menyimpan pembayaran");
     return res.json();
 }
-
 
 export async function simpanRating(
     produkId: string,
@@ -57,7 +60,9 @@ export async function buatPesananJasa(
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.message ?? "Gagal membuat pesanan jasa");
     }
-    return res.json() as Promise<{ orderId: string; kodeInvoice: string; snapToken: string }>;
+    const result = await res.json() as { orderId: string; kodeInvoice: string; snapToken: string };
+    notifyPesananUpdated(1); // pesanan baru dibuat
+    return result;
 }
 
 export async function batalkanPesananJasa(orderId: string) {
@@ -65,9 +70,11 @@ export async function batalkanPesananJasa(orderId: string) {
         method: "PATCH",
     });
     if (!res.ok) throw new Error("Gagal membatalkan pesanan");
-    return res.json() as Promise<{
+    const result = await res.json() as {
         order_id: string;
         status_order: "Dibatalkan";
         status_pembayaran: "Gagal";
-    }>;
+    };
+    notifyPesananUpdated(-1);
+    return result;
 }

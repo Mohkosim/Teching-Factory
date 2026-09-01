@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye, Trash2, School, PowerOff, Pencil } from "lucide-react";
+import { Search, Eye, Trash2, School, Power, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -249,52 +250,58 @@ export default function AccountManagement({
                             paginated.map((item, idx) => (
                                 <TableRow
                                     key={item.user_id}
-                                    className={`transition-colors h-16 ${!item.isActive ? "bg-gray-50/60 opacity-60" : "hover:bg-blue-50/30"
-                                        }`}
+                                    className={`transition-colors h-16 ${!item.isActive ? "bg-gray-50/60" : "hover:bg-blue-50/30"}`}
                                 >
-                                    <TableCell className="text-gray-500 font-medium py-4 px-6">
+                                    <TableCell className={`text-gray-500 font-medium py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         {(page - 1) * pageSize + idx + 1}
                                     </TableCell>
-                                    <TableCell className="font-medium text-gray-700 py-4 px-6">
+                                    <TableCell className={`font-medium text-gray-700 py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         {item.name}
                                     </TableCell>
-                                    <TableCell className="py-4 px-6">
-                                        <div className="h-10 w-10 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm">
-                                            <School className="h-5 w-5 text-blue-500" />
+                                    <TableCell className={`py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm overflow-hidden">
+                                            {item.img ? (
+                                                <Image
+                                                    src={item.img}
+                                                    alt={item.name}
+                                                    width={40}
+                                                    height={40}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <School className="h-5 w-5 text-blue-500" />
+                                            )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-gray-500 max-w-xs py-4 px-6">
+                                    <TableCell className={`text-gray-500 max-w-xs py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         <span className="line-clamp-2 text-sm">{item.alamat ?? "-"}</span>
                                     </TableCell>
-                                    <TableCell className="text-gray-500 max-w-xs py-4 px-6">
+                                    <TableCell className={`text-gray-500 max-w-xs py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         <span className="line-clamp-2 text-sm">{item.phone ?? "-"}</span>
                                     </TableCell>
-
-                                    <TableCell className="py-4 px-6">
+                                    <TableCell className={`py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         <span
-                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.role === "AdminSMK"
-                                                    ? "bg-blue-100 text-blue-600"
-                                                    : "bg-gray-100 text-gray-600"
+                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.role === "AdminSMK" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
                                                 }`}
                                         >
                                             {ROLE_LABELS[item.role]}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="py-4 px-6">
+                                    <TableCell className={`py-4 px-6 ${!item.isActive ? "opacity-60" : ""}`}>
                                         <span
-                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${!item.isActive
-                                                    ? "bg-red-100 text-red-600"
-                                                    : "bg-green-100 text-green-600"
+                                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${!item.isActive ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
                                                 }`}
                                         >
                                             {!item.isActive ? "Nonaktif" : "Aktif"}
                                         </span>
                                     </TableCell>
+                                    {/* Cell Aksi TIDAK diberi opacity-60 — supaya tombol PowerOff tetap terlihat normal */}
                                     <TableCell className="py-4 px-6">
                                         <div className="flex items-center justify-end gap-1.5">
                                             <button
                                                 onClick={() => setDetailItem(item)}
-                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors"
+                                                disabled={!item.isActive}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-50"
                                                 title="Lihat Detail"
                                             >
                                                 <Eye className="h-3.5 w-3.5" />
@@ -303,8 +310,8 @@ export default function AccountManagement({
                                             {item.role === "User" && (
                                                 <button
                                                     onClick={() => handleUpgradeRole(item)}
-                                                    disabled={isPending}
-                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors disabled:opacity-50"
+                                                    disabled={isPending || !item.isActive}
+                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50"
                                                     title="Jadikan Admin SMK"
                                                 >
                                                     <Pencil className="h-3.5 w-3.5" />
@@ -314,19 +321,16 @@ export default function AccountManagement({
                                             <button
                                                 onClick={() => handleToggleNonaktif(item)}
                                                 disabled={isPending}
-                                                className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50 ${!item.isActive
-                                                        ? "bg-green-50 hover:bg-green-100 text-green-500"
-                                                        : "bg-orange-50 hover:bg-orange-100 text-orange-500"
-                                                    }`}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors"
                                                 title={!item.isActive ? "Aktifkan" : "Nonaktifkan"}
                                             >
-                                                <PowerOff className="h-3.5 w-3.5" />
+                                                <Power className="h-3.5 w-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => handleDelete(item)}
-                                                disabled={isPending}
-                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-50"
+                                                disabled={isPending || !item.isActive}
+                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-50"
                                                 title="Hapus"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -361,8 +365,18 @@ export default function AccountManagement({
                     {detailItem && (
                         <div className="space-y-5 py-2">
                             <div className="flex items-center gap-4">
-                                <div className="h-14 w-14 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm">
-                                    <School className="h-7 w-7 text-blue-500" />
+                                <div className="h-14 w-14 rounded-full bg-blue-100 border-2 border-blue-200 flex items-center justify-center shadow-sm overflow-hidden">
+                                    {detailItem.img ? (
+                                        <Image
+                                            src={detailItem.img}
+                                            alt={detailItem.name}
+                                            width={56}
+                                            height={56}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <School className="h-7 w-7 text-blue-500" />
+                                    )}
                                 </div>
                                 <div className="min-w-0">
                                     <p className="font-semibold text-gray-800">
@@ -385,8 +399,8 @@ export default function AccountManagement({
                                     <p className="text-xs font-medium uppercase text-gray-400">Status</p>
                                     <span
                                         className={`mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${!detailItem.isActive
-                                                ? "bg-red-100 text-red-600"
-                                                : "bg-green-100 text-green-600"
+                                            ? "bg-red-100 text-red-600"
+                                            : "bg-green-100 text-green-600"
                                             }`}
                                     >
                                         {!detailItem.isActive ? "Nonaktif" : "Aktif"}

@@ -31,6 +31,7 @@ interface ProdukPageClientProps {
 }
 
 export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: ProdukPageClientProps) {
+    const [search, setSearch] = useState("");
     const [halaman, setHalaman] = useState(1);
     const [perHalaman, setPerHalaman] = useState(12);
 
@@ -39,13 +40,17 @@ export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: 
     const [urutanToolbar, setUrutanToolbar] = useState<UrutanToolbar>("default");
 
     const produkTersaring = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+
         let hasil = produk.filter((p) => {
+            const matchStok = p.stok > 0; // <- produk habis langsung disingkirkan
+            const matchSearch = keyword === "" || p.nama.toLowerCase().includes(keyword);
             const matchLokasi = filter.lokasi.length === 0 || (p.lokasi ? filter.lokasi.includes(p.lokasi) : false);
             const matchRating = filter.rating === null || (p.rating ?? 0) >= filter.rating;
             const matchHargaMin = filter.hargaMin === "" || p.harga >= Number(filter.hargaMin);
             const matchHargaMax = filter.hargaMax === "" || p.harga <= Number(filter.hargaMax);
 
-            return matchLokasi && matchRating && matchHargaMin && matchHargaMax;
+            return matchStok && matchSearch && matchLokasi && matchRating && matchHargaMin && matchHargaMax;
         });
 
         if (sort === "Terpopuler") {
@@ -62,9 +67,6 @@ export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: 
             hasil = [...hasil].sort((a, b) => b.terjual - a.terjual);
         }
 
-        // Produk stok habis selalu didorong ke belakang, apapun sorting-nya.
-        // Sort JS stabil, jadi urutan hasil sorting di atas tetap terjaga
-        // di dalam masing-masing grup (tersedia duluan, habis belakangan).
         hasil = [...hasil].sort((a, b) => {
             const aHabis = a.stok <= 0 ? 1 : 0;
             const bHabis = b.stok <= 0 ? 1 : 0;
@@ -72,7 +74,7 @@ export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: 
         });
 
         return hasil;
-    }, [filter, sort, urutanToolbar, produk]);
+    }, [filter, search, sort, urutanToolbar, produk]);
 
     const totalProduk = produkTersaring.length;
     const totalHalaman = Math.max(1, Math.ceil(totalProduk / perHalaman));
@@ -102,6 +104,11 @@ export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: 
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                             <Input
                                 placeholder="Cari produk..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setHalaman(1);
+                                }}
                                 className="border-0 pl-9 shadow-none focus-visible:ring-0"
                             />
                         </div>
