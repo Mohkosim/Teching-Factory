@@ -43,7 +43,7 @@ export default function ProdukPageClient({ produk, lokasiOptions, favoritIds }: 
         const keyword = search.trim().toLowerCase();
 
         let hasil = produk.filter((p) => {
-            const matchStok = p.stok > 0; // <- produk habis langsung disingkirkan
+            const matchStok = p.stok > 0;
             const matchSearch = keyword === "" || p.nama.toLowerCase().includes(keyword);
             const matchLokasi = filter.lokasi.length === 0 || (p.lokasi ? filter.lokasi.includes(p.lokasi) : false);
             const matchRating = filter.rating === null || (p.rating ?? 0) >= filter.rating;

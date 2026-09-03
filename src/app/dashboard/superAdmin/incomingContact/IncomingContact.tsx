@@ -33,7 +33,6 @@ import { getPesanList, bulkUpdatePesan, updatePesanById } from "@/lib/api/kontak
 import { PesanApi } from "@/types/interfaces/kontak";
 import { getSelectedPesanId, clearSelectedPesanId } from "@/lib/pesan-selection";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type TabType = "pesan" | "favorite" | "sampah";
 type FilterType = "Semua" | "Dibaca" | "Belum Dibaca";
@@ -51,7 +50,6 @@ interface Message {
     isDeleted: boolean;
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
 
 function formatTanggal(iso: string) {
     return new Date(iso).toLocaleDateString("id-ID", {
@@ -76,7 +74,6 @@ function mapToMessage(p: PesanApi): Message {
     };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function IncomingContact() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -99,7 +96,6 @@ export default function IncomingContact() {
             const mapped = data.map(mapToMessage);
             setMessages(mapped);
 
-            // Jika datang dari tombol "Read more" di widget dashboard
             const pendingId = getSelectedPesanId();
             if (pendingId) {
                 const found = mapped.find((m) => m.id === pendingId);
@@ -155,7 +151,7 @@ export default function IncomingContact() {
         const ids = [...selected];
         setMessages((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, isRead: true } : m)));
         setSelected([]);
-        tampilkanLoading("Menandai pesan sebagai dibaca..."); // Swal: loading selama request
+        tampilkanLoading("Menandai pesan sebagai dibaca...");
         try {
             await bulkUpdatePesan(ids, "markRead");
             Swal.close();
@@ -174,20 +170,20 @@ export default function IncomingContact() {
             text: `${ids.length} pesan yang dipilih akan dipindahkan ke Sampah.`,
             icon: "warning",
             confirmText: "Ya, pindahkan",
-            confirmColor: "#ef4444", // red-500
-        }); // 1. Swal: minta izin dulu
+            confirmColor: "#ef4444",
+        }); 
         if (!konfirmasi) return;
 
         setMessages((prev) => prev.map((m) => (ids.includes(m.id) ? { ...m, isDeleted: true } : m)));
         setSelected([]);
-        tampilkanLoading("Memindahkan pesan ke Sampah..."); // Swal: loading selama request
+        tampilkanLoading("Memindahkan pesan ke Sampah...");
         try {
             await bulkUpdatePesan(ids, "delete");
             Swal.close();
-            toast.success("Pesan dipindahkan ke sampah"); // 2. toast: status sukses
+            toast.success("Pesan dipindahkan ke sampah");
         } catch {
             Swal.close();
-            toast.error("Gagal menghapus pesan"); // 2. toast: status gagal
+            toast.error("Gagal menghapus pesan");
             loadMessages();
         }
     };
@@ -214,7 +210,6 @@ export default function IncomingContact() {
             try {
                 await updatePesanById(msg.id, { isRead: true });
             } catch {
-                // silent, non-critical
             }
         }
     };

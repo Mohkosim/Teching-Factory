@@ -1,5 +1,3 @@
-// lib/midtrans/hitungBiaya.ts
-
 function hitungBiayaMidtrans(paymentType: string, grossAmount: number): number {
   switch (paymentType) {
     case "bank_transfer":

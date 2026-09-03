@@ -72,7 +72,6 @@ export async function POST(req: Request) {
 
     const midtransOrderId = body.order_id;
     const nominal = Math.round(Number(statusResponse.gross_amount));
-    // Pakai payment_type dari statusResponse (lebih otoritatif drpd body notifikasi mentah)
     const paymentType = (statusResponse.payment_type as string) ?? body.payment_type;
     const metodeEnum = mapPaymentTypeKeEnum(paymentType);
     const biayaMidtrans = berhasil ? hitungBiayaMidtrans(paymentType, nominal) : 0;

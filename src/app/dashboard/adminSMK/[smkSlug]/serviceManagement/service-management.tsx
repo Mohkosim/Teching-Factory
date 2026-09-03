@@ -25,12 +25,10 @@ import PaginationIconsOnly from "@/components/pagination/page";
 
 import { publikasiJasa, revisiJasa } from "@/lib/api/jasa-api";
 import type { JasaItem } from "@/types/interfaces/jasa";
+import { formatRupiah } from "@/lib/utils/format";
 
 const statusOptions = ["Semua", "Pending", "Published", "Revisi"] as const;
 
-function formatRupiah(value: number) {
-    return "Rp " + value.toLocaleString("id-ID");
-}
 
 export default function ServiceManagement({
     initialData,
@@ -83,7 +81,7 @@ export default function ServiceManagement({
         setActiveImageIndex(0);
         setShowRevisiForm(false);
         setRevisiText("");
-        setDeskripsiExpanded(false); // reset setiap buka detail baru
+        setDeskripsiExpanded(false);
     };
 
     const closeDetail = () => {
@@ -360,7 +358,6 @@ export default function ServiceManagement({
                                         <p className="text-lg font-bold text-sky-600">{formatRupiah(detailItem.harga)}</p>
                                     </div>
 
-                                    {/* --- Deskripsi: bisa diciutkan / dilebarkan --- */}
                                     <div>
                                         <p
                                             className={`text-sm text-gray-500 leading-relaxed ${deskripsiExpanded ? "" : "line-clamp-3"

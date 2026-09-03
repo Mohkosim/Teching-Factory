@@ -48,7 +48,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         kota_id: initialData.kota_id ?? null as number | null, // BARU
         kode_pos: initialData.kode_pos ?? "",         // BARU
         provinsi: initialData.provinsi ?? "",
-        map_link: initialData.map_link ?? "",
         tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
     });
 
@@ -83,7 +82,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             kota_id: initialData.kota_id ?? null,
             kode_pos: initialData.kode_pos ?? "",
             provinsi: initialData.provinsi ?? "",
-            map_link: initialData.map_link ?? "",
             tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
         });
         setAvatarPreview(initialData.img);
@@ -200,11 +198,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             return;
         }
 
-        if (profileForm.map_link && !profileForm.map_link.includes("google.com/maps/embed")) {
-            toast.error("Link peta harus berupa link embed Google Maps (Bagikan → Sematkan peta)");
-            return;
-        }
-
         startTransition(async () => {
             tampilkanLoading("Menyimpan perubahan...");
             try {
@@ -226,7 +219,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     kota_id: profileForm.kota_id,
                     kode_pos: profileForm.kode_pos,
                     provinsi: profileForm.provinsi,
-                    map_link: profileForm.map_link,
                     tahun_berdiri: Number(profileForm.tahun_berdiri),
                 });
 
@@ -520,40 +512,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                                 />
                             </div>
                         </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label htmlFor="map_link" className="text-sm text-gray-600">
-                            Link Embed Lokasi (Google Maps)
-                        </Label>
-                        <Input
-                            id="map_link"
-                            type="url"
-                            value={profileForm.map_link}
-                            onChange={(e) =>
-                                setProfileForm({ ...profileForm, map_link: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                            placeholder="https://www.google.com/maps/embed?pb=..."
-                        />
-                        <p className="text-xs text-gray-400">
-                            Buka Google Maps → cari lokasi sekolah → Bagikan → Sematkan peta → salin
-                            link di dalam <span className="font-mono">src=&quot;...&quot;</span> lalu tempel di sini.
-                        </p>
-
-                        {profileForm.map_link && (
-                            <div className="mt-2 overflow-hidden rounded-lg border border-gray-200">
-                                <iframe
-                                    src={profileForm.map_link}
-                                    width="100%"
-                                    height="220"
-                                    style={{ border: 0 }}
-                                    loading="lazy"
-                                    referrerPolicy="no-referrer-when-downgrade"
-                                    title="Preview Lokasi"
-                                />
-                            </div>
-                        )}
                     </div>
 
                     <div className="space-y-1.5">

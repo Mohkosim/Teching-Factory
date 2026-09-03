@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getJurusanAccounts } from "@/lib/getdata/get-jurusan-accounts";
 import AccountManagementClient from "./account-management";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Account Management",
+};
 
 export default async function Page() {
     const session = await getServerSession(authOptions);

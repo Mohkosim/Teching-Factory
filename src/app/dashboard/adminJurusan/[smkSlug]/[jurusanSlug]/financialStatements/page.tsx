@@ -8,6 +8,11 @@ import {
     getPenarikanList,
 } from "@/lib/data/laporan-keuangan";
 import LaporanKeuanganClient from "./LaporanKeuanganClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Laporan Keuangan Jurusan",
+};
 
 export default async function LaporanKeuanganPage() {
     const session = await getServerSession(authOptions);

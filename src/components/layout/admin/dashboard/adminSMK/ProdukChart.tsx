@@ -1,4 +1,3 @@
-// ProdukChart.tsx
 "use client";
 
 import {

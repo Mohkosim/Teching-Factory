@@ -35,10 +35,6 @@ export function StatisticsChart({ data }: StatisticsChartProps) {
 
   const rawData = data[filter];
 
-  // Kalau array datanya kosong (bukan cuma nilai 0), AreaChart recharts
-  // tidak punya titik sama sekali untuk digambar dan area-nya hilang total.
-  // Jadi kalau kosong, pakai 12 bulan placeholder dengan nilai 0 supaya
-  // garis/area tetap ada (flat di angka 0).
   const chartData: ChartDataPoint[] =
     rawData.length > 0
       ? rawData
@@ -47,7 +43,7 @@ export function StatisticsChart({ data }: StatisticsChartProps) {
   const rawMax = Math.max(...chartData.map((d) => d.nilai));
   const maxNilai = rawMax > 0 ? rawMax : 10;
 
-  // Bulatkan step ke atas biar tick-nya rapi & unik
+
   const step = Math.ceil(maxNilai / 4) || 1;
   const yTicks = Array.from(new Set([0, step, step * 2, step * 3, step * 4]));
 

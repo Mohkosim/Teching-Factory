@@ -35,9 +35,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import type { DateRange } from "react-day-picker";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -55,16 +52,14 @@ import {
     setujuiRefundAction,
     tolakRefundAction,
 } from "@/lib/getdata/get-pesanan-admin";
+import { formatRupiah } from "@/lib/utils/format";
+import { formatDateRangeLabel } from "@/lib/utils/tanggal";
 import type { OrderRow, StatusPembayaranOrder, StatusOrderPengiriman, StatusRefund } from "@/types/interfaces/pesananAdmin";
 const kategoriOptions = ["Semua", "Produk", "Jasa"];
 
-// Label timeline beda antara Produk (dikirim lewat kurir) dan Jasa (dikerjakan langsung)
 const timelineStepsProduk: string[] = ["Belum Membayar", "Diproses", "Dikirim", "Diterima"];
 const timelineStepsJasa: string[] = ["Belum Bayar", "Diproses", "Dikerjakan", "Selesai"];
 
-function formatRupiah(value: number) {
-    return "Rp " + value.toLocaleString("id-ID");
-}
 
 function paymentLabel(status: StatusPembayaranOrder) {
     switch (status) {
@@ -99,6 +94,8 @@ function shippingLabel(status: StatusOrderPengiriman, kategori: "Produk" | "Jasa
                 return "Diproses";
             case "Dikirim":
                 return "Dikerjakan";
+            case "Diterima":
+                return "Diterima";
             case "Selesai":
                 return "Selesai";
             case "Dibatalkan":
@@ -109,17 +106,20 @@ function shippingLabel(status: StatusOrderPengiriman, kategori: "Produk" | "Jasa
     switch (status) {
         case "Menunggu":
             return "Menunggu Diproses";
-        case "Selesai":
+        case "Diterima":
             return "Diterima";
+        case "Selesai":
+            return "Selesai";
         case "Dibatalkan":
             return "Dibatalkan";
         default:
-            return status; // "Diproses" | "Dikirim"
+            return status;
     }
 }
 
 function shippingBadgeClass(status: StatusOrderPengiriman) {
     if (status === "Selesai") return "bg-emerald-50 text-emerald-600";
+    if (status === "Diterima") return "bg-teal-50 text-teal-600";
     if (status === "Dikirim") return "bg-sky-50 text-sky-600";
     if (status === "Diproses") return "bg-amber-50 text-amber-600";
     if (status === "Dibatalkan") return "bg-gray-100 text-gray-500";
@@ -148,10 +148,9 @@ function getActiveStepIndex(order: OrderRow) {
     if (order.statusPembayaran !== "Lunas") return 0;
     if (order.statusPengiriman === "Menunggu" || order.statusPengiriman === "Diproses") return 1;
     if (order.statusPengiriman === "Dikirim") return 2;
-    if (order.statusPengiriman === "Selesai") return 3;
+    if (order.statusPengiriman === "Diterima" || order.statusPengiriman === "Selesai") return 3;
     return 0;
 }
-
 function namaTampilan(order: OrderRow) {
     const first = order.items[0]?.nama_produk ?? "-";
     if (order.items.length <= 1) return first;
@@ -168,28 +167,27 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
     const slugs = { smkSlug: params.smkSlug, jurusanSlug: params.jurusanSlug };
     const [isPending, startTransition] = useTransition();
 
-    // initialOrders datang dari Server Component (page.tsx) lewat props —
-    // dipakai langsung sebagai state awal, tanpa useEffect untuk fetch ulang.
     const [orders, setOrders] = useState<OrderRow[]>(initialOrders);
 
     const [search, setSearch] = useState("");
     const [kategoriFilter, setKategoriFilter] = useState("Semua");
-    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
     const [detailItem, setDetailItem] = useState<OrderRow | null>(null);
 
-    // ── Form kirim pesanan ──
-    // Kurir tidak diubah di sini — kurir sudah tetap sesuai pilihan pembeli
-    // saat checkout (tersimpan di Pengiriman.kurir). Admin hanya mengisi resi.
     const [shipFormOpen, setShipFormOpen] = useState(false);
     const [shipForm, setShipForm] = useState({ resiNumber: "", estimation: "" });
 
     const [tolakFormOpen, setTolakFormOpen] = useState(false);
     const [catatanTolak, setCatatanTolak] = useState("");
     const [previewBukti, setPreviewBukti] = useState<{ url: string; tipe: "Foto" | "Video" } | null>(null);
+
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [openDateFilter, setOpenDateFilter] = useState(false);
+    const dateRangeLabel = formatDateRangeLabel(dateFrom, dateTo);
 
     const filtered = useMemo(() => {
         return orders.filter((item) => {
@@ -200,13 +198,16 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                 item.order_id.toLowerCase().includes(q) ||
                 (item.kode_invoice ?? "").toLowerCase().includes(q);
             const matchKategori = kategoriFilter === "Semua" || item.kategori === kategoriFilter;
-            const matchDate =
-                !dateRange?.from ||
-                !dateRange?.to ||
-                (item.orderDate >= dateRange.from && item.orderDate <= dateRange.to);
+
+            let matchDate = true;
+            if (dateFrom || dateTo) {
+                if (dateFrom && item.orderDate < new Date(dateFrom)) matchDate = false;
+                if (dateTo && item.orderDate > new Date(dateTo + "T23:59:59")) matchDate = false;
+            }
+
             return matchSearch && matchKategori && matchDate;
         });
-    }, [orders, search, kategoriFilter, dateRange]);
+    }, [orders, search, kategoriFilter, dateFrom, dateTo]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -220,8 +221,6 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
         setCatatanTolak("");
     };
 
-    // Update satu pesanan di state (dicocokkan lewat order_id yang sudah unik dari DB)
-    // dan sinkronkan juga ke dialog detail yang sedang terbuka.
     const updateOrder = (order_id: string, updates: Partial<OrderRow>) => {
         setOrders((prev) => prev.map((o) => (o.order_id === order_id ? { ...o, ...updates } : o)));
         setDetailItem((prev) => (prev && prev.order_id === order_id ? { ...prev, ...updates } : prev));
@@ -396,14 +395,10 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
     const handleResetFilter = () => {
         setSearch("");
         setKategoriFilter("Semua");
-        setDateRange(undefined);
+        setDateFrom("");
+        setDateTo("");
         setPage(1);
     };
-
-    const dateRangeLabel =
-        dateRange?.from && dateRange?.to
-            ? `${format(dateRange.from, "d/M/yyyy")} - ${format(dateRange.to, "d/M/yyyy")}`
-            : "Pilih tanggal";
 
     return (
         <div className="space-y-6 px-6">
@@ -441,26 +436,72 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button className="h-9 flex items-center gap-2 px-3 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-600 hover:bg-gray-100 transition-colors">
-                                    <CalendarDays className="h-4 w-4 text-gray-400" />
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-gray-500 invisible">Tanggal</Label>
+                            <div className="relative">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setOpenDateFilter((o) => !o)}
+                                    className="h-9 text-sm font-normal text-gray-500 bg-gray-50 border-gray-200 rounded-xl gap-1.5"
+                                >
+                                    <CalendarDays className="h-3.5 w-3.5" />
                                     {dateRangeLabel}
-                                </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="range"
-                                    selected={dateRange}
-                                    onSelect={(range) => {
-                                        setDateRange(range);
-                                        setPage(1);
-                                    }}
-                                    numberOfMonths={2}
-                                    locale={localeId}
-                                />
-                            </PopoverContent>
-                        </Popover>
+                                </Button>
+
+                                {openDateFilter && (
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-10"
+                                            onClick={() => setOpenDateFilter(false)}
+                                        />
+                                        <div className="absolute right-0 mt-2 z-20 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-gray-600">Dari Tanggal</label>
+                                                <Input
+                                                    type="date"
+                                                    value={dateFrom}
+                                                    onChange={(e) => setDateFrom(e.target.value)}
+                                                    className="bg-gray-50 border-gray-200 rounded-lg text-sm"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-medium text-gray-600">Sampai Tanggal</label>
+                                                <Input
+                                                    type="date"
+                                                    value={dateTo}
+                                                    onChange={(e) => setDateTo(e.target.value)}
+                                                    className="bg-gray-50 border-gray-200 rounded-lg text-sm"
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between pt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setDateFrom("");
+                                                        setDateTo("");
+                                                        setPage(1);
+                                                    }}
+                                                    className="text-xs text-gray-500 hover:text-gray-700"
+                                                >
+                                                    Reset
+                                                </button>
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setPage(1);
+                                                        setOpenDateFilter(false);
+                                                    }}
+                                                    className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg h-8 px-4 text-xs"
+                                                >
+                                                    Terapkan
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
 
                         <div className="flex flex-col gap-1">
                             <Label className="text-xs text-gray-500">Kategori</Label>

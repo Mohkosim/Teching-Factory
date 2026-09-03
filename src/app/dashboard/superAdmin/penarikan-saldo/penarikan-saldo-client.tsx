@@ -50,12 +50,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import PaginationIconsOnly from "@/components/pagination/page";
 import type { PenarikanSaldoRow } from "@/lib/data/penarikan-saldo";
+import { formatRupiah } from "@/lib/utils/format";
 
 type Status = "Pending" | "Diproses" | "Selesai" | "Ditolak";
 
-function formatRupiah(value: number) {
-    return new Intl.NumberFormat("id-ID").format(value);
-}
 
 function StatusBadge({ status }: { status: Status }) {
     const styles: Record<Status, string> = {
@@ -293,7 +291,7 @@ export default function PenarikanSaldoClient({
                             <div className="px-5 pt-5 pb-4 text-center bg-linear-to-b from-sky-50/70 to-transparent">
                                 <p className="text-xs text-gray-400 mb-1">Nominal Penarikan</p>
                                 <p className="text-2xl font-bold text-sky-600">
-                                    Rp {formatRupiah(detailItem.nominal)}
+                                    {formatRupiah(detailItem.nominal)}
                                 </p>
                                 <div className="flex justify-center mt-2">
                                     <StatusBadge status={detailItem.status} />

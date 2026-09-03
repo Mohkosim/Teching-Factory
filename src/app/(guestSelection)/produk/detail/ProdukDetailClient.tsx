@@ -18,9 +18,17 @@ import { toggleFavoritProduk } from "@/lib/api/favorit";
 import type { ProdukPublicItem } from "@/lib/data/produk-public";
 import type { FavoritIds } from "@/lib/data/favorit-public";
 import { buildWhatsappLink } from "@/lib/utils/whatsapp";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { formatRupiah } from "@/lib/utils/format";
 
-const rupiah = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+
 
 export default function ProdukDetailClient({
   produk,
@@ -42,8 +50,6 @@ export default function ProdukDetailClient({
 
   const fotos = produk.fotos.length > 0 ? produk.fotos : [produk.gambar];
 
-  // Produk stok habis didorong ke belakang, urutan lain (sold_count) tetap
-  // terjaga di dalam masing-masing grup karena sort JS stabil.
   const rekomendasiTersaring = useMemo(() => {
     return rekomendasi.filter((p) => p.stok > 0);
   }, [rekomendasi]);
@@ -106,13 +112,25 @@ export default function ProdukDetailClient({
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
-        <nav className="mb-4 text-xs text-gray-400">
-          <Link href="/" className="hover:text-sky-500">Toko</Link>
-          <span className="mx-1.5">›</span>
-          <Link href="/produk" className="hover:text-sky-500">Produk</Link>
-          <span className="mx-1.5">›</span>
-          <span className="text-gray-500">Detail</span>
-        </nav>
+        <Breadcrumb className="mb-4">
+          <BreadcrumbList className="text-xs">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/" className="hover:text-sky-500">Toko</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/produk" className="hover:text-sky-500">Produk</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="text-gray-500">Detail</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         {/* Konten utama */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
@@ -165,7 +183,7 @@ export default function ProdukDetailClient({
 
             <h1 className="text-2xl font-bold uppercase text-gray-900 sm:text-3xl">{produk.nama}</h1>
 
-            <p className="text-xl font-bold text-gray-900">{rupiah(produk.harga)}</p>
+            <p className="text-xl font-bold text-gray-900">{formatRupiah(produk.harga)}</p>
 
             <div className="flex items-center gap-1.5">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />

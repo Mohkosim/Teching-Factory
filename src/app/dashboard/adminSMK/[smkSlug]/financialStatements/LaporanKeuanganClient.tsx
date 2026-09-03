@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, FileDown, Eye } from "lucide-react";
+import { Search, FileDown, Eye, Calendar as CalendarIcon } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import PaginationIconsOnly from "@/components/pagination/page";
 import { exportLaporanKeuanganExcel } from "@/lib/utils/export-laporan-keuangan";
+import { formatRupiah } from "@/lib/utils/format";
+import { parseTanggalToDate, formatDateRangeLabel } from "@/lib/utils/tanggal";
 
 type JenisTransaksi = "Pemasukan" | "Pengeluaran";
-type StatusSettlement = "Settled" | "Pending";
+
+type StatusSettlement = "Settled" | "Pending" | "Refund";
 
 interface TransaksiItem {
     id: string;
@@ -38,13 +41,7 @@ interface TransaksiItem {
     total: number;
     metodePembayaran: string;
     statusSettlement: StatusSettlement;
-}
-
-interface Breakdown {
-    total: number;
-    persen: number;
-    persenLabel?: string;
-    data: { name: string; value: number; color: string }[];
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
 }
 
 interface LaporanKeuanganClientProps {
@@ -52,17 +49,21 @@ interface LaporanKeuanganClientProps {
     ringkasan: {
         totalPemasukan: number;
         totalPengeluaran: number;
-        totalHpp: number;          // ⬅️ baru
-        labaKotor: number;          // ⬅️ baru
+        totalHpp: number;
+        labaKotor: number;
         totalBiayaMidtrans: number;
+        totalRefund: number;
         labaBersih: number;
     };
     pengeluaranBreakdown: Breakdown;
     pemasukanBreakdown: Breakdown;
 }
 
-function formatRupiah(value: number) {
-    return new Intl.NumberFormat("id-ID").format(value);
+interface Breakdown {
+    total: number;
+    persen: number;
+    persenLabel?: string;
+    data: { name: string; value: number; color: string }[];
 }
 
 function DonutSummaryCard({
@@ -125,6 +126,7 @@ function StatusSettlementBadge({ status }: { status: StatusSettlement }) {
     const styles: Record<StatusSettlement, string> = {
         Settled: "bg-emerald-100 text-emerald-600",
         Pending: "bg-amber-100 text-amber-600",
+        Refund: "bg-rose-100 text-rose-600",
     };
     return (
         <span className={`inline-flex items-center justify-center rounded-full px-4 py-1 text-xs font-medium ${styles[status]}`}>
@@ -168,18 +170,36 @@ export default function LaporanKeuanganClient({
     const [kategoriFilter, setKategoriFilter] = useState<string>("semua");
     const [detailItem, setDetailItem] = useState<TransaksiItem | null>(null);
 
+    // ── Filter tanggal (popover, sama pola dengan versi AdminJurusan) ──
+    const [dateFrom, setDateFrom] = useState("");
+    const [dateTo, setDateTo] = useState("");
+    const [openDateFilter, setOpenDateFilter] = useState(false);
+
     const filtered = useMemo(() => {
         return transaksiData.filter((item) => {
             const matchSearch =
                 item.noInvoice.toLowerCase().includes(search.toLowerCase()) ||
                 item.pembeliPemasok.toLowerCase().includes(search.toLowerCase()) ||
                 item.deskripsi.toLowerCase().includes(search.toLowerCase());
+
             const matchKategori =
                 kategoriFilter === "semua" ||
                 item.jenisTransaksi.toLowerCase() === kategoriFilter;
-            return matchSearch && matchKategori;
+
+            let matchDate = true;
+            if (dateFrom || dateTo) {
+                const itemDate = parseTanggalToDate(item.tanggal);
+                if (itemDate) {
+                    if (dateFrom && itemDate < new Date(dateFrom)) matchDate = false;
+                    if (dateTo && itemDate > new Date(dateTo)) matchDate = false;
+                } else {
+                    matchDate = false;
+                }
+            }
+
+            return matchSearch && matchKategori && matchDate;
         });
-    }, [transaksiData, search, kategoriFilter]);
+    }, [transaksiData, search, kategoriFilter, dateFrom, dateTo]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -253,26 +273,86 @@ export default function LaporanKeuanganClient({
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-gray-100">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative flex-1 min-w-20 max-w-sm">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Search"
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value);
-                                    setPage(1);
-                                }}
-                                className="pl-9 bg-gray-50 border-gray-200 rounded-full text-sm"
-                            />
-                        </div>
+                    {/* Kiri: hanya search */}
+                    <div className="relative flex-1 min-w-20 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                            placeholder="Search"
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(1);
+                            }}
+                            className="pl-9 bg-gray-50 border-gray-200 rounded-full text-sm"
+                        />
+                    </div>
 
-                        <Button
-                            variant="outline"
-                            className="h-9 text-sm font-normal text-gray-500 bg-gray-50 border-gray-200 rounded-lg"
-                        >
-                            25/12/2025 - 25/12/2026
-                        </Button>
+                    {/* Kanan: filter tanggal, filter kategori, tombol Export */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpenDateFilter((o) => !o)}
+                                className="h-9 text-sm font-normal text-gray-500 bg-gray-50 border-gray-200 rounded-lg gap-1.5"
+                            >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                {formatDateRangeLabel(dateFrom, dateTo)}
+                            </Button>
+
+                            {openDateFilter && (
+                                <>
+                                    {/* klik di luar untuk nutup */}
+                                    <div
+                                        className="fixed inset-0 z-10"
+                                        onClick={() => setOpenDateFilter(false)}
+                                    />
+                                    <div className="absolute right-0 mt-2 z-20 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-4 space-y-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-gray-600">Dari Tanggal</label>
+                                            <Input
+                                                type="date"
+                                                value={dateFrom}
+                                                onChange={(e) => setDateFrom(e.target.value)}
+                                                className="bg-gray-50 border-gray-200 rounded-lg text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-gray-600">Sampai Tanggal</label>
+                                            <Input
+                                                type="date"
+                                                value={dateTo}
+                                                onChange={(e) => setDateTo(e.target.value)}
+                                                className="bg-gray-50 border-gray-200 rounded-lg text-sm"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between pt-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setDateFrom("");
+                                                    setDateTo("");
+                                                    setPage(1);
+                                                }}
+                                                className="text-xs text-gray-500 hover:text-gray-700"
+                                            >
+                                                Reset
+                                            </button>
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPage(1);
+                                                    setOpenDateFilter(false);
+                                                }}
+                                                className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg h-8 px-4 text-xs"
+                                            >
+                                                Terapkan
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
 
                         <Select
                             value={kategoriFilter}
@@ -290,15 +370,15 @@ export default function LaporanKeuanganClient({
                                 <SelectItem value="pengeluaran">Pengeluaran</SelectItem>
                             </SelectContent>
                         </Select>
-                    </div>
 
-                    <Button
-                        onClick={handleExportExcel}
-                        className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg h-9 px-4 text-sm gap-1.5"
-                    >
-                        <FileDown className="h-4 w-4" />
-                        Export Laporan
-                    </Button>
+                        <Button
+                            onClick={handleExportExcel}
+                            className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg h-9 px-4 text-sm gap-1.5"
+                        >
+                            <FileDown className="h-4 w-4" />
+                            Export Laporan
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -408,6 +488,9 @@ export default function LaporanKeuanganClient({
                                     label="Status Settlement"
                                     value={<StatusSettlementBadge status={detailItem.statusSettlement} />}
                                 />
+                                {detailItem.refund && (
+                                    <DetailRow label="Alasan Refund" value={detailItem.refund.alasan} />
+                                )}
                             </div>
 
                             <Separator className="my-2.5" />

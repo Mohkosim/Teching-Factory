@@ -33,7 +33,7 @@ export async function getJasaList(): Promise<JasaItem[]> {
             produk: {
                 include: {
                     foto: true,
-                    jurusan: { include: { smk: true } }, // tambahkan include smk
+                    jurusan: { include: { smk: true } }, 
                 },
             },
             portofolio: true,
@@ -62,7 +62,7 @@ export async function getJasaList(): Promise<JasaItem[]> {
         status_publikasi: j.produk.status_publikasi,
         catatan_revisi: j.produk.catatan_revisi,
 
-        // field yang tadi hilang:
+  
         jurusan_id: j.produk.jurusan_id,
         jurusan_smk_id: j.produk.jurusan.smk_id,
         jurusan_smk_nama: j.produk.jurusan.smk?.kota ?? "",

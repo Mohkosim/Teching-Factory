@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// Order yang dianggap "keranjang": status Menunggu & belum punya data pengiriman
 async function findCartOrder(userId: string) {
     return prisma.order.findFirst({
         where: {

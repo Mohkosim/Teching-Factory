@@ -1,4 +1,3 @@
-// hooks/useMidtransSnap.ts
 "use client";
 
 import { useEffect, useState } from "react";
@@ -28,18 +27,12 @@ function isSnapAlreadyLoaded() {
     return typeof window !== "undefined" && Boolean(window.snap);
 }
 
-// Dipakai di semua komponen yang butuh window.snap.pay(...) — checkout produk,
-// pemesanan jasa, dan tambah pembayaran/cicilan jasa. Script cuma di-load sekali
-// per halaman (dicek window.snap dulu), jadi aman dipanggil dari banyak komponen.
 export function useMidtransSnap() {
-    // Lazy init: cek status awal di sini (bukan di effect), supaya effect di bawah
-    // murni jadi "subscriber" — cocok dengan aturan react-hooks/set-state-in-effect.
+
     const [ready, setReady] = useState(isSnapAlreadyLoaded);
 
     useEffect(() => {
-        // Kalau race condition sempat berubah antara render pertama & effect jalan
-        // (jarang, tapi mungkin), effect ini tetap "subscribe" ke event load,
-        // bukan langsung nge-set berdasarkan kondisi if/else biasa.
+
         if (isSnapAlreadyLoaded()) return;
 
         const existing = document.querySelector<HTMLScriptElement>(`script[src="${SNAP_SRC}"]`);

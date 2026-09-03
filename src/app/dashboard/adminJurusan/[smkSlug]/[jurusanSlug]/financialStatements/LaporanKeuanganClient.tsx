@@ -60,37 +60,17 @@ import {
 
 import PaginationIconsOnly from "@/components/pagination/page";
 import type { TransaksiRow } from "@/lib/data/laporan-keuangan";
+import { formatRupiah, formatNominalInput } from "@/lib/utils/format";
+import { parseTanggalToDate, formatDateRangeLabel, toDateInputValue } from "@/lib/utils/tanggal";
 
-type StatusSettlement = "Settled" | "Pending";
-
-// Status pengajuan PenarikanSaldo (lihat lib/data/penarikan-saldo.ts)
 type PenarikanStatus = "Pending" | "Diproses" | "Selesai" | "Ditolak";
-
-// ── Format Rupiah ──
-function formatRupiah(value: number | string) {
-    const num = typeof value === "string" ? Number(value) : value;
-    return new Intl.NumberFormat("id-ID").format(isNaN(num) ? 0 : num);
-}
-
-// Format angka jadi "1.000.000" saat diketik, tapi state tetap simpan digit polos
-function formatNominalInput(value: string): string {
-    const digitsOnly = value.replace(/\D/g, "");
-    if (!digitsOnly) return "";
-    return new Intl.NumberFormat("id-ID").format(Number(digitsOnly));
-}
-
-// dd/mm/yyyy → yyyy-mm-dd (untuk <input type="date">)
-function toDateInputValue(ddmmyyyy: string): string {
-    const parts = ddmmyyyy.split("/");
-    if (parts.length !== 3) return "";
-    const [d, m, y] = parts;
-    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
+type StatusSettlement = "Settled" | "Pending" | "Refund";
 
 function StatusSettlementBadge({ status }: { status: StatusSettlement }) {
     const styles: Record<StatusSettlement, string> = {
         Settled: "bg-emerald-100 text-emerald-600",
         Pending: "bg-amber-100 text-amber-600",
+        Refund: "bg-rose-100 text-rose-600", 
     };
     return (
         <span
@@ -180,7 +160,6 @@ interface LaporanKeuanganClientProps {
         totalPenarikan: number;
         totalBiayaMidtrans: number;
     };
-    // Semua riwayat pengajuan PenarikanSaldo milik jurusan yang login, terbaru dulu
     penarikanList?: PenarikanItem[];
 }
 
@@ -228,10 +207,10 @@ export default function LaporanKeuanganClient({
 
     // ── Perhitungan Laba ──
     const totalPemasukan = ringkasan.totalPemasukan;
-    const hpp = ringkasan.hpp;                                     // total pengeluaran kategori "Bahan Baku"
-    const labaKotor = totalPemasukan - hpp;                         // Pemasukan - HPP
-    const totalBiayaMidtrans = ringkasan.totalBiayaMidtrans;        // estimasi biaya Midtrans (Pemasukan Settled)
-    const totalPengeluaranOps = ringkasan.totalPengeluaran - hpp;   // sisa pengeluaran (Operasional + Gaji Karyawan + Lainnya)
+    const hpp = ringkasan.hpp;                                  
+    const labaKotor = totalPemasukan - hpp;                    
+    const totalBiayaMidtrans = ringkasan.totalBiayaMidtrans;     
+    const totalPengeluaranOps = ringkasan.totalPengeluaran - hpp;   
     const labaBersih = labaKotor - totalPengeluaranOps - totalBiayaMidtrans;
 
     const [dateFrom, setDateFrom] = useState("");
@@ -467,26 +446,6 @@ export default function LaporanKeuanganClient({
         setFormGambarPreview(null);
         setFormGambarExisting(undefined);
     };
-
-    // "dd/mm/yyyy" (format tanggal di TransaksiRow) → Date object, untuk dibandingkan
-    function parseTanggalToDate(ddmmyyyy: string): Date | null {
-        const parts = ddmmyyyy.split("/");
-        if (parts.length !== 3) return null;
-        const [d, m, y] = parts;
-        return new Date(Number(y), Number(m) - 1, Number(d));
-    }
-
-    // Label tombol filter tanggal: "Semua Tanggal" kalau kosong, atau "dd/mm/yyyy - dd/mm/yyyy"
-    function formatDateRangeLabel(from: string, to: string): string {
-        if (!from && !to) return "Semua Tanggal";
-        const fmt = (s: string) => {
-            if (!s) return "...";
-            const [y, m, d] = s.split("-");
-            return `${d}/${m}/${y}`;
-        };
-        return `${fmt(from)} - ${fmt(to)}`;
-    }
-
     return (
         <div className="space-y-6 px-6">
             {/* Page Header */}
@@ -1092,6 +1051,15 @@ export default function LaporanKeuanganClient({
                                     <InfoRow label="Estimasi" value={detailItem.pengiriman.estimasi} />
                                 </>
                             )}
+
+                            {detailItem.refund && (  
+                                <>
+                                    <Separator className="my-3" />
+                                    <p className="font-semibold text-gray-800 mb-1">Detail Refund</p>
+                                    <InfoRow label="Status" value={detailItem.refund.status} />
+                                    <InfoBlock label="Alasan" value={detailItem.refund.alasan} />
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -1305,7 +1273,7 @@ export default function LaporanKeuanganClient({
                             <div className="px-5 py-4 space-y-4 text-sm">
                                 <div className="text-center py-2">
                                     <p className="text-2xl font-bold text-gray-800">
-                                        Rp {formatRupiah(detailPenarikan.nominal)}
+                                        {formatRupiah(detailPenarikan.nominal)}
                                     </p>
                                     <span className={`inline-flex items-center gap-1.5 mt-2 rounded-full px-3 py-1 text-xs font-medium ${cfg.bg} ${cfg.text}`}>
                                         <Icon className={`h-3.5 w-3.5 ${cfg.spin ? "animate-spin" : ""}`} />

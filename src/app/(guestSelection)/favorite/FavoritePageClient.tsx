@@ -26,8 +26,6 @@ export default function FavoritePageClient({
 }: FavoritePageClientProps) {
     const [activeTab, setActiveTab] = useState<TabKey>("produk");
 
-    // Produk favorit yang stoknya habis didorong ke belakang, urutan asli
-    // (mis. urutan ditambahkan ke favorit) tetap terjaga di dalam tiap grup.
     const produkFavoritTersaring = useMemo(() => {
         return [...produkFavorit].sort((a, b) => {
             const aHabis = a.stok <= 0 ? 1 : 0;

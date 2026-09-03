@@ -35,9 +35,15 @@ import type { FavoritIds } from "@/lib/data/favorit-public";
 import RingkasanRatingJasa from "./RingkasanRatingJasa";
 import DaftarUlasanJasa from "./DaftarUlasanJasa";
 import DeskripsiFormatted from "./DeskripsiFormatted";
-
-const rupiah = (n: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { formatRupiah, formatNominalInput } from "@/lib/utils/format";
 
 type TabDetail = "deskripsi" | "portofolio" | "review";
 
@@ -105,7 +111,6 @@ export default function JasaDetailClient({
     const [formData, setFormData] = useState<FormPemesananJasa>(FORM_PEMESANAN_AWAL);
     const [isPending, setIsPending] = useState(false);
 
-    // Popup WhatsApp muncul setelah Snap selesai (baik sukses maupun pending/ditutup)
     const [waPopupOpen, setWaPopupOpen] = useState(false);
 
     const galeri = jasa.fotos.length > 0 ? jasa.fotos : [jasa.gambar];
@@ -163,7 +168,6 @@ export default function JasaDetailClient({
                 });
             },
             onClose: () => {
-                // Jangan langsung batalkan — tanya dulu mau lanjut bayar atau batal, pakai Swal
                 handlePesananBelumBayar(orderId, snapToken);
             },
         });
@@ -232,13 +236,27 @@ export default function JasaDetailClient({
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-                <nav className="mb-4 text-xs text-gray-400">
-                    <Link href="/" className="hover:text-sky-500">Toko</Link>
-                    <span className="mx-1.5">›</span>
-                    <Link href="/jasa" className="hover:text-sky-500">Jasa</Link>
-                    <span className="mx-1.5">›</span>
-                    <span className="text-gray-500">Detail</span>
-                </nav>
+
+                {/* Breadcrumb */}
+                <Breadcrumb className="mb-4">
+                    <BreadcrumbList className="text-xs">
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Link href="/" className="hover:text-sky-500">Toko</Link>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Link href="/jasa" className="hover:text-sky-500">Jasa</Link>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbPage className="text-gray-500">Detail</BreadcrumbPage>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                     <div>
@@ -291,7 +309,7 @@ export default function JasaDetailClient({
 
                         <h1 className="text-2xl font-bold uppercase text-gray-900 sm:text-3xl">{jasa.nama}</h1>
 
-                        <p className="text-xl font-bold text-gray-900">{rupiah(jasa.harga)}</p>
+                        <p className="text-xl font-bold text-gray-900">{formatRupiah(jasa.harga)}</p>
 
 
                         <div className="flex items-center gap-1.5">
@@ -446,20 +464,19 @@ export default function JasaDetailClient({
                                     Rp
                                 </span>
                                 <Input
-                                    type="number"
-                                    value={formData.nominalBayar}
-                                    onChange={(e) => handleFormChange("nominalBayar", e.target.value)}
-                                    max={jasa.harga}
+                                    value={formatNominalInput(formData.nominalBayar)}
+                                    onChange={(e) => handleFormChange("nominalBayar", e.target.value.replace(/\D/g, ""))}
+                                    inputMode="numeric"
                                     className="pl-9 bg-gray-50 border-gray-200 rounded-lg"
                                 />
                             </div>
                             {nominalAngka > jasa.harga && (
                                 <p className="text-xs text-red-500">
-                                    Nominal melebihi harga jasa ({rupiah(jasa.harga)})
+                                    Nominal melebihi harga jasa ({formatRupiah(jasa.harga)})
                                 </p>
                             )}
                             <p className="text-xs text-gray-400">
-                                Total harga jasa {rupiah(jasa.harga)}. Bisa bayar DP dulu (kurang dari harga) atau
+                                Total harga jasa {formatRupiah(jasa.harga)}. Bisa bayar DP dulu (kurang dari harga) atau
                                 langsung lunas — sisanya bisa dilunasi kapan saja lewat halaman Pesanan Saya.
                             </p>
                         </div>

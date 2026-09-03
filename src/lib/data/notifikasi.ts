@@ -17,7 +17,7 @@ export async function getNotifikasiData(userId: string): Promise<NotifikasiItem[
     const { produk, jasa } = await getPesananData(userId);
     const notifikasi: NotifikasiItem[] = [];
 
-    // Kelompokkan produk per orderId biar tidak duplikat notifikasi per item
+    // Kelompokkan produk per orderId biar tidak duplikat notifikasi timeline per item
     const produkPerOrder = new Map<string, typeof produk>();
     for (const item of produk) {
         const list = produkPerOrder.get(item.orderId) ?? [];
@@ -37,6 +37,37 @@ export async function getNotifikasiData(userId: string): Promise<NotifikasiItem[
                 tanggal: first.tanggal,
                 href: "/profile/pesanan",
                 thumbnail: first.thumbnail,
+            });
+        }
+    }
+
+    // Notifikasi refund — dicek per item produk (bukan per order), karena refund bisa spesifik ke satu produk
+    for (const item of produk) {
+        if (!item.refund) continue;
+
+        if (item.refund.status === "Disetujui") {
+            notifikasi.push({
+                id: `refund-disetujui-${item.refund.id}`,
+                jenis: "refund_disetujui",
+                judul: item.nama,
+                pesan: item.refund.catatanAdmin
+                    ? `Refund disetujui: ${item.refund.catatanAdmin}`
+                    : "Refund Anda disetujui",
+                tanggal: item.tanggal,
+                href: "/profile/pesanan",
+                thumbnail: item.thumbnail,
+            });
+        } else if (item.refund.status === "Ditolak") {
+            notifikasi.push({
+                id: `refund-ditolak-${item.refund.id}`,
+                jenis: "refund_ditolak",
+                judul: item.nama,
+                pesan: item.refund.catatanAdmin
+                    ? `Refund ditolak: ${item.refund.catatanAdmin}`
+                    : "Refund Anda ditolak",
+                tanggal: item.tanggal,
+                href: "/profile/pesanan",
+                thumbnail: item.thumbnail,
             });
         }
     }

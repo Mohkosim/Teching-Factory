@@ -8,6 +8,7 @@ export type StatusOrderPengiriman =
     | "Menunggu"
     | "Diproses"
     | "Dikirim"
+    | "Diterima"
     | "Selesai"
     | "Dibatalkan";
 
@@ -38,6 +39,9 @@ export interface OrderRow {
     nomorResi: string | null;
     estimasi: string | null;
     refund: RefundInfoAdmin | null;
+    statusResi?: string | null;
+    cekTerakhirAt?: Date | null;
+    autoConfirmed?: boolean;
 }
 
 export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Ditolak";

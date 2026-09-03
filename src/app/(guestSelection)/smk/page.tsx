@@ -2,6 +2,11 @@ import { getSMKList } from "@/lib/getdata/getSMKList";
 import { SMKSortOption } from "@/types/interfaces/smk";
 import SMKHero from "./SMKHero";
 import SMKListClient from "./SMKListClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "SMK",
+};
 
 interface SMKPageProps {
   searchParams: Promise<{

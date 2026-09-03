@@ -11,10 +11,8 @@ import Swal from "sweetalert2";
 import { ubahJumlahKeranjang, hapusDariKeranjang } from "@/lib/api/keranjang";
 import type { KeranjangItem } from "@/types/interfaces/keranjang";
 import { buildWhatsappLink } from "@/lib/utils/whatsapp";
+import { formatRupiah } from "@/lib/utils/format";
 
-function formatRupiah(value: number) {
-    return `Rp ${value.toLocaleString("id-ID")}`;
-}
 
 export default function KeranjangClient({ initialItems }: { initialItems: KeranjangItem[] }) {
     const router = useRouter();

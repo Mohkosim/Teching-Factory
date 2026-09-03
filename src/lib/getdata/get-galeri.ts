@@ -36,10 +36,7 @@ function buildOrderBy(sort: GaleriSortOption): Prisma.GaleriOrderByWithRelationI
   }
 }
 
-/**
- * Publik: list galeri dengan pagination, search, filter kategori.
- * Dipakai di halaman /galeri (guest-facing).
- */
+
 interface GetGaleriListArgs {
   page: number;
   perPage: number;
@@ -81,10 +78,7 @@ export async function getGaleriList({
   };
 }
 
-/**
- * Auth-protected: list galeri milik user yang login (AdminSMK/AdminJurusan).
- * Dipakai di dashboard, tanpa pagination karena scope-nya cuma data sendiri.
- */
+
 export async function getMyGaleriList(): Promise<GaleriItem[]> {
   const session = await getServerSession(authOptions);
   if (!session || !["AdminSMK", "AdminJurusan"].includes(session.user.role)) {

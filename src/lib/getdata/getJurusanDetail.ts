@@ -7,7 +7,7 @@ export async function getJurusanDetail(jurusanId: string): Promise<JurusanDetail
   const jurusan = await prisma.jurusan.findUnique({
     where: { jurusan_id: jurusanId },
     include: {
-      user: true, // akun milik jurusan -> sumber img
+      user: true,
       smk: { include: { user: true } },
       produk: {
         include: { barang: true, jasa: true },

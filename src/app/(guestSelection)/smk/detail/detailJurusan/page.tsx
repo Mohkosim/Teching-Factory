@@ -10,6 +10,11 @@ import { getProdukPublicList, ProdukPublicListResult } from "@/lib/data/produk-p
 import { getJasaListByJurusan, JasaListResult } from "@/lib/data/jasa-public";
 import { JurusanDetailData } from "@/types/interfaces/jurusan";
 import { ProdukSortOption, ProdukTypeFilter } from "@/types/interfaces/produk";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Detail Jurusan",
+};
 
 const EMPTY_FAVORIT: FavoritIds = { produkIds: [], jasaIds: [] };
 

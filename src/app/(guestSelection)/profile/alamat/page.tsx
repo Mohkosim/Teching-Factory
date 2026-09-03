@@ -1,6 +1,11 @@
 import { getCurrentUserProfile } from "@/lib/getdata/get-profile";
 import { getAlamatList } from "@/lib/getdata/get-alamat-list";
 import AlamatClient from "./alamat-client";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Alamat",
+};
 
 export default async function AlamatPage() {
   const [profile, alamatList] = await Promise.all([

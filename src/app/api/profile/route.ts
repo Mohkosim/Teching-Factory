@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/getdata/get-profile";
 
-// GET: ambil profil user yang login (termasuk data SMK/Jurusan kalau ada)
 export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -19,7 +18,6 @@ export async function GET() {
     return NextResponse.json(profile);
 }
 
-// PATCH: update field dasar (name, email, img, phone) + field spesifik sesuai role
 export async function PATCH(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -37,12 +35,11 @@ export async function PATCH(req: Request) {
         kepala_sekolah,
         deskripsi_smk,
         alamat,
-        kecamatan,     // BARU
+        kecamatan,
         kota,
-        kota_id,       // BARU
-        kode_pos,      // BARU
+        kota_id,
+        kode_pos,
         provinsi,
-        map_link,
         tahun_berdiri,
         // AdminJurusan
         deskripsi,
@@ -62,14 +59,13 @@ export async function PATCH(req: Request) {
         kota_id?: number | null;
         kode_pos?: string;
         provinsi?: string;
-        map_link?: string;
         tahun_berdiri?: number | string;
         deskripsi?: string;
         kepala_jurusan?: string;
         jam_operasional?: string;
     };
 
-    // ── Validasi email unik ──
+    // ── Validasi email ──
     if (email) {
         const existing = await prisma.user.findFirst({
             where: { email, NOT: { user_id: session.user.id } },
@@ -130,12 +126,11 @@ export async function PATCH(req: Request) {
                     ...(kepala_sekolah !== undefined ? { kepala_sekolah } : {}),
                     ...(deskripsi_smk !== undefined ? { deskripsi: deskripsi_smk } : {}),
                     ...(alamat !== undefined ? { alamat } : {}),
-                    ...(kecamatan !== undefined ? { kecamatan } : {}),   // BARU
+                    ...(kecamatan !== undefined ? { kecamatan } : {}),
                     ...(kota !== undefined ? { kota } : {}),
-                    ...(kota_id !== undefined ? { kota_id } : {}),       // BARU
-                    ...(kode_pos !== undefined ? { kode_pos } : {}),     // BARU
+                    ...(kota_id !== undefined ? { kota_id } : {}),
+                    ...(kode_pos !== undefined ? { kode_pos } : {}),
                     ...(provinsi !== undefined ? { provinsi } : {}),
-                    ...(map_link !== undefined ? { map_link } : {}),
                     ...(tahun_berdiri !== undefined ? { tahun_berdiri: Number(tahun_berdiri) } : {}),
                 },
             });
@@ -147,12 +142,11 @@ export async function PATCH(req: Request) {
                     kepala_sekolah: kepala_sekolah!,
                     deskripsi: deskripsi_smk,
                     alamat: alamat!,
-                    kecamatan: kecamatan,     // BARU
+                    kecamatan: kecamatan,  
                     kota: kota!,
-                    kota_id: kota_id,         // BARU
-                    kode_pos: kode_pos,       // BARU
+                    kota_id: kota_id,      
+                    kode_pos: kode_pos,      
                     provinsi: provinsi!,
-                    map_link,
                     tahun_berdiri: Number(tahun_berdiri),
                 },
             });

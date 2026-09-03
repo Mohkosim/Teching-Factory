@@ -25,12 +25,11 @@ export async function getCurrentUserProfile(): Promise<ProfileData | null> {
         kepala_sekolah: user.smk?.kepala_sekolah ?? null,
         deskripsi_smk: user.smk?.deskripsi ?? null,
         alamat: user.smk?.alamat ?? null,
-        kecamatan: user.smk?.kecamatan ?? null,   // <-- BARU
+        kecamatan: user.smk?.kecamatan ?? null,   
         kota: user.smk?.kota ?? null,
-        kota_id: user.smk?.kota_id ?? null,       // <-- BARU
-        kode_pos: user.smk?.kode_pos ?? null,     // <-- BARU
+        kota_id: user.smk?.kota_id ?? null,      
+        kode_pos: user.smk?.kode_pos ?? null,     
         provinsi: user.smk?.provinsi ?? null,
-        map_link: user.smk?.map_link ?? null,
         tahun_berdiri: user.smk?.tahun_berdiri ?? null,
 
         deskripsi: user.jurusan?.deskripsi ?? null,

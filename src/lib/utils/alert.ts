@@ -1,16 +1,12 @@
 import Swal from "sweetalert2";
 
-/**
- * Konfirmasi generik (Ya/Batal) - dipakai untuk aksi yang butuh persetujuan user
- * sebelum dieksekusi (hapus, batalkan pesanan, keluar dari form, dll)
- */
 export async function confirmAksi({
     title,
     text,
     icon = "warning",
     confirmText = "Ya, lanjutkan",
     cancelText = "Batal",
-    confirmColor = "#3b82f6", // sky-500, default warna project
+    confirmColor = "#3b82f6",
 }: {
     title: string;
     text?: string;
@@ -40,7 +36,7 @@ export function confirmHapus(namaItem: string) {
         text: `"${namaItem}" akan dihapus dan tidak bisa dikembalikan.`,
         icon: "warning",
         confirmText: "Ya, hapus",
-        confirmColor: "#ef4444", // red-500
+        confirmColor: "#ef4444",
     });
 }
 

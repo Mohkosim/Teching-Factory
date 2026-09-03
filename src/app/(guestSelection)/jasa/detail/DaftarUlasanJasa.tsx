@@ -23,12 +23,10 @@ const OPSI_URUTAN: { value: Urutan; label: string }[] = [
   { value: "terendah", label: "Rating Terendah" },
 ];
 
-// Skema belum punya data "vote membantu" dari pengguna lain, jadi "Paling Membantu"
-// didekati lewat kelengkapan review: yang punya foto + komentar lebih panjang
-// dianggap lebih informatif bagi pembaca lain.
+
 function skorMembantu(r: ReviewPublicItem): number {
   const skorFoto = r.fotos.length > 0 ? 2 : 0;
-  const skorKomentar = Math.min(r.komentar.trim().length / 50, 2); // maks +2
+  const skorKomentar = Math.min(r.komentar.trim().length / 50, 2);
   return skorFoto + skorKomentar;
 }
 

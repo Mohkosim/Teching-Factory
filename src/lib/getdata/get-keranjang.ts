@@ -21,9 +21,9 @@ export async function findCartOrder(userId: string) {
                             barang: true,
                             jurusan: {
                                 include: {
-                                    user: true, // <-- tambahan: untuk nomor WA AdminJurusan
+                                    user: true, 
                                     smk: {
-                                        include: { user: true }, // ambil nama sekolah dari User
+                                        include: { user: true }, 
                                     },
                                 },
                             },

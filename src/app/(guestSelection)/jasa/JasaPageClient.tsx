@@ -55,7 +55,7 @@ export default function JasaPageClient({ jasa, lokasiOptions, favoritIds }: Jasa
         }
 
         return hasil;
-    }, [filter, search, urutanToolbar, jasa]); // <- tambahkan `search`
+    }, [filter, search, urutanToolbar, jasa]);
 
     const totalJasa = jasaTersaring.length;
     const totalHalaman = Math.max(1, Math.ceil(totalJasa / perHalaman));

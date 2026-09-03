@@ -127,7 +127,7 @@ export default function AccountManagement({
                 : `Akun "${item.name}" tidak akan dapat diakses selama dinonaktifkan.`,
             icon: "warning",
             confirmText: akanDiaktifkan ? "Ya, aktifkan" : "Ya, nonaktifkan",
-            confirmColor: akanDiaktifkan ? "#22c55e" : "#f97316", // green-500 / orange-500
+            confirmColor: akanDiaktifkan ? "#22c55e" : "#f97316",
         });
         if (!konfirmasi) return;
 

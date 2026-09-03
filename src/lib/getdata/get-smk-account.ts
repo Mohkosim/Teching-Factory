@@ -19,7 +19,7 @@ export async function getSMKAccounts(): Promise<SMKAccount[]> {
         include: {
             smk: true,
             alamat: {
-                orderBy: { isUtama: "desc" }, // alamat utama duluan
+                orderBy: { isUtama: "desc" }, 
                 take: 1,
             },
         },

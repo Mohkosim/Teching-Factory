@@ -28,7 +28,7 @@ export const emptyFilterJasaValue: FilterJasaValue = {
 interface FilterProps {
     value: FilterJasaValue;
     onApply: (value: FilterJasaValue) => void;
-    lokasiOptions: string[]; // <-- diambil dari data asli, bukan hardcode
+    lokasiOptions: string[];
 }
 
 export default function FilterJasa({ value, onApply, lokasiOptions }: FilterProps) {

@@ -26,6 +26,7 @@ import type { KeranjangItem } from "@/types/interfaces/keranjang";
 import dynamic from "next/dynamic";
 import type { ReverseGeocodeResult } from "@/components/AddressMapPicker";
 import { getOngkosKirim, searchOngkirDestination, type OngkirDestination } from "@/lib/api/ongkir-api";
+import { formatRupiah } from "@/lib/utils/format";
 
 interface JasaPengiriman {
     id: string;
@@ -34,13 +35,6 @@ interface JasaPengiriman {
     estimasi: string;
     harga: number;
 }
-
-// Metode pembayaran TIDAK lagi dipilih manual di sini — snap.pay() dibuka tanpa
-// enabled_payments dibatasi, jadi Midtrans Snap sendiri yang menampilkan daftar
-// channel yang aktif di dashboard (VA, e-wallet, QRIS, dll), sama seperti
-// tampilan asli Snap. Ini juga yang bikin flow "pesanan sudah dibuat tapi belum
-// dibayar" (lihat pesananBelumBayar) jadi penting: user boleh ganti pikiran soal
-// channel pembayaran langsung dari popup Snap tanpa harus batal dari awal.
 
 const initialForm = {
     nama_penerima: "",
@@ -58,10 +52,6 @@ const AddressMapPicker = dynamic(
     () => import("@/components/AddressMapPicker"),
     { ssr: false, loading: () => <div className="h-64 rounded-xl bg-gray-100 animate-pulse" /> }
 );
-
-function formatRupiah(value: number) {
-    return `Rp ${value.toLocaleString("id-ID")}`;
-}
 
 export default function CheckoutClient({
     initialProduk,
@@ -349,9 +339,6 @@ export default function CheckoutClient({
         return hasil;
     };
 
-    // Dipakai baik saat pertama kali "Buat Pesanan" maupun saat user klik
-    // "Lanjutkan Pembayaran" dari dialog konfirmasi — snapToken yang sama
-    // masih valid untuk dibuka ulang selama belum expired (default 24 jam).
     const bukaSnapPay = (snapToken: string, kodeInvoice: string) => {
         if (!window.snap) {
             toast.error("Metode pembayaran belum siap, coba lagi sesaat lagi");
@@ -376,9 +363,6 @@ export default function CheckoutClient({
         });
     };
 
-    // ==== Buat Pesanan lalu langsung buka Snap ====
-    // Status "Lunas" BARU diupdate lewat webhook /api/midtrans/notification setelah
-    // pembayaran benar-benar settlement — bukan langsung diasumsikan sukses di sini.
     const handleBuatPesanan = async () => {
         if (!selectedAlamat) {
             toast.error("Pilih alamat pengiriman terlebih dahulu");

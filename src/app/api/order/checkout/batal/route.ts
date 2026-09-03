@@ -23,7 +23,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Pesanan tidak ditemukan" }, { status: 404 });
     }
 
-    // Jangan sampai dibatalkan padahal duitnya sudah masuk lewat webhook
     if (orders.some((o) => o.status_pembayaran === "Lunas")) {
         return NextResponse.json(
             { message: "Pesanan sudah dibayar, tidak bisa dibatalkan" },
@@ -33,22 +32,17 @@ export async function POST(req: Request) {
 
     try {
         await prisma.$transaction(async (tx) => {
-            // Cari (atau siapkan) satu Order keranjang milik user untuk menampung
-            // lagi produk-produk yang batal di-checkout — ciri "cart order" sama
-            // seperti findCartOrder() di /api/keranjang: status Menunggu & belum
-            // punya pengiriman.
             let cartOrder = await tx.order.findFirst({
                 where: {
                     user_id: session.user.id,
                     status_order: "Menunggu",
-                    status_pembayaran: "Belum_Bayar", // disamakan dengan findCartOrder
+                    status_pembayaran: "Belum_Bayar",
                     pengiriman: null,
                 },
             });
 
             for (const order of orders) {
                 for (const detail of order.orderDetail) {
-                    // Kembalikan stok & sold_count yang tadinya dikurangi saat checkout
                     await tx.barang.updateMany({
                         where: { produk_id: detail.produk_id },
                         data: { stok: { increment: detail.jumlah } },
@@ -58,16 +52,12 @@ export async function POST(req: Request) {
                         data: { sold_count: { decrement: detail.jumlah } },
                     });
 
-                    // Belum ada cart order -> buat sekali di sini
                     if (!cartOrder) {
                         cartOrder = await tx.order.create({
                             data: { user_id: session.user.id, total_harga: 0 },
                         });
                     }
 
-                    // Kembalikan produk ke keranjang. Kalau produk yang sama
-                    // kebetulan sudah ada lagi di keranjang (user sempat nambah
-                    // manual saat menunggu bayar), jumlahnya digabung saja.
                     const existing = await tx.order_Detail.findFirst({
                         where: { order_id: cartOrder.order_id, produk_id: detail.produk_id },
                     });
@@ -91,8 +81,6 @@ export async function POST(req: Request) {
                     }
                 }
 
-                // Hapus total Order checkout-nya (pengiriman dulu baru order_detail & order,
-                // karena pengiriman & orderDetail merujuk ke order_id ini)
                 if (order.pengiriman) {
                     await tx.pengiriman.delete({ where: { order_id: order.order_id } });
                 }
@@ -100,7 +88,6 @@ export async function POST(req: Request) {
                 await tx.order.delete({ where: { order_id: order.order_id } });
             }
 
-            // Sinkronkan ulang total_harga cart order setelah semua produk masuk
             if (cartOrder) {
                 const details = await tx.order_Detail.findMany({ where: { order_id: cartOrder.order_id } });
                 const total = details.reduce((sum, d) => sum + d.subtotal, 0);

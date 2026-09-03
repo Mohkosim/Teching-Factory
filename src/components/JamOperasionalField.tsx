@@ -41,7 +41,6 @@ function parseJamOperasional(value: string | null | undefined): JadwalState {
     return jadwal;
 }
 
-// Ubah object JadwalState jadi string buat disimpan
 function serializeJamOperasional(jadwal: JadwalState): string {
     return HARI.map((hari) => {
         const b = jadwal[hari];

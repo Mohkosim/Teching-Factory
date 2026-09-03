@@ -25,11 +25,8 @@ import PaginationIconsOnly from "@/components/pagination/page";
 
 import { publikasiProduk, revisiProduk } from "@/lib/api/produk-api";
 import type { ProdukItem } from "@/types/interfaces/produk";
+import { formatRupiah } from "@/lib/utils/format";
 
-
-function formatRupiah(value: number) {
-    return "Rp " + value.toLocaleString("id-ID");
-}
 
 export default function ProductManagement({
     initialData,
@@ -109,12 +106,12 @@ export default function ProductManagement({
             text: `"${detailItem.nama_produk}" akan tayang dan dapat dilihat publik.`,
             icon: "question",
             confirmText: "Ya, publikasikan",
-            confirmColor: "#10b981", // emerald-500
-        }); // 1. Swal: minta izin dulu
+            confirmColor: "#10b981",
+        }); 
         if (!konfirmasi) return;
 
         startTransition(async () => {
-            tampilkanLoading("Mempublikasikan produk..."); // Swal: loading
+            tampilkanLoading("Mempublikasikan produk..."); 
             try {
                 await publikasiProduk(detailItem.produk_id);
                 Swal.close();
@@ -125,11 +122,11 @@ export default function ProductManagement({
                             : p
                     )
                 );
-                toast.success("Produk berhasil dipublikasikan"); // 2. toast: status sukses
+                toast.success("Produk berhasil dipublikasikan"); 
                 closeDetail();
             } catch {
                 Swal.close();
-                toast.error("Gagal mempublikasikan produk"); // 2. toast: status gagal
+                toast.error("Gagal mempublikasikan produk");
             }
         });
     };
@@ -146,12 +143,12 @@ export default function ProductManagement({
             text: `Produk "${detailItem.nama_produk}" akan ditandai perlu revisi dan catatan ini akan dikirim ke vendor.`,
             icon: "warning",
             confirmText: "Ya, kirim",
-            confirmColor: "#ef4444", // red-500
-        }); // 1. Swal: minta izin dulu
+            confirmColor: "#ef4444",
+        }); 
         if (!konfirmasi) return;
 
         startTransition(async () => {
-            tampilkanLoading("Mengirim catatan revisi..."); // Swal: loading
+            tampilkanLoading("Mengirim catatan revisi...");
             try {
                 await revisiProduk(detailItem.produk_id, revisiText);
                 Swal.close();
@@ -162,11 +159,11 @@ export default function ProductManagement({
                             : p
                     )
                 );
-                toast.success("Catatan revisi berhasil dikirim"); // 2. toast: status sukses
+                toast.success("Catatan revisi berhasil dikirim");
                 closeDetail();
             } catch {
                 Swal.close();
-                toast.error("Gagal mengirim revisi"); // 2. toast: status gagal
+                toast.error("Gagal mengirim revisi"); 
             }
         });
     };

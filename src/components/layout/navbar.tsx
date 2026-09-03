@@ -17,7 +17,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"; // sudah diimport, pastikan tidak dobel
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { KeranjangItem } from "@/types/interfaces/keranjang";
 
@@ -55,7 +55,6 @@ export default function Navbar() {
       const data: { notifikasi: NotifikasiItem[] } = await res.json();
       setNotifikasiList(data.notifikasi ?? []);
     } catch {
-      // biarkan notifikasiList tetap seperti sebelumnya jika gagal fetch
     }
   }, []);
 
@@ -70,7 +69,6 @@ export default function Navbar() {
       );
       setCartCount(total);
     } catch {
-      // biarkan cartCount tetap seperti sebelumnya jika gagal fetch
     }
   }, []);
 
@@ -81,7 +79,6 @@ export default function Navbar() {
       const data: unknown[] = await res.json();
       setFavoriteCount(data.length);
     } catch {
-      // biarkan favoriteCount tetap seperti sebelumnya jika gagal fetch
     }
   }, []);
 
@@ -92,7 +89,6 @@ export default function Navbar() {
       const data: { produk: unknown[]; jasa: unknown[] } = await res.json();
       setPesananCount((data.produk?.length ?? 0) + (data.jasa?.length ?? 0));
     } catch {
-      // biarkan pesananCount tetap seperti sebelumnya jika gagal fetch
     }
   }, []);
 
@@ -105,13 +101,12 @@ export default function Navbar() {
     fetchPesananCount();
     fetchNotifikasi();
 
-    // Optimistic: kalau event bawa detail angka baru, langsung pakai—tanpa fetch ulang
     const handleCartUpdate = (e: Event) => {
       const custom = e as CustomEvent<{ count?: number }>;
       if (typeof custom.detail?.count === "number") {
         setCartCount(custom.detail.count);
       } else {
-        fetchCartCount(); // fallback kalau event lama tanpa detail
+        fetchCartCount();
       }
     };
 
@@ -131,14 +126,13 @@ export default function Navbar() {
       } else {
         fetchPesananCount();
       }
-      fetchNotifikasi(); // notifikasi tetap fetch karena isinya list, bukan cuma angka
+      fetchNotifikasi();
     };
 
     window.addEventListener("cart-updated", handleCartUpdate);
     window.addEventListener("favorite-updated", handleFavoriteUpdate);
     window.addEventListener("pesanan-updated", handlePesananUpdate);
 
-    // Sinkron ulang saat tab kembali aktif (menangkap perubahan dari tab lain)
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         fetchCartCount();
@@ -241,7 +235,16 @@ export default function Navbar() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-gray-800 truncate">{n.judul}</p>
-                                <p className={`text-xs truncate ${n.jenis === "jasa_bayar" ? "text-yellow-600" : "text-gray-500"}`}>
+                                <p
+                                  className={`text-xs truncate ${n.jenis === "jasa_bayar"
+                                    ? "text-yellow-600"
+                                    : n.jenis === "refund_disetujui"
+                                      ? "text-green-600"
+                                      : n.jenis === "refund_ditolak"
+                                        ? "text-red-500"
+                                        : "text-gray-500"
+                                    }`}
+                                >
                                   {n.pesan}
                                 </p>
                                 <p className="text-[10px] text-gray-400 mt-0.5">{n.tanggal}</p>
@@ -323,8 +326,8 @@ export default function Navbar() {
                           <Heart size={16} /> Favorite
                         </span>
                         {displayedFavoriteCount > 0 && (
-                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
-                            {displayedFavoriteCount > 99 ? "99+" : displayedFavoriteCount}
+                          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 aspect-square items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                            {displayedNotifikasiCount > 99 ? "99+" : displayedNotifikasiCount}
                           </span>
                         )}
                       </Link>

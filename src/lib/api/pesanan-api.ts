@@ -61,7 +61,7 @@ export async function buatPesananJasa(
         throw new Error(errData.message ?? "Gagal membuat pesanan jasa");
     }
     const result = await res.json() as { orderId: string; kodeInvoice: string; snapToken: string };
-    notifyPesananUpdated(1); // pesanan baru dibuat
+    notifyPesananUpdated(1);
     return result;
 }
 

@@ -2,6 +2,11 @@ import { redirect } from "next/navigation";
 import { getCheckoutItems } from "@/lib/getdata/get-checkout-items";
 import { getAlamatList } from "@/lib/getdata/get-alamat-list";
 import CheckoutClient from "./checkout-client";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Checkout",
+};
 
 interface CheckoutPageProps {
     searchParams: Promise<{ items?: string }>;

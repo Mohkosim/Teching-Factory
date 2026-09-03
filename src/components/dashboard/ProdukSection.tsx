@@ -3,12 +3,20 @@ import { ArrowRight } from "lucide-react";
 import ProdukCard from "@/components/produkcard";
 import { getProdukPublicList } from "@/lib/data/produk-public";
 
+const JUMLAH_TAMPIL = 4;
+
+const JUMLAH_FETCH = 12;
+
 export default async function ProdukSection() {
-    const { data: produkTerbaru } = await getProdukPublicList({
+    const { data: produkFetched } = await getProdukPublicList({
         sort: "terbaru",
         page: 1,
-        perPage: 4,
+        perPage: JUMLAH_FETCH,
     });
+
+    const produkTerbaru = produkFetched
+        .filter((p) => p.stok > 0)
+        .slice(0, JUMLAH_TAMPIL);
 
     return (
         <section className="py-10 bg-sky-100">
@@ -32,7 +40,7 @@ export default async function ProdukSection() {
                 {produkTerbaru.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {produkTerbaru.map((p) => (
-                            <ProdukCard key={p.id} product={p} /> 
+                            <ProdukCard key={p.id} product={p} />
                         ))}
                     </div>
                 )}

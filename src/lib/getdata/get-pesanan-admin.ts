@@ -69,10 +69,17 @@ export async function setujuiRefundAction(
     refund_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
-    await prisma.refundRequest.update({
+    const refund = await prisma.refundRequest.update({
         where: { refund_id },
         data: { status: "Disetujui" },
+        select: { order_id: true },
     });
+
+    await prisma.order.update({        
+        where: { order_id: refund.order_id },
+        data: { status_order: "Dibatalkan" },
+    });
+
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
 }
 

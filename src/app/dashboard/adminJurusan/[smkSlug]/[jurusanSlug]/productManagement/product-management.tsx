@@ -27,6 +27,7 @@ import PaginationIconsOnly from "@/components/pagination/page";
 import { produkSchema, type ProdukForm } from "@/lib/validations/produk";
 import { createProduk, updateProduk, deleteProduk, uploadProdukImages } from "@/lib/api/produk-api";
 import type { ProdukItem } from "@/types/interfaces/produk";
+import { formatRupiah, formatAngka } from "@/lib/utils/format";
 
 const emptyForm: ProdukForm = {
     nama_produk: "",
@@ -39,10 +40,6 @@ const emptyForm: ProdukForm = {
 };
 
 const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
-
-function formatRupiah(value: number) {
-    return "Rp " + value.toLocaleString("id-ID");
-}
 
 function isKontenBerubah(
     original: ProdukItem,
@@ -141,7 +138,6 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                 if (stokBaru <= 0) {
                     next.status = "Habis";
                 } else if (prev.stok <= 0 && prev.status === "Habis") {
-                    // dulu 0 & auto-Habis, sekarang diisi lagi → balikin ke Tersedia
                     next.status = "Tersedia";
                 }
             }
@@ -668,9 +664,12 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                         Rp
                                     </span>
                                     <Input
-                                        type="number"
-                                        value={formData.harga === 0 ? "" : formData.harga}
-                                        onChange={(e) => handleFormChange("harga", e.target.value === "" ? 0 : Number(e.target.value))}
+                                        value={formData.harga === 0 ? "" : formatAngka(formData.harga)}
+                                        onChange={(e) => {
+                                            const digits = e.target.value.replace(/\D/g, "");
+                                            handleFormChange("harga", digits === "" ? 0 : Number(digits));
+                                        }}
+                                        inputMode="numeric"
                                         placeholder="0"
                                         className="bg-gray-50 border-gray-200 rounded-lg pl-9"
                                     />

@@ -40,7 +40,6 @@ export async function getJasaListByJurusan({
   type,
   search,
 }: GetJasaListArgs): Promise<JasaListResult> {
-  // type "produk" berarti section Jasa tidak perlu ditampilkan sama sekali
   if (type === "produk") {
     return { data: [], totalCount: 0, totalPages: 1, currentPage: page };
   }

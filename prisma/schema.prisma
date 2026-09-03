@@ -56,6 +56,7 @@ enum StatusOrder {
   Menunggu
   Diproses
   Dikirim
+  Diterima
   Selesai
   Dibatalkan
 }
@@ -153,7 +154,6 @@ model SMK {
   kota_id           Int?  
   kode_pos          String?
   provinsi          String
-  map_link          String?
   tahun_berdiri     Int
   status_verifikasi Boolean @default(false)
 
@@ -475,6 +475,10 @@ model Pengiriman {
   ongkir        Int
   nomor_resi String?
   estimasi_tiba String?
+  status_resi      String?
+  cek_terakhir_at  DateTime?
+  diterima_at      DateTime?
+  auto_confirmed   Boolean   @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

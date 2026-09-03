@@ -93,11 +93,11 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         }
 
         startTransition(async () => {
-            tampilkanLoading("Menyimpan perubahan profil..."); // Swal: loading selama request
+            tampilkanLoading("Menyimpan perubahan profil...");
             try {
                 let imgUrl: string | undefined = undefined;
 
-                // Kalau ada foto baru, upload dulu ke disk, dapat URL pendek
+     
                 if (avatarBase64 !== null) {
                     imgUrl = await uploadAvatar(avatarBase64);
                 }
@@ -113,7 +113,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     setPasswordForm({ passwordLama: "", passwordBaru: "", konfirmasiPassword: "" });
                 }
 
-                // Kirim URL pendek ke token — bukan base64
                 await update({
                     name: profileForm.nama,
                     email: profileForm.email,

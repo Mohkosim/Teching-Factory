@@ -2,6 +2,11 @@ import { getGaleriList } from "@/lib/getdata/get-galeri";
 import { GaleriSortOption, GaleriKategoriFilter } from "@/types/interfaces/galeri";
 import GaleriHero from "./GaleriHero";
 import GaleriListClient from "./GaleriListClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Galeri",
+};
 
 interface GaleriPageProps {
   searchParams: Promise<{

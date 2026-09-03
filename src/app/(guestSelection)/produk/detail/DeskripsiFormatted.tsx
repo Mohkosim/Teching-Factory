@@ -1,10 +1,6 @@
 function formatDeskripsi(teks: string): { label?: string; isi: string }[] {
   if (!teks?.trim()) return [];
 
-  // Heuristik: deskripsi produk sering ditulis tanpa baris baru, tapi biasanya
-  // memuat pola "Label Singkat:" (1-4 kata berawalan huruf besar) sebagai penanda
-  // bagian baru — misalnya "Keunggulan Produk:", "Saran Perawatan:". Kita pecah
-  // teks berdasarkan pola itu supaya lebih terbaca, tanpa mengubah data aslinya.
   const labelPattern = /(?:^|\s)((?:[A-ZÀ-Ý][\wÀ-ÿ]*(?:\s&\s|\s)){0,3}[A-ZÀ-Ý][\wÀ-ÿ]*)\s*:\s+/g;
 
   const posisiLabel: { index: number; label: string; startIsi: number }[] = [];
@@ -17,7 +13,6 @@ function formatDeskripsi(teks: string): { label?: string; isi: string }[] {
     });
   }
 
-  // Kalau tidak ada pola "Label:" sama sekali, tampilkan apa adanya sebagai satu paragraf.
   if (posisiLabel.length === 0) {
     return [{ isi: teks.trim() }];
   }

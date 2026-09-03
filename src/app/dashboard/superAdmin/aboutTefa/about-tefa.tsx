@@ -43,7 +43,7 @@ export default function AboutTefa({
     const handleSave = async () => {
         if (saving) return;
         setSaving(true);
-        tampilkanLoading("Menyimpan data..."); // Swal: loading selama request
+        tampilkanLoading("Menyimpan data...");
         try {
             const updated = await saveTentangTefa({
                 deskripsi: form.description,
@@ -80,16 +80,16 @@ export default function AboutTefa({
     };
 
     const handleRemoveExistingPhoto = async (fotoId: string) => {
-        const konfirmasi = await confirmHapus("foto ini"); // 1. Swal: minta izin dulu
+        const konfirmasi = await confirmHapus("foto ini"); 
         if (!konfirmasi) return;
 
         const prevPhotos = [...existingPhotos];
         setExistingPhotos((prev) => prev.filter((p) => p.foto_id !== fotoId));
         try {
             await deleteTentangFoto(fotoId);
-            toast.success("Foto dihapus"); // 2. toast: status sukses
+            toast.success("Foto dihapus");
         } catch {
-            toast.error("Gagal menghapus foto"); // 2. toast: status gagal
+            toast.error("Gagal menghapus foto");
             setExistingPhotos(prevPhotos);
         }
     };

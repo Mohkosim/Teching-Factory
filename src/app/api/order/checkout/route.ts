@@ -29,8 +29,6 @@ export async function POST(req: Request) {
     try {
         const { orderIds, totalKeseluruhan } = await prisma.$transaction(async (tx) => {
             // ==== Validasi stok SEMUA produk dulu, sebelum ada order yang dibuat ====
-            // Supaya kalau satu produk saja stoknya kurang, seluruh checkout batal
-            // (tidak ada order "setengah jalan" yang kebuat).
             for (const grup of body.toko) {
                 for (const p of grup.produk) {
                     const barang = await tx.barang.findFirst({ where: { produk_id: p.produkId } });
@@ -72,9 +70,6 @@ export async function POST(req: Request) {
                                 estimasi_tiba: grup.jasa.estimasi,
                             },
                         },
-                        // Transaksi TIDAK dibuat di sini — baru dicatat lewat webhook
-                        // /api/midtrans/notification saat Midtrans konfirmasi settlement,
-                        // supaya tidak ada transaksi "hantu" untuk pembayaran yang gagal/batal.
                     },
                 });
 
@@ -104,7 +99,7 @@ export async function POST(req: Request) {
                         order: {
                             user_id: session.user.id,
                             status_order: "Menunggu",
-                            pengiriman: null, // ciri khas cart order (belum checkout)
+                            pengiriman: null,
                         },
                     },
                     select: { order_detail_id: true, order_id: true },

@@ -59,7 +59,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
     await prisma.alamat.delete({ where: { alamat_id: id } });
 
-    // Kalau yang dihapus adalah alamat utama, jadikan alamat lain (terbaru) sebagai utama
     if (existing.isUtama) {
         const next = await prisma.alamat.findFirst({
             where: { user_id: session.user.id },

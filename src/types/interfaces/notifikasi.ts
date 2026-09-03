@@ -1,4 +1,9 @@
-export type NotifikasiJenis = "produk_timeline" | "jasa_timeline" | "jasa_bayar";
+export type NotifikasiJenis =
+    | "produk_timeline"
+    | "jasa_timeline"
+    | "jasa_bayar"
+    | "refund_disetujui"
+    | "refund_ditolak";
 
 export interface NotifikasiItem {
     id: string;

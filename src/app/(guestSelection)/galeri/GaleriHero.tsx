@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Camera, Image as ImageIcon, Trophy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -44,6 +44,20 @@ export default function GaleriHero({
     <section className="relative overflow-hidden bg-linear-to-b from-sky-500 to-sky-600 px-4 py-14">
       <div className="absolute inset-0 bg-[url('/images/galeri-bg.jpg')] bg-cover bg-right opacity-30 mix-blend-luminosity" />
       <div className="absolute inset-0 bg-linear-to-b from-sky-500 to-sky-600" />
+
+      <div className="pointer-events-none absolute right-10 top-1/2 hidden -translate-y-1/2 lg:block">
+        <div className="relative h-56 w-56">
+          <div className="absolute left-0 top-4 flex h-20 w-20 -rotate-6 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+            <Camera className="h-9 w-9 text-white" strokeWidth={1.5} />
+          </div>
+          <div className="absolute right-0 top-0 flex h-24 w-24 rotate-6 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+            <ImageIcon className="h-10 w-10 text-white" strokeWidth={1.5} />
+          </div>
+          <div className="absolute bottom-2 left-12 flex h-20 w-20 rotate-3 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+            <Trophy className="h-9 w-9 text-white" strokeWidth={1.5} />
+          </div>
+        </div>
+      </div>
 
       <div className="relative mx-auto max-w-6xl">
         <h1 className="text-3xl md:text-5xl font-extrabold text-white">

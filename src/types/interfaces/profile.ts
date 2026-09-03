@@ -9,12 +9,11 @@ export interface ProfileData {
     kepala_sekolah?: string | null;
     deskripsi_smk?: string | null;
     alamat?: string | null;
-    kecamatan?: string | null;   // <-- BARU
+    kecamatan?: string | null;
     kota?: string | null;
-    kota_id?: number | null;     // <-- BARU: origin RajaOngkir
-    kode_pos?: string | null;    // <-- BARU
+    kota_id?: number | null; 
+    kode_pos?: string | null; 
     provinsi?: string | null;
-    map_link?: string | null;
     tahun_berdiri?: number | null;
 
     // Khusus AdminJurusan

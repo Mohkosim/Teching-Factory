@@ -1,6 +1,11 @@
 import PartnerHero from "./PartnerHero";
 import KontakForm from "./KontakForm";
 import LokasiKami from "./LokasiKami";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Kontak",
+};
 
 export default function KontakPage() {
   return (

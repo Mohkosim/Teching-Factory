@@ -42,14 +42,12 @@ export function ContactsInTable() {
     setViewItem(kontak);
 
     if (!kontak.isRead) {
-      // Update tampilan lokal biar langsung kelihatan terbaca
       setData((prev) =>
         prev.map((k) => (k.pesan_id === kontak.pesan_id ? { ...k, isRead: true } : k))
       );
       try {
         await updatePesanById(kontak.pesan_id, { isRead: true });
       } catch {
-        // silent, non-critical
       }
     }
   }

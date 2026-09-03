@@ -1,6 +1,11 @@
 import { getJasaPublicList } from "@/lib/data/jasa-public";
 import { getFavoritIds } from "@/lib/data/favorit-public";
 import JasaPageClient from "./JasaPageClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Jasa",
+};
 
 export default async function JasaPage() {
   const jasaList = await getJasaPublicList();

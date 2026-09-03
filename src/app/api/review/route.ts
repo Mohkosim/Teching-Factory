@@ -23,9 +23,6 @@ export async function POST(req: Request) {
     const komentar = formData.get("komentar")?.toString() ?? "";
     const fotoFiles = formData.getAll("foto").filter((f): f is File => f instanceof File && f.size > 0);
 
-    // ID foto lama yang MASIH mau dipertahankan user (sisanya akan dihapus).
-    // Kalau field ini tidak dikirim sama sekali (mis. dari client lama), anggap
-    // "pertahankan semua foto lama" — tidak ada yang dihapus.
     const keepFotoIdsRaw = formData.get("keepFotoIds");
     const keepFotoIds: string[] | null = keepFotoIdsRaw ? JSON.parse(keepFotoIdsRaw.toString()) : null;
 
@@ -33,8 +30,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Data tidak lengkap" }, { status: 400 });
     }
 
-    // Pastikan order_detail ini memang milik order milik user yang login —
-    // mencegah orang review pesanan orang lain lewat orderDetailId sembarangan.
     const orderDetail = await prisma.order_Detail.findUnique({
         where: { order_detail_id: orderDetailId },
         include: { order: { select: { user_id: true } } },
@@ -88,7 +83,6 @@ export async function POST(req: Request) {
                         const filePath = path.join(process.cwd(), "public", f.url);
                         await unlink(filePath);
                     } catch {
-                        // File mungkin sudah tidak ada / gagal dihapus — tidak fatal, lanjut saja.
                     }
                 })
             );

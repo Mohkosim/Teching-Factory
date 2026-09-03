@@ -22,7 +22,7 @@ export interface ProdukItem {
     thumbnail: string;
     jumlah: number;
     statusBayar: "Dibayar" | "Belum Dibayar";
-    statusKirim: "Diterima" | "Sedang Dikirim" | "Diproses";
+    statusKirim: "Diterima" | "Selesai" | "Sedang Dikirim" | "Diproses";
     tanggal: string;
     timelineStep: 0 | 1 | 2 | 3;
     biayaOngkir: number;
@@ -30,6 +30,8 @@ export interface ProdukItem {
     ulasan?: string;
     fotoUlasan?: FotoUlasan[];
     refund: RefundInfo | null;
+    namaSmk: string;
+    namaJurusan: string;
     pembeli: {
         nama: string;
         nomor: string;
@@ -40,7 +42,10 @@ export interface ProdukItem {
         kurir: string;
         nomorResi: string;
         estimasi: string;
-    };
+        statusResi?: string;
+        cekTerakhirAt?: string;
+        autoConfirmed?: boolean;
+    }
 }
 
 export interface JasaItem {
@@ -59,6 +64,8 @@ export interface JasaItem {
     jumlah: number;
     timelineStep: 0 | 1 | 2 | 3;
     noWhatsapp?: string;
+    namaSmk: string;
+    namaJurusan: string;
     pembeli: {
         nama: string;
         nomor: string;
@@ -78,10 +85,10 @@ export interface JasaItem {
 export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Ditolak";
 
 export interface RefundInfo {
-  id: string;
-  status: StatusRefund;
-  alasan: string;
-  deskripsi: string;
-  catatanAdmin?: string | null;
-  bukti: { id: string; url: string; tipe: "Foto" | "Video" }[];
+    id: string;
+    status: StatusRefund;
+    alasan: string;
+    deskripsi: string;
+    catatanAdmin?: string | null;
+    bukti: { id: string; url: string; tipe: "Foto" | "Video" }[];
 }

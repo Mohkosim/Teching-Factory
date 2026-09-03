@@ -21,7 +21,6 @@ export default function Sorting({ value, onApply }: SortingProps) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<SortOption>(value);
 
-    // Reset draft setiap kali popover dibuka
     const handleOpenChange = (newOpen: boolean) => {
         setOpen(newOpen);
         if (newOpen) {

@@ -32,23 +32,11 @@ import {
     updateJasa,
     deleteJasa,
     uploadJasaImages,
-    // TODO: tambahkan fungsi ini di @/lib/api/jasa-api.ts, contoh implementasi:
-    //
-    // export async function uploadJasaPortofolio(files: File[]): Promise<string[]> {
-    //   const formData = new FormData();
-    //   files.forEach((f) => formData.append("files", f));
-    //   const res = await fetch("/api/upload/portofolio", { method: "POST", body: formData });
-    //   if (!res.ok) throw new Error("Gagal upload portofolio");
-    //   const data = await res.json();
-    //   return data.urls; // array of file_path/url
-    // }
     uploadJasaPortofolio,
 } from "@/lib/api/jasa-api";
 import type { JasaItem } from "@/types/interfaces/jasa";
+import { formatRupiah, formatAngka } from "@/lib/utils/format";
 
-// TODO: tambahkan tipe ini di @/types/interfaces/jasa.ts, dan tambahkan
-// field `portofolio: PortofolioItem[]` ke interface JasaItem, sesuai model
-// Prisma `Portofolio { portofolio_id, jasa_id, file_path, deskripsi }`
 export interface PortofolioItem {
     portofolio_id: string;
     file_path: string;
@@ -69,9 +57,6 @@ const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
 const MAX_PDF_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_PORTOFOLIO_FILES = 10;
 
-function formatRupiah(value: number) {
-    return "Rp " + value.toLocaleString("id-ID");
-}
 
 function namaFileDariUrl(url: string) {
     try {
@@ -320,7 +305,6 @@ export default function ServiceManagement({
                 }
                 const fotos = [...existingFotos, ...uploadedUrls];
 
-                // --- Upload PDF portofolio baru, lalu gabungkan dengan yang lama ---
                 let uploadedPortofolioUrls: string[] = [];
                 if (newPortofolio.length > 0) {
                     uploadedPortofolioUrls = await uploadJasaPortofolio(
@@ -346,8 +330,6 @@ export default function ServiceManagement({
                 }
 
                 if (formMode === "create") {
-                    // TODO: pastikan createJasa menerima field `portofolio` dan
-                    // melakukan nested create ke tabel Portofolio (jasa_id = jasa yang baru dibuat)
                     const res = await createJasa({ ...parsed.data, portofolio });
                     const newItem: JasaItem = {
                         jasa_id: res.data.jasa[0].jasa_id,
@@ -389,9 +371,7 @@ export default function ServiceManagement({
                         ? "Pending"
                         : original?.status_publikasi ?? "Pending";
 
-                    // TODO: pastikan updateJasa menerima field `portofolio` dan
-                    // melakukan sinkronisasi (hapus yang tidak ada lagi, create yang baru)
-                    // di tabel Portofolio milik jasa ini.
+           
                     await updateJasa(editingId, {
                         ...parsed.data,
                         portofolio,
@@ -894,9 +874,13 @@ export default function ServiceManagement({
                                         Rp
                                     </span>
                                     <Input
-                                        type="number"
-                                        value={formData.harga === 0 ? "" : formData.harga}
-                                        onChange={(e) => handleFormChange("harga", e.target.value === "" ? 0 : Number(e.target.value))}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={formData.harga === 0 ? "" : formatAngka(formData.harga)}
+                                        onChange={(e) => {
+                                            const digitsOnly = e.target.value.replace(/\D/g, "");
+                                            handleFormChange("harga", digitsOnly === "" ? 0 : Number(digitsOnly));
+                                        }}
                                         placeholder="0"
                                         className="bg-gray-50 border-gray-200 rounded-lg pl-9"
                                     />

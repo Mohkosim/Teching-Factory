@@ -62,16 +62,13 @@ export async function proxy(req: NextRequest) {
     }
 
     if (role === "AdminSMK") {
-      // 🛡️ Safety net: kalau smkSlug entah kenapa masih kosong (mis. token
-      // JWT lama/rusak), JANGAN redirect ke path yang mengandung "undefined"
-      // — itu penyebab ERR_TOO_MANY_REDIRECTS sebelumnya. Arahkan ke
-      // /unauthorized supaya loop tidak terjadi; user tinggal logout/login ulang.
+
       if (!smkSlug) {
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
 
       const segments = pathname.split("/");
-      const urlSlug = segments[3]; // undefined kalau path-nya persis "/dashboard/adminSMK"
+      const urlSlug = segments[3];
 
       // Buka /dashboard/adminSMK tanpa slug -> arahkan ke slug miliknya
       if (!urlSlug) {

@@ -34,8 +34,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { searchOngkirDestination, type OngkirDestination } from "@/lib/api/ongkir-api";
 
-// Tetap di module scope, bukan di dalam komponen — kalau di dalam, akan
-// dianggap komponen baru tiap render dan bikin peta remount.
 const AddressMapPicker = dynamic(
   () => import("@/components/AddressMapPicker"),
   { ssr: false, loading: () => <div className="h-64 rounded-xl bg-gray-100 animate-pulse" /> }
@@ -336,6 +334,7 @@ export default function AlamatClient({
         </section>
       </div>
 
+      {/* Tambah alamat dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100">

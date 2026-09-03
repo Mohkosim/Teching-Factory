@@ -3,6 +3,11 @@ import SMKDetailHero from "./SMKDetailHero";
 import JurusanListClient from "./JurusanListClient";
 import LokasiMap from "./LokasiMap";
 import { getSMKDetail } from "@/lib/getdata/getSMKDetail";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Detail SMK",
+};
 
 export default async function SMKDetailPage({
   searchParams,

@@ -14,7 +14,7 @@ export const getProfilePath = ({ role, smkSlug, jurusanSlug }: GetProfilePathPar
         case "AdminSMK":
             return smkSlug
                 ? `/dashboard/adminSMK/${smkSlug}/profile`
-                : "/dashboard/adminSMK"; // fallback kalau slug belum ada
+                : "/dashboard/adminSMK";
 
         case "AdminJurusan":
             return smkSlug && jurusanSlug

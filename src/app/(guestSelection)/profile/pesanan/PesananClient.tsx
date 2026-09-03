@@ -1,20 +1,22 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
-import { Search, ChevronDown, Star, Wallet, PackageCheck, Camera, Check, Undo2, Video as VideoIcon } from "lucide-react";
+import { Search, ChevronDown, Star, Wallet, PackageCheck, Camera, Check, MapPin, Loader2, Undo2, Video as VideoIcon, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import ProfileSidebar from "@/components/profile/ProfileSidebar";
 import { tambahPembayaran, simpanRating } from "@/lib/api/pesanan-api";
-import { konfirmasiPesananDiterimaAction } from "@/lib/getdata/get-pesanan";
+import { konfirmasiPesananDiterimaAction, konfirmasiSelesaiPesananAction } from "@/lib/getdata/get-pesanan";
 import { useMidtransSnap } from "@/lib/hooks/useMidtransSnap";
 import type { ProdukItem, JasaItem, FotoUlasan, StatusRefund } from "@/types/interfaces/pesanan";
 import { ajukanRefund } from "@/lib/api/refund";
+import { lacakResiOngkir, type OngkirTrackResult } from "@/lib/api/ongkir-api";
+import { mapKodeKurir } from "@/lib/utils/kurir-map";
 import {
     Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
@@ -25,16 +27,21 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatRupiah, formatNominalInput } from "@/lib/utils/format";
+
+
 function waLinkPesanan(item: JasaItem) {
     if (!item.noWhatsapp) return undefined;
     const bersih = item.noWhatsapp.replace(/[^0-9]/g, "");
     const target = bersih.startsWith("0") ? `62${bersih.slice(1)}` : bersih;
     const pesan = encodeURIComponent(`Halo, saya ingin menanyakan progres pesanan jasa "${item.nama}".`);
     return `https://wa.me/${target}?text=${pesan}`;
-}
-
-function formatRupiah(value: number) {
-    return `Rp ${value.toLocaleString("id-ID")}`;
 }
 
 interface RatingQueueItem {
@@ -114,6 +121,14 @@ export default function PesananClient({
     const [pembayaranTarget, setPembayaranTarget] = useState<JasaItem | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [filterStatus, setFilterStatus] = useState("Semua");
+
+    const handleTabChange = (tab: "produk" | "jasa") => {
+        setActiveTab(tab);
+        setFilterStatus("Semua");
+    };
+
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -212,7 +227,30 @@ export default function PesananClient({
                 await konfirmasiPesananDiterimaAction(orderId);
                 router.refresh();
                 Swal.close();
-                toast.success("Pesanan ditandai diterima");
+                toast.success("Pesanan diterima. Konfirmasi selesai.");
+                setSelectedOrder(null);
+            } catch {
+                Swal.close();
+                toast.error("Gagal mengonfirmasi pesanan diterima");
+            }
+        });
+    };
+
+    const handleKonfirmasiSelesaiProduk = (items: ProdukItem[]) => {
+        const orderId = items[0].orderId;
+        setProdukData((prev) =>
+            prev.map((p) => (p.orderId === orderId ? { ...p, statusKirim: "Selesai" } : p))
+        );
+        setSelectedOrder((prev) =>
+            prev ? prev.map((p) => (p.orderId === orderId ? { ...p, statusKirim: "Selesai" } : p)) : prev
+        );
+        startConfirmTransition(async () => {
+            tampilkanLoading("Mengonfirmasi pesanan selesai...");
+            try {
+                await konfirmasiSelesaiPesananAction(orderId);
+                router.refresh();
+                Swal.close();
+                toast.success("Pesanan ditandai selesai");
                 setSelectedOrder(null);
                 setRatingQueue({
                     kind: "produk",
@@ -226,9 +264,9 @@ export default function PesananClient({
                         initialFotoUlasan: i.fotoUlasan,
                     })),
                 });
-            } catch {
+            } catch (err) {
                 Swal.close();
-                toast.error("Gagal mengonfirmasi pesanan diterima");
+                toast.error(err instanceof Error ? err.message : "Gagal mengonfirmasi pesanan selesai");
             }
         });
     };
@@ -300,14 +338,14 @@ export default function PesananClient({
     const handleBeliLagi = (item: ProdukItem) => router.push(`/produk/detail?id=${item.produkId}`);
 
     const searchLower = search.trim().toLowerCase();
-    const filteredProduk = searchLower
-        ? produkData.filter((p) => p.nama.toLowerCase().includes(searchLower))
-        : produkData;
+    const filteredProduk = produkData.filter(
+        (p) => (!searchLower || p.nama.toLowerCase().includes(searchLower)) && matchFilterProduk(p, filterStatus)
+    );
     const orderGroups = groupProdukByInvoice(filteredProduk);
 
-    const filteredJasa = searchLower
-        ? jasaData.filter((j) => j.nama.toLowerCase().includes(searchLower))
-        : jasaData;
+    const filteredJasa = jasaData.filter(
+        (j) => (!searchLower || j.nama.toLowerCase().includes(searchLower)) && matchFilterJasa(j, filterStatus)
+    );
 
     const [refundTarget, setRefundTarget] = useState<{ orderId: string; nama: string } | null>(null);
 
@@ -324,6 +362,81 @@ export default function PesananClient({
             toast.error(err instanceof Error ? err.message : "Gagal mengajukan refund");
         }
     };
+
+    const handleUnduhInvoiceProduk = async (items: ProdukItem[]) => {
+        tampilkanLoading("Menyiapkan invoice...");
+        try {
+            const [{ pdf }, { InvoiceProdukDocument }] = await Promise.all([
+                import("@react-pdf/renderer"),
+                import("@/lib/pdf/InvoicePDF"),
+            ]);
+            const blob = await pdf(
+                <InvoiceProdukDocument
+                    items={items}
+                    namaToko={items[0].namaSmk}
+                    namaJurusan={items[0].namaJurusan}
+                />
+            ).toBlob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `invoice-${items[0].kodeInvoice}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            Swal.close();
+        } catch {
+            Swal.close();
+            toast.error("Gagal membuat invoice");
+        }
+    };
+
+    const handleUnduhInvoiceJasa = async (item: JasaItem) => {
+        tampilkanLoading("Menyiapkan invoice...");
+        try {
+            const [{ pdf }, { InvoiceJasaDocument }] = await Promise.all([
+                import("@react-pdf/renderer"),
+                import("@/lib/pdf/InvoicePDF"),
+            ]);
+            const blob = await pdf(
+                <InvoiceJasaDocument
+                    item={item}
+                    namaSmk={item.namaSmk}
+                    namaJurusan={item.namaJurusan}
+                />
+            ).toBlob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `invoice-${item.kodeInvoice}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            Swal.close();
+        } catch {
+            Swal.close();
+            toast.error("Gagal membuat invoice");
+        }
+    };
+
+    const FILTER_OPTIONS_PRODUK = ["Semua", "Belum Dibayar", "Diproses", "Sedang Dikirim", "Diterima", "Selesai"];
+    const FILTER_OPTIONS_JASA = ["Semua", "Cicilan", "Lunas", "Selesai"];
+
+    function matchFilterJasa(item: JasaItem, filter: string) {
+        if (filter === "Semua") return true;
+        if (filter === "Selesai") return item.timelineStep === 3;
+        if (filter === "Cicil") return item.status === "berjalan" && item.timelineStep !== 3;
+        if (filter === "Lunas") return item.status === "lunas" && item.timelineStep !== 3;
+        return false;
+    }
+
+    function matchFilterProduk(item: ProdukItem, filter: string) {
+        if (filter === "Semua") return true;
+        if (filter === "Belum Dibayar") return item.statusBayar !== "Dibayar";
+        if (filter === "Diproses" || filter === "Sedang Dikirim" || filter === "Diterima" || filter === "Selesai") {
+            return item.statusKirim === filter;
+        }
+        return false;
+    }
+
 
     return (
         <div className="min-h-screen py-6 px-4 md:px-8">
@@ -348,13 +461,13 @@ export default function PesananClient({
 
                     <div className="flex items-center gap-6 border-b border-gray-200 mb-5">
                         <button
-                            onClick={() => setActiveTab("produk")}
+                            onClick={() => handleTabChange("produk")}
                             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "produk" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                         >
                             Produk
                         </button>
                         <button
-                            onClick={() => setActiveTab("jasa")}
+                            onClick={() => handleTabChange("jasa")}
                             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "jasa" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
                         >
                             Jasa
@@ -372,13 +485,28 @@ export default function PesananClient({
                             />
                         </div>
                         <div className="hidden md:block w-px h-8 bg-gray-200" />
-                        <button className="flex items-center gap-2 text-sm text-gray-600">
-                            <span className="flex flex-col items-start leading-tight">
-                                <span className="text-xs text-gray-400">Filter</span>
-                                <span className="font-medium text-gray-700">Semua</span>
-                            </span>
-                            <ChevronDown className="w-4 h-4" />
-                        </button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="flex items-center gap-2 text-sm text-gray-600 outline-none">
+                                    <span className="flex flex-col items-start leading-tight">
+                                        <span className="text-xs text-gray-400">Filter</span>
+                                        <span className="font-medium text-gray-700">{filterStatus}</span>
+                                    </span>
+                                    <ChevronDown className="w-4 h-4" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                {(activeTab === "produk" ? FILTER_OPTIONS_PRODUK : FILTER_OPTIONS_JASA).map((opt) => (
+                                    <DropdownMenuItem
+                                        key={opt}
+                                        onClick={() => setFilterStatus(opt)}
+                                        className={filterStatus === opt ? "text-blue-600 font-medium" : ""}
+                                    >
+                                        {opt}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
 
                     {activeTab === "produk" ? (
@@ -394,6 +522,7 @@ export default function PesananClient({
                                         onBeliLagi={handleBeliLagi}
                                         onBeriNilai={handleBeriNilaiProduk}
                                         onKonfirmasiDiterima={handleKonfirmasiDiterimaProduk}
+                                        onKonfirmasiSelesai={handleKonfirmasiSelesaiProduk}
                                         onAjukanRefund={(orderId, nama) => setRefundTarget({ orderId, nama })}
                                         isConfirmPending={isConfirmPending}
                                     />
@@ -419,6 +548,8 @@ export default function PesananClient({
                     onClose={() => setSelectedOrder(null)}
                     onKonfirmasiDiterima={handleKonfirmasiDiterimaProduk}
                     isConfirmPending={isConfirmPending}
+                    onKonfirmasiSelesai={handleKonfirmasiSelesaiProduk}
+                    onUnduhInvoice={handleUnduhInvoiceProduk}
                 />
             )}
 
@@ -429,6 +560,7 @@ export default function PesananClient({
                     onTambahPembayaran={(item) => { setSelectedJasaDetail(null); setPembayaranTarget(item); }}
                     onKonfirmasiSelesai={handleKonfirmasiSelesaiJasa}
                     isConfirmPending={isConfirmPending}
+                    onUnduhInvoice={handleUnduhInvoiceJasa}
                 />
             )}
 
@@ -461,13 +593,14 @@ export default function PesananClient({
 }
 
 function OrderCard({
-    items, onLihatDetailToko, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onAjukanRefund, isConfirmPending,
+    items, onLihatDetailToko, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onKonfirmasiSelesai, onAjukanRefund, isConfirmPending, // ⬅️ tambah onKonfirmasiSelesai
 }: {
     items: ProdukItem[];
     onLihatDetailToko: (items: ProdukItem[]) => void;
     onBeliLagi: (item: ProdukItem) => void;
     onBeriNilai: (item: ProdukItem) => void;
     onKonfirmasiDiterima: (items: ProdukItem[]) => void;
+    onKonfirmasiSelesai: (items: ProdukItem[]) => void; // ⬅️ tambahan
     onAjukanRefund: (orderId: string, nama: string) => void;
     isConfirmPending: boolean;
 }) {
@@ -500,6 +633,7 @@ function OrderCard({
                         onBeliLagi={onBeliLagi}
                         onBeriNilai={onBeriNilai}
                         onKonfirmasiDiterima={onKonfirmasiDiterima}
+                        onKonfirmasiSelesai={onKonfirmasiSelesai}
                         onAjukanRefund={onAjukanRefund}
                         isConfirmPending={isConfirmPending}
                     />
@@ -521,20 +655,26 @@ function OrderCard({
 }
 
 function TokoSection({
-    items, onLihatDetail, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onAjukanRefund, isConfirmPending,
+    items, onLihatDetail, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onKonfirmasiSelesai, onAjukanRefund, isConfirmPending,
 }: {
     items: ProdukItem[];
     onLihatDetail: () => void;
     onBeliLagi: (item: ProdukItem) => void;
     onBeriNilai: (item: ProdukItem) => void;
     onKonfirmasiDiterima: (items: ProdukItem[]) => void;
+    onKonfirmasiSelesai: (items: ProdukItem[]) => void;
     onAjukanRefund: (orderId: string, nama: string) => void;
     isConfirmPending: boolean;
 }) {
     const first = items[0];
     const namaToko = (first as ProdukItem & { toko?: string }).toko ?? "Toko";
-    const sudahDiterima = first.timelineStep === 3;
-    const sedangDikirim = first.timelineStep === 2;
+
+    const refundDisetujui = first.refund?.status === "Disetujui";
+
+    const sedangDikirim = first.statusKirim === "Sedang Dikirim";
+    const sudahDiterima = first.statusKirim === "Diterima" && !refundDisetujui;
+    const sudahSelesai = first.statusKirim === "Selesai";
+    const masihBisaRefund = first.statusKirim === "Diterima";
     const sudahLunas = items.every((i) => i.statusBayar === "Dibayar");
 
     return (
@@ -558,7 +698,7 @@ function TokoSection({
                             <p className="text-xs text-gray-500">{item.jumlah}x {item.harga}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                            {sudahDiterima && (
+                            {sudahSelesai && (
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -568,7 +708,7 @@ function TokoSection({
                                     {item.rating ? "Ubah Nilai" : "Beri Nilai"}
                                 </Button>
                             )}
-                            {sudahDiterima && (
+                            {sudahSelesai && (
                                 <Button
                                     size="sm" variant="outline" onClick={() => onBeliLagi(item)}
                                     className="rounded-full text-blue-500 border-blue-300 text-xs px-4"
@@ -585,7 +725,7 @@ function TokoSection({
                 {first.refund ? (
                     <RefundStatusBadge status={first.refund.status} />
                 ) : (
-                    sudahDiterima && sudahLunas && (
+                    masihBisaRefund && sudahLunas && (
                         <Button
                             size="sm"
                             variant="outline"
@@ -604,6 +744,16 @@ function TokoSection({
                         className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-4 gap-1.5"
                     >
                         <PackageCheck className="w-3.5 h-3.5" /> Pesanan Diterima
+                    </Button>
+                )}
+                {sudahDiterima && (
+                    <Button
+                        size="sm"
+                        onClick={() => onKonfirmasiSelesai(items)}
+                        disabled={isConfirmPending}
+                        className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-4 gap-1.5"
+                    >
+                        <Check className="w-3.5 h-3.5" /> Konfirmasi Pesanan
                     </Button>
                 )}
                 <Button size="sm" onClick={onLihatDetail} className="rounded-full bg-blue-500 hover:bg-blue-600 text-white text-xs px-4">
@@ -759,10 +909,12 @@ function statusLabel(step: 0 | 1 | 2 | 3, labels: string[]) {
     return `Status : ${labels[step]}`;
 }
 
-function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, isConfirmPending }: {
+function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, onKonfirmasiSelesai, onUnduhInvoice, isConfirmPending }: {
     items: ProdukItem[];
     onClose: () => void;
     onKonfirmasiDiterima: (items: ProdukItem[]) => void;
+    onKonfirmasiSelesai: (items: ProdukItem[]) => void;
+    onUnduhInvoice: (items: ProdukItem[]) => void;
     isConfirmPending: boolean;
 }) {
     const timelineLabels: [string, string, string, string] = ["Belum Bayar", "Diproses", "Dikirim", "Diterima"];
@@ -770,7 +922,9 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, isConfirmPendi
     const subtotal = items.reduce((sum, i) => sum + i.hargaAngka * i.jumlah, 0);
     const totalOngkir = first.biayaOngkir;
     const total = subtotal + totalOngkir;
-    const sedangDikirim = first.timelineStep === 2;
+    const sedangDikirim = first.statusKirim === "Sedang Dikirim";
+    const refundDisetujui = first.refund?.status === "Disetujui";
+    const sudahDiterima = first.statusKirim === "Diterima" && !refundDisetujui;
 
     return (
         <ModalShell title="Detail Pesanan" onClose={onClose}>
@@ -786,6 +940,26 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, isConfirmPendi
                     {statusLabel(first.timelineStep, timelineLabels)}
                 </span>
             </div>
+
+            {first.refund && (
+                <div className={`rounded-xl p-4 mb-4 ${refundDisetujui ? "bg-emerald-50" : "bg-amber-50"}`}>
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-gray-800">Status Refund</span>
+                        <RefundStatusBadge status={first.refund.status} />
+                    </div>
+                    {refundDisetujui && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            Refund pesanan ini sudah disetujui. Pesanan ditutup lewat jalur refund, tidak perlu dikonfirmasi selesai lagi.
+                        </p>
+                    )}
+                    {first.refund.status === "Ditolak" && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            Pengajuan refund ditolak toko. Kamu tetap bisa konfirmasi pesanan selesai di bawah.
+                        </p>
+                    )}
+                </div>
+            )}
+
 
             <h3 className="text-sm font-semibold text-gray-800 mb-2">Produk</h3>
             <div className="bg-blue-50 rounded-2xl p-5 mb-4">
@@ -825,6 +999,14 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, isConfirmPendi
                 </div>
             </div>
 
+            <Button
+                variant="outline"
+                onClick={() => onUnduhInvoice(items)}
+                className="w-full mb-4 rounded-full text-gray-700 border-gray-300 gap-1.5"
+            >
+                <FileDown className="w-4 h-4" /> Unduh Invoice
+            </Button>
+
             <h3 className="text-sm font-semibold text-gray-800 mb-2">Detail Pembeli</h3>
             <DetailRow label="Nama" value={first.pembeli.nama} />
             <DetailRow label="Nomor" value={first.pembeli.nomor} />
@@ -835,6 +1017,17 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, isConfirmPendi
             <DetailRow label="Kurir" value={first.pengiriman.kurir} />
             <DetailRow label="Nomor Resi" value={first.pengiriman.nomorResi} />
             <DetailRow label="Estimasi" value={first.pengiriman.estimasi} />
+
+            {sedangDikirim && (
+                <div className="mt-3">
+                    <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-gray-400" /> Lacak Pengiriman
+                    </h3>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                        <RiwayatPengiriman kurir={first.pengiriman.kurir} nomorResi={first.pengiriman.nomorResi} />
+                    </div>
+                </div>
+            )}
 
             {sedangDikirim && (
                 <>
@@ -851,15 +1044,31 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, isConfirmPendi
                     </Button>
                 </>
             )}
+
+            {sudahDiterima && (
+                <>
+                    <p className="text-xs text-gray-400 mt-4 mb-2">
+                        Sudah puas dengan pesanan ini? Konfirmasi selesai untuk menutup masa refund dan memberi nilai.
+                    </p>
+                    <Button
+                        onClick={() => onKonfirmasiSelesai(items)}
+                        disabled={isConfirmPending}
+                        className="w-full rounded-full bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
+                    >
+                        <Check className="w-4 h-4" /> Konfirmasi Pesanan
+                    </Button>
+                </>
+            )}
         </ModalShell>
     );
 }
 
-function DetailJasaModal({ item, onClose, onTambahPembayaran, onKonfirmasiSelesai, isConfirmPending }: {
+function DetailJasaModal({ item, onClose, onTambahPembayaran, onKonfirmasiSelesai, onUnduhInvoice, isConfirmPending }: {
     item: JasaItem;
     onClose: () => void;
     onTambahPembayaran: (item: JasaItem) => void;
     onKonfirmasiSelesai: (item: JasaItem) => void;
+    onUnduhInvoice: (item: JasaItem) => void;
     isConfirmPending: boolean;
 }) {
     const timelineLabels: [string, string, string, string] = ["Belum Bayar", "Diproses", "Dikerjakan", "Selesai"];
@@ -912,6 +1121,14 @@ function DetailJasaModal({ item, onClose, onTambahPembayaran, onKonfirmasiSelesa
                     <span className="text-gray-900 font-bold">{sisaBayar > 0 ? formatRupiah(sisaBayar) : "Lunas"}</span>
                 </div>
             </div>
+
+            <Button
+                variant="outline"
+                onClick={() => onUnduhInvoice(item)}
+                className="w-full mb-4 rounded-full text-gray-700 border-gray-300 gap-1.5"
+            >
+                <FileDown className="w-4 h-4" /> Unduh Invoice
+            </Button>
 
             {item.riwayatPembayaran.length > 0 && (
                 <>
@@ -1198,9 +1415,7 @@ function RatingModal({ items, onClose, onSave }: {
     );
 }
 
-// ==== Modal: Tambah Pembayaran Jasa (cicilan) via Snap ====
-// Sudah tidak menampilkan info rekening/QRIS manual lagi — cukup input nominal,
-// lalu Snap yang menampilkan semua pilihan metode pembayarannya sendiri.
+
 function FormPembayaranModal({ item, onClose, onSave }: {
     item: JasaItem; onClose: () => void;
     onSave: (data: { nominal: number }) => void;
@@ -1238,11 +1453,10 @@ function FormPembayaranModal({ item, onClose, onSave }: {
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">Rp</span>
                     <Input
-                        type="number"
-                        value={nominal}
-                        onChange={(e) => setNominal(e.target.value)}
+                        value={formatNominalInput(nominal)}
+                        onChange={(e) => setNominal(e.target.value.replace(/\D/g, ""))}
+                        inputMode="numeric"
                         placeholder="Masukkan Nominal"
-                        max={sisaTagihan}
                         className="pl-9 rounded-lg bg-gray-50 border-gray-200"
                     />
                 </div>
@@ -1436,5 +1650,71 @@ function RefundModal({
                 {isPending ? "Mengirim..." : "Ajukan Refund"}
             </Button>
         </ModalShell>
+    );
+}
+
+function RiwayatPengiriman({ kurir, nomorResi }: { kurir: string; nomorResi: string }) {
+    const [data, setData] = useState<OngkirTrackResult | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let aktif = true;
+
+        async function muatRiwayat() {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await lacakResiOngkir(nomorResi, mapKodeKurir(kurir));
+                if (aktif) setData(res);
+            } catch (err) {
+                if (aktif) setError(err instanceof Error ? err.message : "Gagal memuat riwayat pengiriman");
+            } finally {
+                if (aktif) setLoading(false);
+            }
+        }
+
+        muatRiwayat();
+
+        return () => { aktif = false; };
+    }, [kurir, nomorResi]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center gap-2 text-xs text-gray-400 py-3">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Memuat riwayat pengiriman...
+            </div>
+        );
+    }
+
+    if (error || !data || data.manifest.length === 0) {
+        return <p className="text-xs text-gray-400 py-3">{error ?? "Riwayat pengiriman belum tersedia."}</p>;
+    }
+
+    const manifest = [...data.manifest].reverse(); // terbaru di atas
+
+    return (
+        <div>
+            {manifest.map((m, idx) => {
+                const isTerbaru = idx === 0;
+                const isTerakhir = idx === manifest.length - 1;
+                return (
+                    <div key={idx} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                            <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1 ${isTerbaru ? "bg-emerald-500" : "bg-gray-300"}`} />
+                            {!isTerakhir && <div className="w-px flex-1 bg-gray-200 my-0.5" />}
+                        </div>
+                        <div className={`pb-4 ${isTerbaru ? "" : "opacity-70"}`}>
+                            <p className={`text-xs font-medium ${isTerbaru ? "text-gray-800" : "text-gray-500"}`}>
+                                {m.deskripsi}
+                            </p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">
+                                {m.tanggal} {m.waktu}{m.kota ? ` · ${m.kota}` : ""}
+                            </p>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
     );
 }

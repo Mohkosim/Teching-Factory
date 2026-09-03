@@ -1,7 +1,3 @@
-/**
- * Ubah nomor telepon lokal (mis. 081234567890) ke format internasional
- * yang dipakai wa.me (628xxxxxxxxxx), tanpa tanda + atau spasi.
- */
 export function formatNomorWhatsapp(nomor: string): string {
   const digits = nomor.replace(/\D/g, "");
   if (digits.startsWith("0")) return `62${digits.slice(1)}`;

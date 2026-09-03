@@ -2,6 +2,11 @@ import { getProdukPublicList } from "@/lib/data/produk-public";
 import { getJasaPublicList } from "@/lib/data/jasa-public";
 import { getFavoritIds } from "@/lib/data/favorit-public";
 import FavoritePageClient from "./FavoritePageClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Favorite",
+};
 
 export default async function FavoritePage() {
   const [produkList, jasaList, favoritIds] = await Promise.all([

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (kurirAktif.length === 0) {
     return NextResponse.json(
       { error: "Jurusan ini belum mengaktifkan kurir pengiriman apapun", data: [] },
-      { status: 200 } // bukan error server, tapi kondisi valid yang perlu ditangani di client
+      { status: 200 } 
     );
   }
 

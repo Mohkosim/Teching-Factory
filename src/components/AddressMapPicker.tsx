@@ -8,7 +8,6 @@ import { Locate, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import "leaflet/dist/leaflet.css";
 
-// Fix ikon marker default Leaflet yang sering hilang di bundler Next.js
 const markerIcon = L.icon({
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
     iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -51,7 +50,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeR
         addr.city ?? addr.town ?? addr.regency ?? addr.county ?? addr.municipality ?? "";
     const kecamatan =
         addr.suburb ?? addr.city_district ?? addr.village ?? addr.subdistrict ?? "";
-    const provinsi = addr.state ?? ""; // Nominatim: field "state" = provinsi
+    const provinsi = addr.state ?? "";
     const kode_pos = addr.postcode ?? "";
     const alamat_lengkap: string = data.display_name ?? "";
 
@@ -69,7 +68,7 @@ function LocationMarker({
 
     useMapEvents({
         click(e) {
-            if (isProcessing.current) return; // cegah klik ganda cepat
+            if (isProcessing.current) return;
             isProcessing.current = true;
             onPick(e.latlng.lat, e.latlng.lng);
             setTimeout(() => { isProcessing.current = false; }, 1000);
@@ -79,8 +78,6 @@ function LocationMarker({
     return position ? <Marker position={position} icon={markerIcon} /> : null;
 }
 
-// Komponen kecil untuk memindahkan viewport peta secara imperatif
-// (dipisah karena useMap harus dipanggil di dalam <MapContainer>)
 function FlyToLocation({ position }: { position: [number, number] | null }) {
     const map = useMap();
     if (position) {

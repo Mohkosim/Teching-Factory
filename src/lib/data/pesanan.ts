@@ -5,9 +5,12 @@ import type { ProdukItem, JasaItem, RefundInfo } from "@/types/interfaces/pesana
 function mapStatusKeStep(statusPembayaran: StatusPembayaran, statusOrder: StatusOrder): 0 | 1 | 2 | 3 {
     if (statusPembayaran !== "Lunas") return 0;
     switch (statusOrder) {
+        case "Menunggu": return 0;
+        case "Diproses": return 1;
         case "Dikirim": return 2;
+        case "Diterima":
         case "Selesai": return 3;
-        default: return 1;
+        default: return 0;
     }
 }
 
@@ -94,8 +97,9 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                     jumlah: detail.jumlah,
                     statusBayar: order.status_pembayaran === "Lunas" ? "Dibayar" : "Belum Dibayar",
                     statusKirim:
-                        order.status_order === "Selesai" ? "Diterima" :
-                            order.status_order === "Dikirim" ? "Sedang Dikirim" : "Diproses",
+                        order.status_order === "Selesai" ? "Selesai" :        
+                            order.status_order === "Diterima" ? "Diterima" :    
+                                order.status_order === "Dikirim" ? "Sedang Dikirim" : "Diproses",
                     tanggal: order.createdAt.toISOString(),
                     timelineStep,
                     biayaOngkir: order.pengiriman?.ongkir ?? 0,
@@ -103,6 +107,8 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                     ulasan: review?.komentar ?? undefined,
                     fotoUlasan,
                     refund,
+                    namaSmk: p.jurusan.smk?.user.name ?? "-",
+                    namaJurusan: p.jurusan.nama_jurusan ?? "-",
                     pembeli: {
                         nama: order.user.name,
                         nomor: order.user.phone ?? "-",
@@ -113,6 +119,9 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                         kurir: order.pengiriman?.kurir ?? "-",
                         nomorResi: order.pengiriman?.nomor_resi ?? "-",
                         estimasi: order.pengiriman?.estimasi_tiba ?? "-",
+                        statusResi: order.pengiriman?.status_resi ?? undefined,         
+                        cekTerakhirAt: order.pengiriman?.cek_terakhir_at?.toISOString(), 
+                        autoConfirmed: order.pengiriman?.auto_confirmed ?? false,       
                     },
                 });
             }
@@ -151,6 +160,8 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                         email: order.user.email,
                         alamat: alamatPembeliLengkap,
                     },
+                    namaSmk: lokasiPengerjaan,
+                    namaJurusan: p.jurusan.nama_jurusan ?? "-",
                     jadwal: {
                         lokasi: lokasiPengerjaan,
                         estimasi: p.jasa[0]?.estimasi_pengerjaan ?? "-",

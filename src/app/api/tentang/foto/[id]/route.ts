@@ -14,12 +14,10 @@ export async function DELETE(
       where: { foto_id: id },
     });
 
-    // Hapus file fisik (best-effort, jangan gagalkan request kalau file udah nggak ada)
     try {
       const filePath = path.join(process.cwd(), "public", foto.url);
       await unlink(filePath);
     } catch {
-      // ignore
     }
 
     return NextResponse.json({ message: "Foto dihapus" }, { status: 200 });

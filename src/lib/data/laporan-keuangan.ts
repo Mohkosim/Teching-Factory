@@ -13,10 +13,11 @@ export interface TransaksiRow {
     hargaSatuan: number;
     total: number;
     metodePembayaran: string;
-    statusSettlement: "Settled" | "Pending";
+    statusSettlement: "Settled" | "Pending" | "Refund"; 
     gambarUrl?: string;
     biayaOngkir?: number;
-    biayaMidtrans?: number; // ⬅️ baru
+    biayaMidtrans?: number;
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string }; 
     pembeli?: { nama: string; nomor: string; email: string; alamat: string };
     pengiriman?: { kurir: string; nomorResi: string; estimasi: string };
     historyPengeluaran?: {
@@ -57,7 +58,13 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             od.order.user.alamat.find((a) => a.isUtama) ?? od.order.user.alamat[0];
 
         const refund = od.order.refundRequest;
-        const refundMenghalangi = !!refund && refund.status !== "Ditolak";
+        const refundAktif = !!refund && refund.status !== "Ditolak"; 
+
+        const statusSettlement: TransaksiRow["statusSettlement"] = refundAktif
+            ? "Refund"
+            : od.order.status_pembayaran === "Lunas"
+                ? "Settled"
+                : "Pending";
 
         return {
             id: `masuk-${od.order_detail_id}`,
@@ -72,13 +79,13 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             hargaSatuan: od.harga_satuan,
             total: od.order.transaksi[0]?.nominal ?? 0,
             metodePembayaran: pembayaran?.metode ?? "-",
-            statusSettlement:
-                od.order.status_pembayaran === "Lunas" && !refundMenghalangi
-                    ? "Settled"
-                    : "Pending",
+            statusSettlement, 
             gambarUrl: od.produk.foto[0]?.url,
             biayaOngkir: od.order.pengiriman?.ongkir ?? 0,
-            biayaMidtrans: pembayaran?.biaya_midtrans ?? 0, // ⬅️ baru
+            biayaMidtrans: pembayaran?.biaya_midtrans ?? 0,
+            refund: refund
+                ? { status: refund.status, alasan: refund.alasan }
+                : undefined,
             pembeli: alamatUtama
                 ? {
                     nama: od.order.user.name,
@@ -128,7 +135,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
     const totalPemasukan = pemasukanRows
         .filter((r) => r.statusSettlement === "Settled")
         .reduce((s, r) => s + r.total, 0);
-    const totalBiayaMidtrans = pemasukanRows // ⬅️ baru
+    const totalBiayaMidtrans = pemasukanRows 
         .filter((r) => r.statusSettlement === "Settled")
         .reduce((s, r) => s + (r.biayaMidtrans ?? 0), 0);
     const hpp = pengeluaranRows
@@ -138,7 +145,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
 
     return {
         transaksi,
-        ringkasan: { totalPemasukan, totalPengeluaran, hpp, totalBiayaMidtrans }, // ⬅️ diperluas
+        ringkasan: { totalPemasukan, totalPengeluaran, hpp, totalBiayaMidtrans }, 
     };
 }
 
@@ -159,7 +166,6 @@ export async function getSaldoJurusan(jurusanId: string) {
             _sum: { nominal: true },
             where: { jurusan_id: jurusanId, status: { in: ["Pending", "Diproses", "Selesai"] } },
         }),
-        // ⬅️ baru: total biaya Midtrans dari transaksi Pemasukan milik jurusan ini
         prisma.transaksi.aggregate({
             _sum: { biaya_midtrans: true },
             where: {
@@ -175,15 +181,14 @@ export async function getSaldoJurusan(jurusanId: string) {
     const totalPemasukan = pemasukanAgg._sum.subtotal ?? 0;
     const totalPengeluaran = pengeluaranAgg._sum.nominal ?? 0;
     const totalPenarikan = penarikanAgg._sum.nominal ?? 0;
-    const totalBiayaMidtrans = biayaMidtransAgg._sum.biaya_midtrans ?? 0; // ⬅️ baru
+    const totalBiayaMidtrans = biayaMidtransAgg._sum.biaya_midtrans ?? 0;
 
     return {
-        // Saldo yang benar-benar bisa dicairkan = Pemasukan - Biaya Midtrans - Penarikan
         saldoTersedia: Math.max(0, totalPemasukan - totalBiayaMidtrans - totalPenarikan),
         totalPemasukan,
         totalPengeluaran,
         totalPenarikan,
-        totalBiayaMidtrans, // ⬅️ baru, buat ditampilkan di UI kalau perlu
+        totalBiayaMidtrans,
     };
 }
 

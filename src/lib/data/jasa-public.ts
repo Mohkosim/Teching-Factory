@@ -29,7 +29,7 @@ export interface JasaPublicItem {
   jurusan: string;
   sekolah: string;
   noWhatsapp?: string;
-  portofolio: PortofolioPublicItem[]; // <-- TAMBAHAN
+  portofolio: PortofolioPublicItem[];
   // Field tambahan khusus halaman detail (hanya diisi oleh getJasaDetailById)
   ratingBreakdown?: Record<1 | 2 | 3 | 4 | 5, number>;
   persentasePuas?: number;
@@ -53,14 +53,14 @@ export interface GetJasaListParams {
 
 const jasaInclude = {
   foto: true,
-  jasa: { include: { portofolio: true } }, // <-- TAMBAHAN: sertakan portofolio
+  jasa: { include: { portofolio: true } },
   jurusan: { include: { user: true, smk: { include: { user: true } } } },
   review: true,
 } as const;
 
 const jasaDetailInclude = {
   foto: true,
-  jasa: { include: { portofolio: true } }, // <-- TAMBAHAN: sertakan portofolio
+  jasa: { include: { portofolio: true } },
   jurusan: { include: { user: true, smk: { include: { user: true } } } },
   review: {
     include: { user: true, foto: true },
@@ -119,7 +119,6 @@ function mapJasaPublicItem(p: ProdukWithJasa | ProdukWithJasaDetail): JasaPublic
     jurusan: p.jurusan.nama_jurusan,
     sekolah: p.jurusan.smk?.user.name ?? "",
     noWhatsapp: p.jurusan.user.phone ?? undefined,
-    // <-- TAMBAHAN: petakan portofolio dari relasi jasa
     portofolio: (p.jasa[0]?.portofolio ?? []).map((pf) => ({
       portofolio_id: pf.portofolio_id,
       file_path: pf.file_path,

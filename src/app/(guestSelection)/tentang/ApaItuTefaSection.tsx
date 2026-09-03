@@ -24,7 +24,6 @@ export default async function ApaItuTefaSection() {
   const deskripsi = tentang?.deskripsi || "Deskripsi belum tersedia.";
   const foto = tentang?.dokumentasi ?? [];
 
-  // Ambil sampai 4 foto untuk susunan collage; fallback placeholder kalau kurang
   const fotoCollage = [0, 1, 2, 3].map((i) => foto[i]?.url ?? null);
 
   return (

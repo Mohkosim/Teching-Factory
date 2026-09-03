@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { getJasaDetailById, getJasaRekomendasi } from "@/lib/data/jasa-public";
 import { getFavoritIds } from "@/lib/data/favorit-public";
 import JasaDetailClient from "./JasaDetailClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Detail Jasa",
+};
 
 export default async function JasaDetailPage({
     searchParams,

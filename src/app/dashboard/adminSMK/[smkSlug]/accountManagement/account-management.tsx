@@ -68,7 +68,7 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
 
     const onSubmitAdd = (values: AddJurusanForm) => {
         startTransition(async () => {
-            tampilkanLoading("Menambahkan akun jurusan..."); // Swal: loading selama request
+            tampilkanLoading("Menambahkan akun jurusan...");
             try {
                 const res = await createJurusanAccount(values);
                 Swal.close();
@@ -94,19 +94,19 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
             text: `Apakah Anda yakin ingin ${item.isActive ? "menonaktifkan" : "mengaktifkan"} akun "${item.nama_jurusan}"?`,
             icon: "warning",
             confirmText: item.isActive ? "Ya, nonaktifkan" : "Ya, aktifkan",
-            confirmColor: "#f59e0b", // amber-500
-        }); // 1. Swal: minta izin dulu
+            confirmColor: "#f59e0b", 
+        }); 
         if (!konfirmasi) return;
 
         startTransition(async () => {
-            tampilkanLoading(item.isActive ? "Menonaktifkan akun..." : "Mengaktifkan akun..."); // Swal: loading
+            tampilkanLoading(item.isActive ? "Menonaktifkan akun..." : "Mengaktifkan akun..."); 
             try {
                 await toggleJurusanStatus(item.jurusan_id);
                 Swal.close();
                 setData((prev) =>
                     prev.map((it) => (it.jurusan_id === item.jurusan_id ? { ...it, isActive: !it.isActive } : it))
                 );
-                toast.success(item.isActive ? "Akun berhasil dinonaktifkan" : "Akun berhasil diaktifkan"); // 2. toast: status
+                toast.success(item.isActive ? "Akun berhasil dinonaktifkan" : "Akun berhasil diaktifkan");
             } catch {
                 Swal.close();
                 toast.error("Gagal mengubah status akun");
@@ -115,19 +115,19 @@ export default function AccountManagement({ initialData }: { initialData: Jurusa
     };
 
     const handleDelete = async (item: JurusanAccount) => {
-        const konfirmasi = await confirmHapus(item.nama_jurusan); // 1. Swal: minta izin dulu
+        const konfirmasi = await confirmHapus(item.nama_jurusan);
         if (!konfirmasi) return;
 
         startTransition(async () => {
-            tampilkanLoading("Menghapus akun jurusan..."); // Swal: loading
+            tampilkanLoading("Menghapus akun jurusan...");
             try {
                 await deleteJurusanAccount(item.jurusan_id);
                 Swal.close();
                 setData((prev) => prev.filter((it) => it.jurusan_id !== item.jurusan_id));
-                toast.success("Akun jurusan berhasil dihapus"); // 2. toast: status sukses
+                toast.success("Akun jurusan berhasil dihapus");
             } catch {
                 Swal.close();
-                toast.error("Gagal menghapus akun jurusan"); // 2. toast: status gagal
+                toast.error("Gagal menghapus akun jurusan"); 
             }
         });
     };

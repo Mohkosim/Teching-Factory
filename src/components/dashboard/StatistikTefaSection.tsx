@@ -100,18 +100,20 @@ export default async function StatistikTefaSection() {
                                 <Image
                                     src={s.img}
                                     alt={s.label}
-                                    fill
-                                    className="absolute bottom-0 right-0 w-28 opacity-90"
+                                    width={129}
+                                    height={112}
+                                    className="absolute bottom-0 right-0 w-35 h-25 object-contain opacity-90 pointer-events-none"
                                 />
 
-                                {/* LABEL */}
-                                <p className="text-gray-700 font-semibold mb-8">
-                                    {s.label}
-                                </p>
+                                {/* LABEL & NUMBER */}
+                                <div className="relative z-10">
+                                    <p className="text-gray-700 font-semibold mb-8">
+                                        {s.label}
+                                    </p>
 
-                                {/* NUMBER */}
-                                <div className="text-5xl font-extrabold text-black">
-                                    <AnimatedNumber target={s.value} />
+                                    <div className="text-5xl font-extrabold text-black">
+                                        <AnimatedNumber target={s.value} />
+                                    </div>
                                 </div>
                             </div>
                         ))}

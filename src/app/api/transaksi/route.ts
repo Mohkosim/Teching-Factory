@@ -18,7 +18,6 @@ function mapMetodeKeEnum(metode: string): MetodePembayaran {
     if (m.includes("WALLET") || m.includes("OVO") || m.includes("GOPAY") || m.includes("DANA") || m.includes("SHOPEEPAY")) {
         return "E_Wallet";
     }
-    // BNI, BRI, BCA, Midtrans (sementara sebelum ada integrasi asli), dll -> dianggap transfer bank
     return "Transfer";
 }
 

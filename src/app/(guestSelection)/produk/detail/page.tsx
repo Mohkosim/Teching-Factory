@@ -4,6 +4,12 @@ import { getProdukDetailById, getProdukRekomendasi } from "@/lib/data/produk-pub
 import { getFavoritIds } from "@/lib/data/favorit-public";
 import ProdukDetailClient from "./ProdukDetailClient";
 
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Detail Produk",
+};
+
 export default async function ProdukDetailPage({
   searchParams,
 }: {

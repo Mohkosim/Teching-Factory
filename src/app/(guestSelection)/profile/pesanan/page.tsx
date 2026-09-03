@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPesananData } from "@/lib/data/pesanan";
 import PesananClient from "./PesananClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Pesanan",
+};
 
 export default async function PesananPage() {
     const session = await getServerSession(authOptions);

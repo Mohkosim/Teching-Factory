@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// GET: ambil semua alamat milik user yang login
 export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -18,7 +17,6 @@ export async function GET() {
     return NextResponse.json(alamatList);
 }
 
-// POST: tambah alamat baru
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

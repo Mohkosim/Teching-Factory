@@ -17,7 +17,6 @@ import {
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface TablePaginationProps {
     page: number;
@@ -29,7 +28,6 @@ interface TablePaginationProps {
     onPageSizeChange: (size: number) => void;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PaginationIconsOnly({
     page,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export type JenisTransaksiUI = "Pemasukan" | "Pengeluaran";
-export type StatusSettlementUI = "Settled" | "Pending";
+export type StatusSettlementUI = "Settled" | "Pending" | "Refund";
 
 export interface TransaksiItem {
     id: string;
@@ -28,7 +28,8 @@ function formatTanggal(date: Date): string {
     }).format(date);
 }
 
-function mapStatusSettlement(status: string): StatusSettlementUI {
+function mapStatusSettlement(status: string, isRefunded: boolean): StatusSettlementUI {
+    if (isRefunded) return "Refund";
     return status === "Selesai" ? "Settled" : "Pending";
 }
 
@@ -60,6 +61,7 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
             order: {
                 select: {
                     kode_invoice: true,
+                    refundRequest: { select: { status: true } },
                     orderDetail: {
                         select: {
                             jumlah: true,
@@ -83,6 +85,8 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
         const items = t.order?.orderDetail ?? [];
         const totalQty = items.reduce((s, i) => s + i.jumlah, 0);
         const isJasa = items.some((i) => i.produk.jasa.length > 0);
+
+        const isRefunded = t.order?.refundRequest?.status === "Disetujui";
 
         // Deskripsi: gabung nama produk kalau order multi-item, atau pakai field deskripsi manual (pengeluaran)
         const deskripsiOtomatis = items.length > 0
@@ -108,7 +112,7 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
             hargaSatuan: items.length === 1 ? items[0].harga_satuan : 0,
             total: t.nominal,
             metodePembayaran: mapMetode(t.metode),
-            statusSettlement: mapStatusSettlement(t.status_settlement),
+            statusSettlement: mapStatusSettlement(t.status_settlement, isRefunded),
         };
     });
 }
@@ -119,6 +123,10 @@ export async function getRingkasanSmk(smk_id: string) {
 
     const totalPemasukan = transaksi
         .filter((t) => t.jenisTransaksi === "Pemasukan" && t.statusSettlement === "Settled")
+        .reduce((s, t) => s + t.total, 0);
+
+    const totalRefund = transaksi // ⬅️ baru
+        .filter((t) => t.jenisTransaksi === "Pemasukan" && t.statusSettlement === "Refund")
         .reduce((s, t) => s + t.total, 0);
 
     const totalPengeluaran = transaksi
@@ -138,6 +146,15 @@ export async function getRingkasanSmk(smk_id: string) {
                 { jurusan: { smk_id } },
                 { order: { orderDetail: { some: { produk: { jurusan: { smk_id } } } } } },
             ],
+            AND: [
+                {
+                    OR: [
+                        { order: null },
+                        { order: { refundRequest: null } },
+                        { order: { refundRequest: { status: "Ditolak" } } },
+                    ],
+                },
+            ],
         },
     });
     const totalBiayaMidtrans = biayaMidtransAgg._sum.biaya_midtrans ?? 0;
@@ -149,9 +166,10 @@ export async function getRingkasanSmk(smk_id: string) {
     return {
         totalPemasukan,
         totalPengeluaran,
-        totalHpp,          // ⬅️ baru
-        labaKotor,          // ⬅️ baru
+        totalHpp,
+        labaKotor,
         totalBiayaMidtrans,
+        totalRefund,
         labaBersih,
     };
 }

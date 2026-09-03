@@ -52,7 +52,6 @@ export async function PATCH(
     const { id } = await params;
     const body = await req.json();
 
-    // ── Aksi AdminSMK: publikasi / revisi ──
     if (body.action === "publikasi" || body.action === "revisi") {
         if (session.user.role !== "AdminSMK") {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -82,7 +81,6 @@ export async function PATCH(
         return NextResponse.json({ message: "Catatan revisi berhasil dikirim", data: updated });
     }
 
-    // ── Edit normal: AdminJurusan (perilaku lama) ──
     if (session.user.role !== "AdminJurusan") {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

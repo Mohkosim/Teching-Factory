@@ -26,12 +26,11 @@ export interface UpdateProfilePayload {
     kepala_sekolah?: string;
     deskripsi_smk?: string;
     alamat?: string;
-    kecamatan?: string;      // <-- BARU
+    kecamatan?: string;     
     kota?: string;
-    kota_id?: number | null; // <-- BARU
-    kode_pos?: string;       // <-- BARU
+    kota_id?: number | null;
+    kode_pos?: string;       
     provinsi?: string;
-    map_link?: string;
     tahun_berdiri?: number;
 
     // AdminJurusan

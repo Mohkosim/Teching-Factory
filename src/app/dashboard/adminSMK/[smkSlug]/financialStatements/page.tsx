@@ -9,6 +9,11 @@ import {
     getPemasukanBreakdownSmk,
 } from "@/lib/data/laporan-keuangan-smk";
 import LaporanKeuanganClient from "./LaporanKeuanganClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Laporan Keuangan SMK",
+};
 
 export default async function LaporanKeuanganPage() {
     const session = await getServerSession(authOptions);
