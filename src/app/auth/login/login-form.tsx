@@ -67,7 +67,7 @@ export default function Login() {
     toast.success("Berhasil masuk!", {
       duration: 1200,
       onAutoClose: () => {
-        router.push(ROLE_REDIRECT[role] ?? "/dashboard");
+        router.push(ROLE_REDIRECT[role] ?? "/");
       },
     });
   };
