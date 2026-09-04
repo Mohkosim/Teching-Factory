@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function PesananPage() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) redirect("/login");
+    if (!session?.user?.id) redirect("/auth/login");
 
     const [{ produk, jasa }, user] = await Promise.all([
         getPesananData(session.user.id),

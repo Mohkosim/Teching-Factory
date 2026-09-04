@@ -24,9 +24,6 @@ const ROLE_REDIRECT: Record<string, string> = {
   User: "/",
 };
 
-// Harus SAMA PERSIS dengan MARKER di SessionGuard.tsx
-const SESSION_MARKER = "app_browser_session_active";
-
 export default function Login() {
   const router = useRouter();
 
@@ -62,33 +59,21 @@ export default function Login() {
       return;
     }
 
-    // Ambil session untuk baca role — kalau gagal, tetap lanjut redirect dengan fallback "User"
-    let role = "User";
-    try {
-      const sessionRes = await fetch("/api/auth/session");
-      const session = await sessionRes.json();
-      role = session?.user?.role ?? "User";
-    } catch {
-      // fetch gagal, pakai fallback role "User" di atas, jangan sampai redirect tidak jalan
-    }
+    // Ambil session untuk baca role
+    const sessionRes = await fetch("/api/auth/session");
+    const session = await sessionRes.json();
+    const role: string = session?.user?.role ?? "User";
 
-    // Set marker SEBELUM redirect, supaya SessionGuard di halaman tujuan tidak
-    // menganggap ini sesi "asing" lalu sign-out otomatis
-    sessionStorage.setItem(SESSION_MARKER, "1");
-
-    // Toast murni notifikasi visual — tidak memicu apa pun
-    toast.success("Berhasil masuk!");
-
-    // Hard navigation (bukan router.push) supaya cookie session baru
-    // pasti kebaca ulang oleh server/middleware saat halaman tujuan di-load
-    window.location.href = ROLE_REDIRECT[role] ?? "/";
+    toast.success("Berhasil masuk!", {
+      duration: 1200,
+      onAutoClose: () => {
+        router.push(ROLE_REDIRECT[role] ?? "/dashboard");
+      },
+    });
   };
 
   const handleGoogleSignIn = async () => {
     tampilkanLoading("Mengarahkan ke Google...");
-    // Set marker sebelum redirect ke Google — tab yang sama akan dipakai lagi
-    // saat Google mengarahkan balik lewat callbackUrl
-    sessionStorage.setItem(SESSION_MARKER, "1");
     await signIn("google", { callbackUrl: "/" });
   };
 

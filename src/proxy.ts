@@ -21,7 +21,12 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: "next-auth.session-token",
+  });
   const isAuthPage = pathname.startsWith("/auth");
   const role = token?.role as string | undefined;
   const smkSlug = token?.smkSlug as string | undefined;

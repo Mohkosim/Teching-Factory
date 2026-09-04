@@ -1,30 +1,38 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 const MARKER = "app_browser_session_active";
 
 function hasMarker() {
   if (typeof window === "undefined") return false;
-  return sessionStorage.getItem(MARKER) === "1";
+  return window.name.includes(MARKER);
 }
 
 function setMarker() {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(MARKER, "1");
+  if (!window.name.includes(MARKER)) {
+    window.name = window.name ? `${window.name}|${MARKER}` : MARKER;
+  }
 }
 
 export default function SessionGuard({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
+  const isNewBrowserSession = status === "authenticated" && !hasMarker();
 
-  if (status === "loading") return null;
+  useEffect(() => {
+    if (status === "loading") return;
 
-  if (status === "authenticated" && !hasMarker()) {
-    signOut({ redirect: true, callbackUrl: "/auth/login" });
-    return null;
-  }
+    if (isNewBrowserSession) {
+      signOut({ redirect: true, callbackUrl: "/auth/login" });
+      return;
+    }
 
-  setMarker();
+    setMarker();
+  }, [status, isNewBrowserSession]);
+
+  if (status === "loading" || isNewBrowserSession) return null;
 
   return <>{children}</>;
 }
