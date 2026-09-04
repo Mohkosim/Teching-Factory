@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { tentangSchema } from "@/lib/validations/tentang";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "tentang");
+import { uploadMultipleFilesToCloudinary } from "@/lib/upload/cloudinary";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB per gambar
 const MAX_FILES = 8;
@@ -71,18 +68,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Simpan file ke /public/uploads/tentang
-    await mkdir(UPLOAD_DIR, { recursive: true });
-    const uploadedUrls: string[] = [];
-
-    for (const file of validFiles) {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const ext =
-        file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-      const filename = `${crypto.randomUUID()}.${ext}`;
-      await writeFile(path.join(UPLOAD_DIR, filename), buffer);
-      uploadedUrls.push(`/uploads/tentang/${filename}`);
-    }
+    // Upload ke Cloudinary (menggantikan writeFile ke disk lokal — tidak bisa dipakai di Netlify)
+    const uploadedUrls: string[] =
+      validFiles.length > 0
+        ? await uploadMultipleFilesToCloudinary(validFiles, "tentang")
+        : [];
 
     // Cari record existing (singleton) atau buat baru
     const existing = await prisma.tentangTefa.findFirst();
