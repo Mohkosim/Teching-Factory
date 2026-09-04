@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MetodePembayaran, StatusSettlementTransaksi } from "@/generated/prisma/enums";
+import { uploadFileToCloudinary } from "@/lib/upload/cloudinary";
 
 function parseMetode(value: string | null): MetodePembayaran | undefined {
     if (value && (Object.values(MetodePembayaran) as string[]).includes(value)) {
@@ -61,12 +62,7 @@ export async function PUT(
     let buktiUrl = existing.bukti ?? undefined;
     if (file && file.size > 0) {
         try {
-            const buffer = Buffer.from(await file.arrayBuffer());
-            const uploadDir = path.join(process.cwd(), "public", "uploads", "pengeluaran");
-            await mkdir(uploadDir, { recursive: true });
-            const filename = `${Date.now()}-${file.name}`;
-            await writeFile(path.join(uploadDir, filename), buffer);
-            buktiUrl = `/uploads/pengeluaran/${filename}`;
+            buktiUrl = await uploadFileToCloudinary(file, "pengeluaran");
         } catch (err) {
             console.error("Gagal menyimpan file bukti:", err);
             return NextResponse.json(

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { randomUUID } from "crypto";
+import { uploadMultipleFilesToCloudinary } from "@/lib/upload/cloudinary";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "portofolio");
@@ -38,21 +37,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        await mkdir(UPLOAD_DIR, { recursive: true });
-
-        const urls: string[] = [];
-
-        for (const file of files) {
-            const buffer = Buffer.from(await file.arrayBuffer());
-            const extension = path.extname(file.name) || ".pdf";
-            const fileName = `${randomUUID()}${extension}`;
-            const filePath = path.join(UPLOAD_DIR, fileName);
-
-            await writeFile(filePath, buffer);
-
-            // URL publik yang bisa diakses langsung dari browser
-            urls.push(`/uploads/portofolio/${fileName}`);
-        }
+        const urls = await uploadMultipleFilesToCloudinary(files, "jasa/portofolio", "raw");
 
         return NextResponse.json({ urls });
     } catch (error) {

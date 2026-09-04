@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
+import { uploadMultipleFilesToCloudinary } from "@/lib/upload/cloudinary";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB per gambar
 const MAX_FILES = 5;
@@ -34,17 +32,7 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "produk");
-    await mkdir(uploadDir, { recursive: true });
-
-    const urls: string[] = [];
-    for (const file of files) {
-        const bytes = Buffer.from(await file.arrayBuffer());
-        const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-        const filename = `${randomUUID()}.${ext}`;
-        await writeFile(path.join(uploadDir, filename), bytes);
-        urls.push(`/uploads/produk/${filename}`);
-    }
+    const urls = await uploadMultipleFilesToCloudinary(files, "produk");
 
     return NextResponse.json({ urls });
 }

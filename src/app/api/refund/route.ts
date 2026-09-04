@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { writeFile, mkdir } from "fs/promises";
 import { randomUUID } from "crypto";
 import path from "path";
+import { uploadFileToCloudinary } from "@/lib/upload/cloudinary";
 
 const PESANAN_PATH = "/profile/pesanan";
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB, video butuh lebih besar dari foto
@@ -14,16 +15,10 @@ const ALLOWED_TYPES = [
     "video/mp4", "video/quicktime", "video/webm",
 ];
 
-async function simpanBuktiKeDisk(file: File): Promise<{ url: string; tipe: "Foto" | "Video" }> {
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const ext = file.name.split(".").pop() || (file.type.startsWith("video") ? "mp4" : "jpg");
-    const namaFile = `${randomUUID()}.${ext}`;
-    const folder = path.join(process.cwd(), "public", "uploads", "refund");
-    await mkdir(folder, { recursive: true });
-    await writeFile(path.join(folder, namaFile), bytes);
-
+async function simpanBuktiKeCloudinary(file: File): Promise<{ url: string; tipe: "Foto" | "Video" }> {
+    const url = await uploadFileToCloudinary(file, "refund", "auto");
     return {
-        url: `/uploads/refund/${namaFile}`,
+        url,
         tipe: file.type.startsWith("video") ? "Video" : "Foto",
     };
 }
@@ -83,7 +78,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const buktiUploaded = await Promise.all(files.map((f) => simpanBuktiKeDisk(f)));
+    const buktiUploaded = await Promise.all(files.map((f) => simpanBuktiKeCloudinary(f)));
 
     const refund = await prisma.refundRequest.create({
         data: {

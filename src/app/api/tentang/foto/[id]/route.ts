@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { unlink } from "fs/promises";
-import path from "path";
+import { deleteFileFromCloudinary } from "@/lib/upload/cloudinary";
 
 export async function DELETE(
   req: NextRequest,
@@ -15,8 +14,7 @@ export async function DELETE(
     });
 
     try {
-      const filePath = path.join(process.cwd(), "public", foto.url);
-      await unlink(filePath);
+      await deleteFileFromCloudinary(foto.url);
     } catch {
     }
 

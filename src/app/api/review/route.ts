@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
+import { uploadFileToCloudinary, deleteFileFromCloudinary } from "@/lib/upload/cloudinary";
 
 const MAX_FOTO = 5;
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -80,8 +78,7 @@ export async function POST(req: Request) {
             await Promise.all(
                 fotoDihapus.map(async (f) => {
                     try {
-                        const filePath = path.join(process.cwd(), "public", f.url);
-                        await unlink(filePath);
+                        await deleteFileFromCloudinary(f.url);
                     } catch {
                     }
                 })
@@ -91,17 +88,8 @@ export async function POST(req: Request) {
 
     // ==== Tambah foto baru ====
     if (fotoFiles.length > 0) {
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "reviews");
-        await mkdir(uploadDir, { recursive: true });
-
         const fotoUrls = await Promise.all(
-            fotoFiles.map(async (file) => {
-                const ext = file.name.split(".").pop() || "jpg";
-                const filename = `${review.review_id}-${randomUUID()}.${ext}`;
-                const buffer = Buffer.from(await file.arrayBuffer());
-                await writeFile(path.join(uploadDir, filename), buffer);
-                return `/uploads/reviews/${filename}`;
-            })
+            fotoFiles.map((file) => uploadFileToCloudinary(file, "reviews"))
         );
 
         await prisma.fotoReview.createMany({

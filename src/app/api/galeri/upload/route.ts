@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import { randomUUID } from "crypto";
+import { uploadFileToCloudinary } from "@/lib/upload/cloudinary";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -27,13 +25,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: "FileTooLarge" }, { status: 400 });
     }
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "galeri");
-    await mkdir(uploadDir, { recursive: true });
+    const url = await uploadFileToCloudinary(file, "galeri");
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-    const filename = `${randomUUID()}.${ext}`;
-    await writeFile(path.join(uploadDir, filename), bytes);
-
-    return NextResponse.json({ url: `/uploads/galeri/${filename}` });
+    return NextResponse.json({ url });
 }
