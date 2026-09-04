@@ -53,7 +53,7 @@ export default function Login() {
         });
       } else {
         toast.error("Login gagal", {
-          description: "E-mail atau kata sandi salah.",
+          description: "E-mail atau kata sandi salah. Jika Anda mendaftar dengan Google, gunakan \"Lupa Kata Sandi\" untuk membuat kata sandi baru.",
         });
       }
       return;

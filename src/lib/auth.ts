@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { slugify } from "@/lib/utils/slug";
 
 export const authOptions: NextAuthOptions = {
@@ -69,6 +70,42 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        const existing = await prisma.user.findUnique({
+          where: { email: user.email! },
+        });
+
+        if (existing) {
+          if (!existing.isActive) return false;
+
+          user.id = existing.user_id;
+          user.role = existing.role;
+          user.name = existing.name;
+          user.image = existing.img ?? user.image ?? null;
+        } else {
+          const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+
+          const created = await prisma.user.create({
+            data: {
+              email: user.email!,
+              name: user.name ?? user.email!.split("@")[0],
+              img: user.image ?? null,
+              role: "User",
+              isActive: true,
+              password: randomPassword,
+            },
+          });
+
+          user.id = created.user_id;
+          user.role = created.role;
+          user.name = created.name;
+          user.image = created.img;
+        }
+      }
+      return true;
+    },
+
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
