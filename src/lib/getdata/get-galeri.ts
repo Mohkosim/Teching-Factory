@@ -82,7 +82,7 @@ export async function getGaleriList({
 export async function getMyGaleriList(): Promise<GaleriItem[]> {
   const session = await getServerSession(authOptions);
   if (!session || !["AdminSMK", "AdminJurusan"].includes(session.user.role)) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   const galeriList = await prisma.galeri.findMany({

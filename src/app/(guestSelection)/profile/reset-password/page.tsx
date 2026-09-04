@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function ResetPasswordPage() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) redirect("/login");
+    if (!session?.user?.id) redirect("/auth/login");
 
     const user = await prisma.user.findUnique({
         where: { user_id: session.user.id },

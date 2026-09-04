@@ -8,7 +8,7 @@ export async function getSMKAccounts(): Promise<SMKAccount[]> {
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "SuperAdmin") {
-        redirect("/login");
+        redirect("/auth/login");
     }
 
     const users = await prisma.user.findMany({

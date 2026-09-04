@@ -18,12 +18,12 @@ export const metadata: Metadata = {
 export default async function LaporanKeuanganPage() {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "AdminSMK") {
-        redirect("/login");
+        redirect("/auth/login");
     }
 
     const smk_id = await getSmkIdByUser(session.user.id);
     if (!smk_id) {
-        redirect("/login");
+        redirect("/auth/login");
     }
 
     const [transaksi, ringkasan, pengeluaranBreakdown, pemasukanBreakdown] = await Promise.all([

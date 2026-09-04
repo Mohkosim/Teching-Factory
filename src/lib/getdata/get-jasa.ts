@@ -7,7 +7,7 @@ import type { JasaItem } from "@/types/interfaces/jasa";
 export async function getJasaList(): Promise<JasaItem[]> {
     const session = await getServerSession(authOptions);
     if (!session || !["AdminJurusan", "AdminSMK"].includes(session.user.role)) {
-        redirect("/login");
+        redirect("/auth/login");
     }
 
     let jurusanIdFilter: string[] = [];

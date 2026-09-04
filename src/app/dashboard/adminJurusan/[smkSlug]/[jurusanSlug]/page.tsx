@@ -24,12 +24,12 @@ import {
 export default async function AdminJurusan() {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "AdminJurusan") {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   const jurusan_id = await getJurusanIdByUser(session.user.id);
   if (!jurusan_id) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   const [produkJasaProportion, pendapatan, pesanan] = await Promise.all([

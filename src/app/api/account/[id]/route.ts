@@ -28,10 +28,25 @@ export async function PATCH(
                 where: { user_id: id },
                 data: { role: "AdminSMK" },
             });
+
+            await prisma.sMK.upsert({
+                where: { user_id: id },
+                update: {},
+                create: {
+                    user_id: id,
+                    alamat: "-",
+                    kota: "-",
+                    provinsi: "-",
+                    tahun_berdiri: new Date().getFullYear(),
+                },
+            });
+
+
             return NextResponse.json({
                 message: "Role berhasil diubah menjadi Admin SMK",
                 data: updated,
             });
+
         }
 
         if (action === "toggle-status") {

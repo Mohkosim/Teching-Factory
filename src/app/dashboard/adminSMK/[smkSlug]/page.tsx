@@ -24,12 +24,12 @@ import {
 export default async function AdminSMK() {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "AdminSMK") {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   const smk_id = await getSmkIdByUser(session.user.id);
   if (!smk_id) {
-    redirect("/login");
+    redirect("/auth/login");
   }
 
   const [statistikJurusan, produkJasaProportion, produkMonthly, jasaMonthly] =

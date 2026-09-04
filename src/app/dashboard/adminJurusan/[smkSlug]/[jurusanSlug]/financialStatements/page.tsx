@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default async function LaporanKeuanganPage() {
     const session = await getServerSession(authOptions);
-    if (!session?.user) redirect("/login");
+    if (!session?.user) redirect("/auth/login");
 
     const jurusan = await prisma.jurusan.findUnique({ where: { user_id: session.user.id } });
     if (!jurusan) redirect("/");
