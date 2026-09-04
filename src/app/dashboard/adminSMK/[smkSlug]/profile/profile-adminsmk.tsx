@@ -114,7 +114,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         reader.readAsDataURL(file);
     };
 
-    // ==== BARU: pilih lokasi gudang lewat peta ====
     const handleLocationSelect = async (result: ReverseGeocodeResult) => {
         setProfileForm((prev) => ({
             ...prev,
@@ -130,7 +129,14 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             const query = [result.kecamatan, result.kota].filter(Boolean).join(", ");
             const matches = await searchOngkirDestination(query || result.kota);
             if (matches.length > 0) {
-                setProfileForm((prev) => ({ ...prev, kota_id: matches[0].id }));
+                const best = matches[0];
+                const [kecamatanLabel] = best.label.split(",").map((s) => s.trim());
+
+                setProfileForm((prev) => ({
+                    ...prev,
+                    kota_id: best.id,
+                    kecamatan: prev.kecamatan || kecamatanLabel || prev.kecamatan,
+                }));
                 toast.success("Lokasi terhubung otomatis dengan sistem ongkir");
             } else {
                 toast.error("Kecamatan tidak ditemukan otomatis, cari manual di bawah");
@@ -437,8 +443,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                             <div className="space-y-1.5 relative">
                                 <Label htmlFor="kecamatan" className="text-sm text-gray-600">
                                     Kecamatan{" "}
-                                    {profileForm.kota_id && (
-                                        <span className="text-xs text-green-600 font-normal">✓ Terhubung</span>
+                                    {profileForm.kota_id && profileForm.kecamatan && (
+                                        <span className="text-green-600">✓ Terhubung</span>
                                     )}
                                 </Label>
                                 <Input
