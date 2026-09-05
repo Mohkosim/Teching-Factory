@@ -40,6 +40,8 @@ export async function PATCH(req: Request) {
         kota_id,
         kode_pos,
         provinsi,
+        latitude, 
+        longitude, 
         tahun_berdiri,
         // AdminJurusan
         deskripsi,
@@ -59,13 +61,14 @@ export async function PATCH(req: Request) {
         kota_id?: number | null;
         kode_pos?: string;
         provinsi?: string;
+        latitude?: number | null;   
+        longitude?: number | null; 
         tahun_berdiri?: number | string;
         deskripsi?: string;
         kepala_jurusan?: string;
         jam_operasional?: string;
     };
 
-    // ── Validasi email ──
     if (email) {
         const existing = await prisma.user.findFirst({
             where: { email, NOT: { user_id: session.user.id } },
@@ -75,7 +78,6 @@ export async function PATCH(req: Request) {
         }
     }
 
-    // ── Validasi khusus AdminSMK: kalau SMK belum ada, field wajib harus lengkap ──
     const currentUser = await prisma.user.findUnique({
         where: { user_id: session.user.id },
         select: {
@@ -99,7 +101,6 @@ export async function PATCH(req: Request) {
         }
     }
 
-    // ── Update field dasar User (name, email, img, phone) ──
     const updatedUser = await prisma.user.update({
         where: { user_id: session.user.id },
         data: {
@@ -117,7 +118,6 @@ export async function PATCH(req: Request) {
         },
     });
 
-    // ── AdminSMK: update kalau sudah ada baris SMK, create kalau belum ──
     if (updatedUser.role === "AdminSMK") {
         if (updatedUser.smk?.smk_id) {
             await prisma.sMK.update({
@@ -131,11 +131,12 @@ export async function PATCH(req: Request) {
                     ...(kota_id !== undefined ? { kota_id } : {}),
                     ...(kode_pos !== undefined ? { kode_pos } : {}),
                     ...(provinsi !== undefined ? { provinsi } : {}),
+                    ...(latitude !== undefined ? { latitude } : {}),    
+                    ...(longitude !== undefined ? { longitude } : {}), 
                     ...(tahun_berdiri !== undefined ? { tahun_berdiri: Number(tahun_berdiri) } : {}),
                 },
             });
         } else {
-            // Baris SMK belum ada sama sekali → buat baru
             await prisma.sMK.create({
                 data: {
                     user_id: updatedUser.user_id,
@@ -147,13 +148,14 @@ export async function PATCH(req: Request) {
                     kota_id: kota_id,      
                     kode_pos: kode_pos,      
                     provinsi: provinsi!,
+                    latitude: latitude,    
+                    longitude: longitude,  
                     tahun_berdiri: Number(tahun_berdiri),
                 },
             });
         }
     }
 
-    // ── AdminJurusan: update field di tabel Jurusan (phone sudah di-handle di atas) ──
     if (updatedUser.role === "AdminJurusan" && updatedUser.jurusan?.jurusan_id) {
         await prisma.jurusan.update({
             where: { jurusan_id: updatedUser.jurusan.jurusan_id },

@@ -208,6 +208,11 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             return;
         }
 
+        if (profileForm.latitude == null || profileForm.longitude == null) {
+    toast.error("Tandai titik lokasi sekolah di peta terlebih dahulu");
+    return;
+}
+
         startTransition(async () => {
             tampilkanLoading("Menyimpan perubahan...");
             try {
