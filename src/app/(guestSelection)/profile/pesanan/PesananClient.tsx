@@ -53,6 +53,16 @@ interface RatingQueueItem {
     initialUlasan?: string;
     initialFotoUlasan?: FotoUlasan[];
 }
+
+interface RatingSubmitItem {
+    produkId: string;
+    itemStateId: string;
+    rating: number;
+    komentar: string;
+    fotoBaru: File[];
+    keepFotoIds: string[];
+}
+
 interface RatingQueueState {
     kind: "produk" | "jasa";
     items: RatingQueueItem[];
@@ -135,19 +145,15 @@ export default function PesananClient({
         setAvatarPreview(URL.createObjectURL(file));
     };
 
-    const handleSaveRating = async (
-        ratings: { produkId: string; itemStateId: string; rating: number; komentar: string }[],
-        fotoBaru: File[],
-        keepFotoIds: string[]
-    ) => {
+    const handleSaveRating = async (items: RatingSubmitItem[]) => {
         if (!ratingQueue) return;
         tampilkanLoading("Menyimpan rating...");
         try {
             const results = await Promise.all(
-                ratings.map((r) => simpanRating(r.produkId, r.itemStateId, r.rating, r.komentar, fotoBaru, keepFotoIds))
+                items.map((r) => simpanRating(r.produkId, r.itemStateId, r.rating, r.komentar, r.fotoBaru, r.keepFotoIds))
             );
             const fotoUlasanPerProduk = new Map<string, FotoUlasan[]>();
-            ratings.forEach((r, idx) => {
+            items.forEach((r, idx) => {
                 fotoUlasanPerProduk.set(
                     r.produkId,
                     results[idx]?.foto?.map((f) => ({ id: f.foto_id, url: f.url })) ?? []
@@ -157,7 +163,7 @@ export default function PesananClient({
             if (ratingQueue.kind === "jasa") {
                 setJasaData((prev) =>
                     prev.map((j) => {
-                        const found = ratings.find((r) => r.itemStateId === j.id);
+                        const found = items.find((r) => r.itemStateId === j.id);
                         return found
                             ? { ...j, rating: found.rating, ulasan: found.komentar, fotoUlasan: fotoUlasanPerProduk.get(found.produkId) ?? j.fotoUlasan }
                             : j;
@@ -166,7 +172,7 @@ export default function PesananClient({
             } else {
                 setProdukData((prev) =>
                     prev.map((p) => {
-                        const found = ratings.find((r) => r.itemStateId === p.id);
+                        const found = items.find((r) => r.itemStateId === p.id);
                         return found
                             ? { ...p, rating: found.rating, ulasan: found.komentar, fotoUlasan: fotoUlasanPerProduk.get(found.produkId) ?? p.fotoUlasan }
                             : p;
@@ -1220,64 +1226,72 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 function RatingModal({ items, onClose, onSave }: {
     items: RatingQueueItem[];
     onClose: () => void;
-    onSave: (
-        ratings: { produkId: string; itemStateId: string; rating: number; komentar: string }[],
-        fotoBaru: File[],
-        keepFotoIds: string[]
-    ) => void;
+    onSave: (items: RatingSubmitItem[]) => void;
 }) {
     const [ratings, setRatings] = useState<Record<string, number>>(() =>
         Object.fromEntries(items.map((i) => [i.produkId, i.initialRating ?? 0]))
     );
     const [hoverMap, setHoverMap] = useState<Record<string, number>>({});
-    const [deskripsi, setDeskripsi] = useState(items[0]?.initialUlasan ?? "");
     const [isPending, setIsPending] = useState(false);
 
-    const fotoLamaAwal = items[0]?.initialFotoUlasan ?? [];
-    const [fotoLamaKept, setFotoLamaKept] = useState<FotoUlasan[]>(fotoLamaAwal);
-    const [fotoBaru, setFotoBaru] = useState<File[]>([]);
-    const [previewBaru, setPreviewBaru] = useState<string[]>([]);
-    const fotoInputRef = useRef<HTMLInputElement>(null);
-    const totalFoto = fotoLamaKept.length + fotoBaru.length;
+    // ⬇️ state ulasan & foto sekarang PER PRODUK, bukan global
+    const [reviews, setReviews] = useState<Record<string, {
+        deskripsi: string;
+        fotoLamaKept: FotoUlasan[];
+        fotoBaru: File[];
+        previewBaru: string[];
+    }>>(() =>
+        Object.fromEntries(items.map((i) => [i.produkId, {
+            deskripsi: i.initialUlasan ?? "",
+            fotoLamaKept: i.initialFotoUlasan ?? [],
+            fotoBaru: [],
+            previewBaru: [],
+        }]))
+    );
 
-    const handlePilihFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fotoInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+    const setReview = (produkId: string, patch: Partial<{
+        deskripsi: string; fotoLamaKept: FotoUlasan[]; fotoBaru: File[]; previewBaru: string[];
+    }>) => {
+        setReviews((prev) => ({ ...prev, [produkId]: { ...prev[produkId], ...patch } }));
+    };
+
+    const handlePilihFoto = (produkId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
         if (files.length === 0) return;
-
+        const r = reviews[produkId];
+        const totalFoto = r.fotoLamaKept.length + r.fotoBaru.length;
         const sisaSlot = MAX_FOTO_ULASAN - totalFoto;
         if (sisaSlot <= 0) {
             toast.error(`Maksimal ${MAX_FOTO_ULASAN} foto`);
             e.target.value = "";
             return;
         }
-
         const valid = files.slice(0, sisaSlot).filter((f) => {
-            if (!f.type.startsWith("image/")) {
-                toast.error(`${f.name} bukan file gambar`);
-                return false;
-            }
-            if (f.size > MAX_FOTO_SIZE) {
-                toast.error(`${f.name} melebihi 5MB`);
-                return false;
-            }
+            if (!f.type.startsWith("image/")) { toast.error(`${f.name} bukan file gambar`); return false; }
+            if (f.size > MAX_FOTO_SIZE) { toast.error(`${f.name} melebihi 5MB`); return false; }
             return true;
         });
-
-        setFotoBaru((prev) => [...prev, ...valid]);
-        setPreviewBaru((prev) => [...prev, ...valid.map((f) => URL.createObjectURL(f))]);
+        setReview(produkId, {
+            fotoBaru: [...r.fotoBaru, ...valid],
+            previewBaru: [...r.previewBaru, ...valid.map((f) => URL.createObjectURL(f))],
+        });
         e.target.value = "";
     };
 
-    const handleHapusFotoLama = (id: string) => {
-        setFotoLamaKept((prev) => prev.filter((f) => f.id !== id));
+    const handleHapusFotoLama = (produkId: string, id: string) => {
+        const r = reviews[produkId];
+        setReview(produkId, { fotoLamaKept: r.fotoLamaKept.filter((f) => f.id !== id) });
     };
 
-    const handleHapusFotoBaru = (index: number) => {
-        setPreviewBaru((prev) => {
-            URL.revokeObjectURL(prev[index]);
-            return prev.filter((_, i) => i !== index);
+    const handleHapusFotoBaru = (produkId: string, index: number) => {
+        const r = reviews[produkId];
+        URL.revokeObjectURL(r.previewBaru[index]);
+        setReview(produkId, {
+            fotoBaru: r.fotoBaru.filter((_, i) => i !== index),
+            previewBaru: r.previewBaru.filter((_, i) => i !== index),
         });
-        setFotoBaru((prev) => prev.filter((_, i) => i !== index));
     };
 
     const semuaSudahDinilai = items.every((i) => (ratings[i.produkId] ?? 0) > 0);
@@ -1287,14 +1301,17 @@ function RatingModal({ items, onClose, onSave }: {
         setIsPending(true);
         try {
             onSave(
-                items.map((i) => ({
-                    produkId: i.produkId,
-                    itemStateId: i.itemStateId,
-                    rating: ratings[i.produkId] ?? 0,
-                    komentar: deskripsi,
-                })),
-                fotoBaru,
-                fotoLamaKept.map((f) => f.id)
+                items.map((i) => {
+                    const r = reviews[i.produkId];
+                    return {
+                        produkId: i.produkId,
+                        itemStateId: i.itemStateId,
+                        rating: ratings[i.produkId] ?? 0,
+                        komentar: r.deskripsi,
+                        fotoBaru: r.fotoBaru,
+                        keepFotoIds: r.fotoLamaKept.map((f) => f.id),
+                    };
+                })
             );
         } finally {
             setIsPending(false);
@@ -1307,101 +1324,98 @@ function RatingModal({ items, onClose, onSave }: {
                 Pesananmu sudah {items.length > 1 ? "diterima" : "selesai"}. Bagaimana kualitasnya?
             </p>
 
-            <div className="space-y-4 mb-5">
-                {items.map((item) => (
-                    <div key={item.produkId} className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-lg bg-gray-200 overflow-hidden shrink-0">
-                            {item.thumbnail && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={item.thumbnail} alt={item.nama} className="w-full h-full object-cover" />
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate mb-1">{item.nama}</p>
-                            <div className="flex items-center gap-1">
-                                {Array.from({ length: 5 }).map((_, i) => {
-                                    const starValue = i + 1;
-                                    const current = hoverMap[item.produkId] || ratings[item.produkId] || 0;
-                                    const active = starValue <= current;
-                                    return (
-                                        <button
-                                            key={i}
-                                            type="button"
-                                            onClick={() => setRatings((prev) => ({ ...prev, [item.produkId]: starValue }))}
-                                            onMouseEnter={() => setHoverMap((prev) => ({ ...prev, [item.produkId]: starValue }))}
-                                            onMouseLeave={() => setHoverMap((prev) => ({ ...prev, [item.produkId]: 0 }))}
-                                            className="p-0.5"
-                                        >
-                                            <Star className={`w-5 h-5 transition-colors ${active ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
-                                        </button>
-                                    );
-                                })}
+            <div className="space-y-6 mb-5">
+                {items.map((item) => {
+                    const r = reviews[item.produkId];
+                    const totalFoto = r.fotoLamaKept.length + r.fotoBaru.length;
+                    return (
+                        <div key={item.produkId} className={items.length > 1 ? "border border-gray-100 rounded-xl p-3" : ""}>
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-11 h-11 rounded-lg bg-gray-200 overflow-hidden shrink-0">
+                                    {item.thumbnail && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={item.thumbnail} alt={item.nama} className="w-full h-full object-cover" />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-800 truncate mb-1">{item.nama}</p>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: 5 }).map((_, i) => {
+                                            const starValue = i + 1;
+                                            const current = hoverMap[item.produkId] || ratings[item.produkId] || 0;
+                                            const active = starValue <= current;
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => setRatings((prev) => ({ ...prev, [item.produkId]: starValue }))}
+                                                    onMouseEnter={() => setHoverMap((prev) => ({ ...prev, [item.produkId]: starValue }))}
+                                                    onMouseLeave={() => setHoverMap((prev) => ({ ...prev, [item.produkId]: 0 }))}
+                                                    className="p-0.5"
+                                                >
+                                                    <Star className={`w-5 h-5 transition-colors ${active ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
 
-            <div className="mb-5">
-                <label className="text-sm font-medium text-gray-800 block mb-2">Deskripsi</label>
-                <Textarea
-                    value={deskripsi}
-                    onChange={(e) => setDeskripsi(e.target.value)}
-                    placeholder="Ceritakan pengalamanmu (opsional)"
-                    className="min-h-25 resize-none rounded-xl"
-                />
-            </div>
+                            <label className="text-xs font-medium text-gray-600 block mb-1.5">Deskripsi</label>
+                            <Textarea
+                                value={r.deskripsi}
+                                onChange={(e) => setReview(item.produkId, { deskripsi: e.target.value })}
+                                placeholder="Ceritakan pengalamanmu (opsional)"
+                                className="min-h-20 resize-none rounded-xl mb-3"
+                            />
 
-            <div className="mb-5">
-                <label className="text-sm font-medium text-gray-800 block mb-2">
-                    Foto ({totalFoto}/{MAX_FOTO_ULASAN})
-                </label>
-                <div className="flex flex-wrap gap-2">
-                    {fotoLamaKept.map((foto) => (
-                        <div key={foto.id} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={foto.url} alt="Foto ulasan" className="w-full h-full object-cover" />
-                            <button
-                                type="button"
-                                onClick={() => handleHapusFotoLama(foto.id)}
-                                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
-                            >
-                                ✕
-                            </button>
+                            <label className="text-xs font-medium text-gray-600 block mb-1.5">
+                                Foto ({totalFoto}/{MAX_FOTO_ULASAN})
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {r.fotoLamaKept.map((foto) => (
+                                    <div key={foto.id} className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={foto.url} alt="Foto ulasan" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleHapusFotoLama(item.produkId, foto.id)}
+                                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
+                                        >✕</button>
+                                    </div>
+                                ))}
+                                {r.previewBaru.map((src, i) => (
+                                    <div key={src} className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={src} alt="Foto baru" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleHapusFotoBaru(item.produkId, i)}
+                                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
+                                        >✕</button>
+                                    </div>
+                                ))}
+                                {totalFoto < MAX_FOTO_ULASAN && (
+                                    <button
+                                        type="button"
+                                        onClick={() => fotoInputRefs.current[item.produkId]?.click()}
+                                        className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-blue-300 hover:text-blue-400"
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
+                            <input
+                                ref={(el) => { fotoInputRefs.current[item.produkId] = el; }}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => handlePilihFoto(item.produkId, e)}
+                            />
                         </div>
-                    ))}
-                    {previewBaru.map((src, i) => (
-                        <div key={src} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={src} alt="Foto baru" className="w-full h-full object-cover" />
-                            <button
-                                type="button"
-                                onClick={() => handleHapusFotoBaru(i)}
-                                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    ))}
-                    {totalFoto < MAX_FOTO_ULASAN && (
-                        <button
-                            type="button"
-                            onClick={() => fotoInputRef.current?.click()}
-                            className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-blue-300 hover:text-blue-400"
-                        >
-                            <Camera className="w-5 h-5" />
-                        </button>
-                    )}
-                </div>
-                <input
-                    ref={fotoInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handlePilihFoto}
-                />
-                <p className="text-xs text-gray-400 mt-1.5">Opsional. Maks {MAX_FOTO_ULASAN} foto, tiap foto maks 5MB.</p>
+                    );
+                })}
             </div>
 
             <Button

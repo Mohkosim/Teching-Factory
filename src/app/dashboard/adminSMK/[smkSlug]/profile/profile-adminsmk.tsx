@@ -43,12 +43,14 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         kepala_sekolah: initialData.kepala_sekolah ?? "",
         deskripsi_smk: initialData.deskripsi_smk ?? "",
         alamat: initialData.alamat ?? "",
-        kecamatan: initialData.kecamatan ?? "",       // BARU
+        kecamatan: initialData.kecamatan ?? "",
         kota: initialData.kota ?? "",
-        kota_id: initialData.kota_id ?? null as number | null, // BARU
-        kode_pos: initialData.kode_pos ?? "",         // BARU
+        kota_id: initialData.kota_id ?? null as number | null,
+        kode_pos: initialData.kode_pos ?? "",
         provinsi: initialData.provinsi ?? "",
         tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
+        latitude: initialData.latitude ?? null as number | null,   
+        longitude: initialData.longitude ?? null as number | null, 
     });
 
     const [passwordForm, setPasswordForm] = useState({
@@ -64,7 +66,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
 
     const [prevInitialData, setPrevInitialData] = useState(initialData);
 
-    // ==== State pencarian kecamatan manual (fallback kalau map picker tidak akurat) ====
     const [destinationOptions, setDestinationOptions] = useState<OngkirDestination[]>([]);
     const [searchingDestination, setSearchingDestination] = useState(false);
 
@@ -83,6 +84,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             kode_pos: initialData.kode_pos ?? "",
             provinsi: initialData.provinsi ?? "",
             tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
+            latitude: initialData.latitude ?? null,  
+            longitude: initialData.longitude ?? null,
         });
         setAvatarPreview(initialData.img);
     }
@@ -122,6 +125,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             kota: result.kota,
             provinsi: result.provinsi,
             kode_pos: result.kode_pos,
+            latitude: result.latitude,   
+            longitude: result.longitude, 
             kota_id: null,
         }));
 
@@ -147,7 +152,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         }
     };
 
-    // ==== BARU: cari manual kecamatan (fallback) ====
     const handleSearchKecamatan = async (query: string) => {
         if (query.length < 3) {
             setDestinationOptions([]);
@@ -226,6 +230,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     kode_pos: profileForm.kode_pos,
                     provinsi: profileForm.provinsi,
                     tahun_berdiri: Number(profileForm.tahun_berdiri),
+                    latitude: profileForm.latitude,   
+                    longitude: profileForm.longitude, 
                 });
 
                 if (isGantiPassword) {
@@ -407,7 +413,6 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                         />
                     </div>
 
-                    {/* ==== BARU: Section Lokasi Gudang / Alamat Pengiriman ==== */}
                     <div className="pt-2 space-y-4">
                         <div>
                             <Label className="text-sm text-gray-600 font-semibold">
@@ -421,7 +426,14 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                             </p>
                         </div>
 
-                        <AddressMapPicker onLocationSelect={handleLocationSelect} />
+                        <AddressMapPicker
+                            onLocationSelect={handleLocationSelect}
+                            initialPosition={
+                                profileForm.latitude != null && profileForm.longitude != null
+                                    ? [profileForm.latitude, profileForm.longitude]
+                                    : null
+                            }
+                        />
 
                         <div className="space-y-1.5">
                             <Label htmlFor="alamat" className="text-sm text-gray-600">

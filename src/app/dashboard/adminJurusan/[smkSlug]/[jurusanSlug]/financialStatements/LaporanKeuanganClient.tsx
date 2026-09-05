@@ -472,10 +472,10 @@ export default function LaporanKeuanganClient({
                     </div>
                     <div>
                         <p className="text-sm text-sky-50">Saldo yang Diterima</p>
-                        <p className="text-2xl font-bold">Rp {formatRupiah(saldo.saldoTersedia)}</p>
+                        <p className="text-2xl font-bold">{formatRupiah(saldo.saldoTersedia)}</p>
                         {saldo.totalBiayaMidtrans > 0 && (
                             <p className="text-xs text-sky-50/80 mt-0.5">
-                                Sudah dipotong estimasi biaya Midtrans Rp {formatRupiah(saldo.totalBiayaMidtrans)}
+                                Sudah dipotong estimasi biaya Midtrans {formatRupiah(saldo.totalBiayaMidtrans)}
                             </p>
                         )}
                     </div>
@@ -1010,21 +1010,21 @@ export default function LaporanKeuanganClient({
                                 <div>
                                     <p className="font-semibold text-gray-800 uppercase text-xs">{detailItem.deskripsi}</p>
                                     <p className="text-xs text-gray-500">Jumlah : {detailItem.qty}</p>
-                                    <p className="text-xs text-gray-500">Harga : Rp {formatRupiah(detailItem.hargaSatuan)}</p>
+                                    <p className="text-xs text-gray-500">Harga : {formatRupiah(detailItem.hargaSatuan)}</p>
                                 </div>
                             </div>
 
                             <div className="mt-3 space-y-1">
                                 <InfoRow label="Metode Pembayaran" value={detailItem.metodePembayaran} />
-                                <InfoRow label="Sub Total" value={`Rp ${formatRupiah(detailItem.hargaSatuan)}`} />
-                                <InfoRow label="Biaya Ongkir" value={`Rp ${formatRupiah(detailItem.biayaOngkir ?? 0)}`} />
-                                <InfoRow label="Total" value={`Rp ${formatRupiah(detailItem.total)}`} />
+                                <InfoRow label="Sub Total" value={`${formatRupiah(detailItem.hargaSatuan)}`} />
+                                <InfoRow label="Biaya Ongkir" value={`${formatRupiah(detailItem.biayaOngkir ?? 0)}`} />
+                                <InfoRow label="Total" value={`${formatRupiah(detailItem.total)}`} />
                                 {(detailItem.biayaMidtrans ?? 0) > 0 && (
                                     <InfoRow
                                         label="Estimasi Biaya Midtrans"
                                         value={
                                             <span className="text-red-500">
-                                                - Rp {formatRupiah(detailItem.biayaMidtrans!)}
+                                                - {formatRupiah(detailItem.biayaMidtrans!)}
                                             </span>
                                         }
                                     />
@@ -1089,7 +1089,7 @@ export default function LaporanKeuanganClient({
 
                             <div className="space-y-1">
                                 <InfoRow label="Keterangan" value={detailItem.kategori} />
-                                <InfoRow label="Total" value={`Rp ${formatRupiah(detailItem.total)}`} />
+                                <InfoRow label="Total" value={`${formatRupiah(detailItem.total)}`} />
                                 <InfoRow label="Metode Pembayaran" value={detailItem.metodePembayaran} />
                             </div>
 
@@ -1144,7 +1144,7 @@ export default function LaporanKeuanganClient({
                         <p className="text-sm text-gray-500">
                             Saldo tersedia:{" "}
                             <span className="font-semibold text-sky-600">
-                                Rp {formatRupiah(saldo.saldoTersedia)}
+                                {formatRupiah(saldo.saldoTersedia)}
                             </span>
                         </p>
 
@@ -1248,7 +1248,7 @@ export default function LaporanKeuanganClient({
                                     <div className="flex-1 min-w-0">
                                         <p className={`text-sm font-medium ${cfg.text}`}>{cfg.label}</p>
                                         <p className="text-xs text-gray-500 truncate">
-                                            Rp {formatRupiah(item.nominal)} · Diajukan {item.tanggal}
+                                            {formatRupiah(item.nominal)} · Diajukan {item.tanggal}
                                         </p>
                                     </div>
                                     <span className={`text-xs font-medium ${cfg.text} shrink-0`}>Lihat</span>

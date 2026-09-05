@@ -15,7 +15,7 @@ function renderLabel(data: Slice[]) {
     const item = data[index];
     if (!item) return null;
 
-    const radius = outerRadius + 20;
+    const radius = outerRadius + 14;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -44,13 +44,13 @@ export function ProdukJasaChart({ data }: { data: Slice[] }) {
         <h3 className="text-sm font-bold text-foreground text-center">Produk dan Jasa</h3>
       </CardHeader>
       <CardContent className="px-8 flex flex-col items-center">
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
+        <ResponsiveContainer width="100%" height={260}>
+          <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
             <Pie
               data={chartData}
               dataKey="value"
               innerRadius={60}
-              outerRadius={90}
+              outerRadius={85}
               startAngle={90}
               endAngle={-270}
               label={isEmpty ? false : renderLabel(data)}
@@ -65,7 +65,7 @@ export function ProdukJasaChart({ data }: { data: Slice[] }) {
           </PieChart>
         </ResponsiveContainer>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 mt-4">
           {data.map((d) => (
             <div key={d.name} className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />

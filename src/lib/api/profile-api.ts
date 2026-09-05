@@ -31,6 +31,8 @@ export interface UpdateProfilePayload {
     kota_id?: number | null;
     kode_pos?: string;       
     provinsi?: string;
+    latitude?: number | null;
+    longitude?: number | null;
     tahun_berdiri?: number;
 
     // AdminJurusan

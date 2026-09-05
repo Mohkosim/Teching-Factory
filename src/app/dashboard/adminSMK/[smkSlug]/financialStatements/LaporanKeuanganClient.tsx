@@ -80,7 +80,7 @@ function DonutSummaryCard({
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex-1 min-w-24">
             <p className="text-sm font-semibold text-gray-700">{title}</p>
             <p className="text-xs text-gray-400 mb-3">
-                {subtitleLabel}: Rp {formatRupiah(total)}
+                {subtitleLabel}: {formatRupiah(total)}
             </p>
             <div className="flex items-center gap-4">
                 <div className="relative h-24 w-24 shrink-0">
@@ -287,7 +287,6 @@ export default function LaporanKeuanganClient({
                         />
                     </div>
 
-                    {/* Kanan: filter tanggal, filter kategori, tombol Export */}
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="relative">
                             <Button
@@ -302,7 +301,6 @@ export default function LaporanKeuanganClient({
 
                             {openDateFilter && (
                                 <>
-                                    {/* klik di luar untuk nutup */}
                                     <div
                                         className="fixed inset-0 z-10"
                                         onClick={() => setOpenDateFilter(false)}
@@ -481,7 +479,7 @@ export default function LaporanKeuanganClient({
                                 <DetailRow label="Deskripsi" value={detailItem.deskripsi} />
                                 <DetailRow
                                     label="Harga Satuan"
-                                    value={detailItem.hargaSatuan ? `Rp ${formatRupiah(detailItem.hargaSatuan)}` : "-"}
+                                    value={detailItem.hargaSatuan ? `${formatRupiah(detailItem.hargaSatuan)}` : "-"}
                                 />
                                 <DetailRow label="Metode Pembayaran" value={detailItem.metodePembayaran} />
                                 <DetailRow
@@ -498,7 +496,7 @@ export default function LaporanKeuanganClient({
                             <div className="flex items-center justify-between bg-sky-50/60 border border-sky-100 rounded-lg px-3.5 py-2.5">
                                 <span className="text-sm font-medium text-gray-600">Total</span>
                                 <span className="text-sm font-bold text-gray-800">
-                                    Rp {formatRupiah(detailItem.total)}
+                                    {formatRupiah(detailItem.total)}
                                 </span>
                             </div>
                         </div>

@@ -126,7 +126,8 @@ model User {
   alamat Alamat[]
   review   Review[]
   galeri   Galeri[]
-  favorites Favorite[] 
+  favorites Favorite[]
+   
 
   resetToken       String?
   resetTokenExpiry DateTime?
@@ -154,6 +155,8 @@ model SMK {
   kota_id           Int?  
   kode_pos          String?
   provinsi          String
+  latitude          Float?
+  longitude         Float? 
   tahun_berdiri     Int
   status_verifikasi Boolean @default(false)
 

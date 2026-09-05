@@ -14,6 +14,8 @@ export interface ProfileData {
     kota_id?: number | null; 
     kode_pos?: string | null; 
     provinsi?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
     tahun_berdiri?: number | null;
 
     // Khusus AdminJurusan
