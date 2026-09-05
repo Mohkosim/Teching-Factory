@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { Search, Eye, Wrench, ChevronLeft, ChevronRight, AlertCircle, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { tampilkanLoading } from "@/lib/utils/alert";
+import { tampilkanLoading, confirmAksi } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,8 +100,18 @@ export default function ServiceManagement({
         setActiveImageIndex((i) => (i === detailItem.fotos.length - 1 ? 0 : i + 1));
     };
 
-    const handlePublikasi = () => {
+    const handlePublikasi = async () => {
         if (!detailItem) return;
+
+        const konfirmasi = await confirmAksi({
+            title: "Publikasikan jasa ini?",
+            text: `"${detailItem.nama_jasa}" akan tayang dan dapat dilihat publik.`,
+            icon: "question",
+            confirmText: "Ya, publikasikan",
+            confirmColor: "#10b981",
+        });
+        if (!konfirmasi) return;
+
         startTransition(async () => {
             tampilkanLoading("Mempublikasikan jasa...");
             try {
@@ -123,12 +133,22 @@ export default function ServiceManagement({
         });
     };
 
-    const handleSubmitRevisi = () => {
+    const handleSubmitRevisi = async () => {
         if (!detailItem) return;
         if (!revisiText.trim()) {
             toast.error("Catatan revisi wajib diisi");
             return;
         }
+
+        const konfirmasi = await confirmAksi({
+            title: "Kirim catatan revisi?",
+            text: `Jasa "${detailItem.nama_jasa}" akan ditandai perlu revisi dan catatan ini akan dikirim ke vendor.`,
+            icon: "warning",
+            confirmText: "Ya, kirim",
+            confirmColor: "#ef4444",
+        });
+        if (!konfirmasi) return;
+
         startTransition(async () => {
             tampilkanLoading("Mengirim catatan revisi...");
             try {

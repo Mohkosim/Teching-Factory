@@ -1,5 +1,10 @@
 import Swal from "sweetalert2";
 
+function fixSwalPointerEvents() {
+    const container = document.querySelector(".swal2-container") as HTMLElement | null;
+    if (container) container.style.pointerEvents = "auto";
+}
+
 export async function confirmAksi({
     title,
     text,
@@ -25,6 +30,7 @@ export async function confirmAksi({
         confirmButtonColor: confirmColor,
         cancelButtonColor: "#6b7280",
         reverseButtons: true,
+        didOpen: fixSwalPointerEvents,
     });
     return result.isConfirmed;
 }
@@ -47,6 +53,7 @@ export function alertSukses(title: string, text?: string) {
         text,
         icon: "success",
         confirmButtonColor: "#3b82f6",
+        didOpen: fixSwalPointerEvents,
     });
 }
 
@@ -57,6 +64,7 @@ export function alertGagal(title: string, text?: string) {
         text,
         icon: "error",
         confirmButtonColor: "#3b82f6",
+        didOpen: fixSwalPointerEvents,
     });
 }
 
@@ -68,6 +76,7 @@ export function tampilkanLoading(title = "Memproses...") {
         allowEscapeKey: false,
         didOpen: () => {
             Swal.showLoading();
+            fixSwalPointerEvents();
         },
     });
 }

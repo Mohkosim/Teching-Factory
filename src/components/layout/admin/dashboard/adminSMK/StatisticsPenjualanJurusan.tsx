@@ -29,6 +29,11 @@ function formatRupiahSingkat(value: number) {
   return `Rp${value}`;
 }
 
+function truncateLabel(value: string, maxLength = 12) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
+}
+
 export function StatisticsPenjualanJurusan({ data }: { data: JurusanData[] }) {
   const [filter, setFilter] = useState<Filter>("semua");
 
@@ -41,6 +46,9 @@ export function StatisticsPenjualanJurusan({ data }: { data: JurusanData[] }) {
       })),
     [data, filter]
   );
+
+  const isEmpty = chartData.every((d) => d.nilai === 0);
+  const yDomain: [number, number | "auto"] = isEmpty ? [0, 4] : [0, "auto"];
 
   return (
     <Card className="border-0 shadow-sm bg-white">
@@ -62,8 +70,8 @@ export function StatisticsPenjualanJurusan({ data }: { data: JurusanData[] }) {
         </div>
       </CardHeader>
       <CardContent className="px-8">
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={240}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 20 }}>
             <defs>
               <linearGradient id="colorNilai" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
@@ -76,6 +84,12 @@ export function StatisticsPenjualanJurusan({ data }: { data: JurusanData[] }) {
               tick={{ fontSize: 11, fill: "hsl(215, 16%, 55%)" }}
               axisLine={false}
               tickLine={false}
+              interval={0}
+              angle={-25}
+              textAnchor="end"
+              height={45}
+              tickMargin={8}
+              tickFormatter={(value: string) => truncateLabel(value)}
             />
             <YAxis
               tick={{ fontSize: 11, fill: "hsl(215, 16%, 55%)" }}
@@ -83,6 +97,8 @@ export function StatisticsPenjualanJurusan({ data }: { data: JurusanData[] }) {
               tickLine={false}
               tickFormatter={formatRupiahSingkat}
               width={55}
+              domain={yDomain}
+              allowDecimals={false}
             />
             <Tooltip
               contentStyle={{
@@ -91,16 +107,18 @@ export function StatisticsPenjualanJurusan({ data }: { data: JurusanData[] }) {
                 borderRadius: "8px",
                 fontSize: "12px",
               }}
+              labelFormatter={(_label, payload) => payload?.[0]?.payload?.bulan ?? _label}
               formatter={(value) => [`Rp ${Number(value).toLocaleString("id-ID")}`, "Nilai"]}
             />
             <Area
-              type="natural"
+              type="linear"
               dataKey="nilai"
               stroke="#3b82f6"
               strokeWidth={2.5}
               fill="url(#colorNilai)"
               dot={false}
               activeDot={{ r: 5, fill: "#3b82f6", strokeWidth: 0 }}
+              isAnimationActive={!isEmpty}
             />
           </AreaChart>
         </ResponsiveContainer>
