@@ -88,7 +88,6 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
 
         const isRefunded = t.order?.refundRequest?.status === "Disetujui";
 
-        // Deskripsi: gabung nama produk kalau order multi-item, atau pakai field deskripsi manual (pengeluaran)
         const deskripsiOtomatis = items.length > 0
             ? items.map((i) => i.produk.nama_produk).join(", ")
             : null;
@@ -125,7 +124,7 @@ export async function getRingkasanSmk(smk_id: string) {
         .filter((t) => t.jenisTransaksi === "Pemasukan" && t.statusSettlement === "Settled")
         .reduce((s, t) => s + t.total, 0);
 
-    const totalRefund = transaksi // ⬅️ baru
+    const totalRefund = transaksi
         .filter((t) => t.jenisTransaksi === "Pemasukan" && t.statusSettlement === "Refund")
         .reduce((s, t) => s + t.total, 0);
 
@@ -196,23 +195,27 @@ export async function getPengeluaranBreakdownSmk(smk_id: string) {
 
     const persenBahanBaku = total > 0 ? Math.round((bahanBaku / total) * 100) : 0;
     const persenOperasional = total > 0 ? Math.round((operasional / total) * 100) : 0;
-    const persenLainnya = 100 - persenBahanBaku - persenOperasional;
+    const persenLainnya = total > 0 ? 100 - persenBahanBaku - persenOperasional : 0; 
 
-    const kategoriTerbesar = [
-        { name: "Bahan Baku", persen: persenBahanBaku },
-        { name: "Operasional", persen: persenOperasional },
-        { name: "Lainnya", persen: persenLainnya },
-    ].sort((a, b) => b.persen - a.persen)[0];
+    const kategoriTerbesar = total > 0
+        ? [
+            { name: "Bahan Baku", persen: persenBahanBaku },
+            { name: "Operasional", persen: persenOperasional },
+            { name: "Lainnya", persen: persenLainnya },
+        ].sort((a, b) => b.persen - a.persen)[0]
+        : { name: "Belum ada data", persen: 0 }; 
 
     return {
         total,
         persen: kategoriTerbesar.persen,
         persenLabel: kategoriTerbesar.name,
-        data: [
-            { name: "Pengeluaran Bahan Baku", value: persenBahanBaku, color: "#f87171" },
-            { name: "Pengeluaran Operasional", value: persenOperasional, color: "#fbbf24" },
-            { name: "Pengeluaran Lainnya", value: persenLainnya, color: "#a78bfa" },
-        ],
+        data: total > 0
+            ? [
+                { name: "Pengeluaran Bahan Baku", value: persenBahanBaku, color: "#f87171" },
+                { name: "Pengeluaran Operasional", value: persenOperasional, color: "#fbbf24" },
+                { name: "Pengeluaran Lainnya", value: persenLainnya, color: "#a78bfa" },
+            ]
+            : [{ name: "Belum ada data", value: 1, color: "#e5e7eb" }],
     };
 }
 
@@ -240,20 +243,24 @@ export async function getPemasukanBreakdownSmk(smk_id: string) {
 
     const total = totalProduk + totalJasa;
     const persenProduk = total > 0 ? Math.round((totalProduk / total) * 100) : 0;
-    const persenJasa = 100 - persenProduk;
+    const persenJasa = total > 0 ? 100 - persenProduk : 0; 
 
-    const kategoriTerbesar = [
-        { name: "Produk", persen: persenProduk },
-        { name: "Jasa", persen: persenJasa },
-    ].sort((a, b) => b.persen - a.persen)[0];
+    const kategoriTerbesar = total > 0
+        ? [
+            { name: "Produk", persen: persenProduk },
+            { name: "Jasa", persen: persenJasa },
+        ].sort((a, b) => b.persen - a.persen)[0]
+        : { name: "Belum ada data", persen: 0 };
 
     return {
         total,
         persen: kategoriTerbesar.persen,
         persenLabel: kategoriTerbesar.name,
-        data: [
-            { name: "Pemasukan Produk", value: persenProduk, color: "#38bdf8" },
-            { name: "Pemasukan Jasa", value: persenJasa, color: "#a78bfa" },
-        ],
+        data: total > 0
+            ? [
+                { name: "Pemasukan Produk", value: persenProduk, color: "#38bdf8" },
+                { name: "Pemasukan Jasa", value: persenJasa, color: "#a78bfa" },
+            ]
+            : [{ name: "Belum ada data", value: 1, color: "#e5e7eb" }],
     };
 }

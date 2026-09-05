@@ -28,7 +28,6 @@ export interface ReverseGeocodeResult {
 interface AddressMapPickerProps {
     onLocationSelect: (result: ReverseGeocodeResult) => void;
     defaultCenter?: [number, number];
-    /** Posisi yang sudah tersimpan sebelumnya (mis. dari database). Kalau ada, peta akan langsung menampilkan marker di titik ini tanpa perlu mencari ulang. */
     initialPosition?: [number, number] | null;
 }
 
@@ -79,14 +78,14 @@ function LocationMarker({
     return position ? <Marker position={position} icon={markerIcon} /> : null;
 }
 
-function FlyToLocation({ position, shouldFly }: { position: [number, number] | null; shouldFly: boolean }) {
+function FlyToLocation({ position, flySignal }: { position: [number, number] | null; flySignal: number }) {
     const map = useMap();
     useEffect(() => {
-        if (position && shouldFly) {
+        if (position && flySignal > 0) {
             map.flyTo(position, 16);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [position, shouldFly]);
+    }, [flySignal]);
     return null;
 }
 
@@ -99,11 +98,9 @@ export default function AddressMapPicker({
     const [loadingGeocode, setLoadingGeocode] = useState(false);
     const [loadingGps, setLoadingGps] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [flySignal, setFlySignal] = useState(0);
     const hasSyncedInitial = useRef(false);
 
-    // Sinkronkan posisi awal HANYA sekali saat data dari server datang belakangan
-    // (misalnya initialData masih loading saat komponen pertama mount).
-    // Tidak menimpa titik yang sudah dipilih user secara manual.
     useEffect(() => {
         if (!hasSyncedInitial.current && initialPosition && !position) {
             setPosition(initialPosition);
@@ -114,6 +111,7 @@ export default function AddressMapPicker({
     const handlePick = useCallback(
         async (lat: number, lng: number) => {
             setPosition([lat, lng]);
+            setFlySignal((s) => s + 1);
             setError(null);
             setLoadingGeocode(true);
             try {
@@ -183,7 +181,7 @@ export default function AddressMapPicker({
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     <LocationMarker position={position} onPick={handlePick} />
-                    <FlyToLocation position={position} shouldFly={loadingGps} />
+                    <FlyToLocation position={position} flySignal={flySignal} />
                 </MapContainer>
 
                 {loadingGeocode && (
