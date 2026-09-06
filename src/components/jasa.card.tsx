@@ -87,8 +87,8 @@ export default function JasaCard({
 
             <CardContent className="p-4 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-gray-900 text-sm leading-tight">{jasa.nama}</h3>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{jasa.dipesan} Project Selesai</span>
+                    <h3 className="font-bold text-gray-900 text-sm leading-tight truncate min-w-0 flex-1">{jasa.nama}</h3>
+                    <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">{jasa.dipesan} Project Selesai</span>
                 </div>
 
                 <div className="flex items-center justify-between">

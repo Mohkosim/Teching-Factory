@@ -118,8 +118,8 @@ export default function ProdukCard({
 
             <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-bold text-gray-900 text-sm leading-tight">{product.nama}</h3>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{product.terjual} Terjual</span>
+                    <h3 className="font-bold text-gray-900 text-sm leading-tight truncate min-w-0 flex-1">{product.nama}</h3>
+                    <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">{product.terjual} Terjual</span>
                 </div>
 
                 <div className="flex items-center justify-between gap-2">

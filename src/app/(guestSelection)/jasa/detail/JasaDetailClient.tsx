@@ -15,6 +15,8 @@ import {
     ClipboardList,
     FileText,
     Download,
+    Maximize2,
+    Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,14 +46,35 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatRupiah, formatNominalInput } from "@/lib/utils/format";
+import GaleriGambarModal from "@/components/galeri-gambar-modal";
 
-type TabDetail = "deskripsi" | "portofolio" | "review";
+type TabDetail = "deskripsi" | "portofolio" | "review" | "jam_operasional";
 
 const DAFTAR_TAB: { key: TabDetail; label: string }[] = [
     { key: "deskripsi", label: "Deskripsi" },
     { key: "portofolio", label: "Portofolio" },
     { key: "review", label: "Review" },
+    { key: "jam_operasional", label: "Jam Operasional" },
 ];
+
+const HARI_INDEX: Record<string, number> = {
+    Minggu: 0,
+    Senin: 1,
+    Selasa: 2,
+    Rabu: 3,
+    Kamis: 4,
+    Jumat: 5,
+    Sabtu: 6,
+};
+
+function parseJamOperasional(raw: string) {
+    return raw.split("|").map((entry) => {
+        const trimmed = entry.trim();
+        const sep = trimmed.indexOf(": ");
+        if (sep === -1) return { hari: trimmed, jam: "-" };
+        return { hari: trimmed.slice(0, sep).trim(), jam: trimmed.slice(sep + 2).trim() };
+    });
+}
 
 function formatNomorWa(nomor?: string) {
     if (!nomor) return null;
@@ -105,6 +128,7 @@ export default function JasaDetailClient({
     const router = useRouter();
     const snapReady = useMidtransSnap();
     const [gambarAktif, setGambarAktif] = useState(0);
+    const [galeriOpen, setGaleriOpen] = useState(false);
     const [tabAktif, setTabAktif] = useState<TabDetail>("deskripsi");
 
     const [formOpen, setFormOpen] = useState(false);
@@ -260,14 +284,21 @@ export default function JasaDetailClient({
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
                     <div>
-                        <div className="relative aspect-4/3 w-full overflow-hidden rounded-2xl bg-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => setGaleriOpen(true)}
+                            className="group relative aspect-4/3 w-full overflow-hidden rounded-2xl bg-gray-100"
+                        >
                             <Image
                                 src={galeri[gambarAktif]}
                                 alt={jasa.nama}
                                 fill
                                 className="object-cover"
                             />
-                        </div>
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                                <Maximize2 className="h-8 w-8 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+                            </div>
+                        </button>
 
                         {galeri.length > 1 && (
                             <div className="mt-3 flex items-center gap-2">
@@ -396,6 +427,46 @@ export default function JasaDetailClient({
                                 />
                                 <DaftarUlasanJasa reviews={jasa.reviews ?? []} jumlahReview={jasa.jumlahReview} />
                             </div>
+                        )}
+
+                        {tabAktif === "jam_operasional" && (
+                            jasa.jamOperasional ? (
+                                <div>
+                                    <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                        <Clock className="h-4 w-4 text-sky-500" />
+                                        Jadwal Operasional
+                                    </div>
+                                    <div className="divide-y divide-gray-100">
+                                        {parseJamOperasional(jasa.jamOperasional).map(({ hari, jam }) => {
+                                            const tutup = jam.toLowerCase() === "tutup";
+                                            const isToday = HARI_INDEX[hari] === new Date().getDay();
+                                            return (
+                                                <div
+                                                    key={hari}
+                                                    className={cn(
+                                                        "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm",
+                                                        isToday && "bg-sky-50"
+                                                    )}
+                                                >
+                                                    <span className={cn("font-semibold", isToday ? "text-sky-600" : "text-gray-700")}>
+                                                        {hari}
+                                                        {isToday && (
+                                                            <span className="ml-2 rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-semibold text-white">
+                                                                Hari ini
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span className={cn("font-medium", tutup ? "text-red-400" : "text-gray-600")}>
+                                                        {jam}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-400">Jam operasional belum diatur untuk jurusan ini.</p>
+                            )
                         )}
                     </div>
                 </div>
@@ -532,6 +603,15 @@ export default function JasaDetailClient({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <GaleriGambarModal
+                open={galeriOpen}
+                onClose={() => setGaleriOpen(false)}
+                images={galeri}
+                activeIndex={gambarAktif}
+                onSelect={setGambarAktif}
+                title={jasa.nama}
+            />
         </div>
     );
 }

@@ -10,7 +10,6 @@ import Swal from "sweetalert2";
 import {
     Search,
     Eye,
-    RotateCcw,
     CalendarDays,
     Check,
     X as XIcon,
@@ -528,9 +527,8 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                         <Button
                             onClick={handleResetFilter}
                             variant="outline"
-                            className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl self-end gap-1.5"
+                            className="bg-sky-500 hover:bg-sky-600 text-white rounded-xl self-end gap-1.5"
                         >
-                            <RotateCcw className="h-4 w-4" />
                             Reset Filter
                         </Button>
                     </div>

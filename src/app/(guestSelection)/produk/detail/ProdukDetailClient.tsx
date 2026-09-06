@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
-import { Star, Heart, ShoppingCart, MessageCircle, Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, Heart, ShoppingCart, MessageCircle, Minus, Plus, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProdukCard from "@/components/produkcard";
 import RingkasanRating from "./RingkasanRating";
@@ -27,6 +27,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatRupiah } from "@/lib/utils/format";
+import GaleriGambarModal from "@/components/galeri-gambar-modal";
 
 
 
@@ -42,6 +43,7 @@ export default function ProdukDetailClient({
   favoritIds: FavoritIds;
 }) {
   const [activeFoto, setActiveFoto] = useState(0);
+  const [galeriOpen, setGaleriOpen] = useState(false);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"deskripsi" | "informasi" | "review">("deskripsi");
   const [addingToCart, setAddingToCart] = useState(false);
@@ -136,9 +138,16 @@ export default function ProdukDetailClient({
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Galeri */}
           <div>
-            <div className="relative aspect-4/3 w-full overflow-hidden rounded-2xl bg-gray-100">
+            <button
+              type="button"
+              onClick={() => setGaleriOpen(true)}
+              className="group relative aspect-4/3 w-full overflow-hidden rounded-2xl bg-gray-100"
+            >
               <Image src={fotos[activeFoto]} alt={produk.nama} fill className="object-cover" />
-            </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/20">
+                <Maximize2 className="h-8 w-8 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+            </button>
 
             {fotos.length > 1 && (
               <div className="mt-3 flex items-center gap-2">
@@ -313,6 +322,15 @@ export default function ProdukDetailClient({
           </div>
         )}
       </div>
+
+      <GaleriGambarModal
+        open={galeriOpen}
+        onClose={() => setGaleriOpen(false)}
+        images={fotos}
+        activeIndex={activeFoto}
+        onSelect={setActiveFoto}
+        title={produk.nama}
+      />
     </div>
   );
 }

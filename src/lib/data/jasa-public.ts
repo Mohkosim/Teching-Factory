@@ -34,6 +34,7 @@ export interface JasaPublicItem {
   ratingBreakdown?: Record<1 | 2 | 3 | 4 | 5, number>;
   persentasePuas?: number;
   reviews?: ReviewPublicItem[];
+  jamOperasional?: string;
 }
 
 export interface JasaListResult {
@@ -118,6 +119,7 @@ function mapJasaPublicItem(p: ProdukWithJasa | ProdukWithJasaDetail): JasaPublic
     jumlahReview: p.review.length,
     jurusan: p.jurusan.nama_jurusan,
     sekolah: p.jurusan.smk?.user.name ?? "",
+    jamOperasional: p.jurusan.jam_operasional ?? undefined,
     noWhatsapp: p.jurusan.user.phone ?? undefined,
     portofolio: (p.jasa[0]?.portofolio ?? []).map((pf) => ({
       portofolio_id: pf.portofolio_id,
