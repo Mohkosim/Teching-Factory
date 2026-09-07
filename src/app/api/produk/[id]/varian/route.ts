@@ -121,6 +121,18 @@ export async function POST(
             }
         });
 
+        const totalStokVarian = await prisma.varianKombinasi.aggregate({
+            where: { produk_id: id, aktif: true },
+            _sum: { stok: true },
+        });
+
+        if (kombinasi.length > 0) {
+            await prisma.barang.updateMany({
+                where: { produk_id: id },
+                data: { stok: totalStokVarian._sum.stok ?? 0 },
+            });
+        }
+
         return NextResponse.json({ message: "Varian berhasil disimpan" });
     } catch (error) {
         console.error("POST /api/produk/[id]/varian error:", error);
@@ -142,4 +154,5 @@ export async function POST(
             { status: 500 }
         );
     }
+
 }

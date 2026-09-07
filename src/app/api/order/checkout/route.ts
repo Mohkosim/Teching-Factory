@@ -86,6 +86,10 @@ export async function POST(req: Request) {
                             where: { kombinasi_id: p.kombinasiId },
                             data: { stok: { decrement: p.jumlah } },
                         });
+                        await tx.barang.updateMany({
+                            where: { produk_id: p.produkId },
+                            data: { stok: { decrement: p.jumlah } },
+                        });
                     } else {
                         await tx.barang.updateMany({
                             where: { produk_id: p.produkId },

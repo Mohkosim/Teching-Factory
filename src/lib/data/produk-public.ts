@@ -14,6 +14,7 @@ import { normalizeProvinsi } from "@/lib/utils/lokasi";
 const produkPublicInclude = {
   foto: true,
   barang: true,
+  varianKombinasi: { where: { aktif: true } },
   jurusan: { include: { smk: { include: { user: true } } } },
   review: true,
 } as const;
@@ -141,6 +142,11 @@ function mapProdukPublicItem(p: ProdukWithRelations | ProdukDetailWithRelations)
 
   const fotos = p.foto.map((f) => f.url);
 
+  const stokTotal =
+    p.varianKombinasi.length > 0
+      ? p.varianKombinasi.reduce((sum, k) => sum + k.stok, 0)
+      : p.barang.reduce((sum, b) => sum + (b.stok ?? 0), 0);
+
   return {
     id: p.produk_id,
     nama: p.nama_produk,
@@ -152,7 +158,7 @@ function mapProdukPublicItem(p: ProdukWithRelations | ProdukDetailWithRelations)
     rating: avgRating,
     jumlahReview: p.review.length,
     terjual: p.sold_count,
-    stok: p.barang.reduce((sum, b) => sum + (b.stok ?? 0), 0),
+    stok: stokTotal,
     jurusan: p.jurusan.nama_jurusan,
     sekolah: p.jurusan.smk?.user.name ?? "",
     lokasi: normalizeProvinsi(p.jurusan.smk?.provinsi) ?? null,
@@ -314,6 +320,11 @@ function mapProdukItem(p: ProdukWithRelations): ProdukItem {
 
   const fotos = p.foto.map((f) => f.url);
 
+  const stokTotal =
+    p.varianKombinasi.length > 0
+      ? p.varianKombinasi.reduce((sum, k) => sum + k.stok, 0)
+      : p.barang.reduce((sum, b) => sum + (b.stok ?? 0), 0);
+
   return {
     produk_id: p.produk_id,
     jurusan_id: p.jurusan_id,
@@ -324,7 +335,7 @@ function mapProdukItem(p: ProdukWithRelations): ProdukItem {
     status: p.status as "Tersedia" | "Habis" | "Nonaktif",
     view_count: p.view_count,
     sold_count: p.sold_count,
-    stok: p.barang.reduce((sum, b) => sum + (b.stok ?? 0), 0),
+    stok: stokTotal,
     kondisi: p.barang[0]?.kondisi ?? null,
     nama_jurusan: p.jurusan.nama_jurusan,
     status_publikasi: p.status_publikasi as "Pending" | "Published" | "Revisi",
