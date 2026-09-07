@@ -19,6 +19,7 @@ export interface OrderItemLine {
     jumlah: number;
     harga_satuan: number;
     subtotal: number;
+    varianLabel?: string;
 }
 
 export interface OrderRow {

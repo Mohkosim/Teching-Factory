@@ -18,6 +18,7 @@ export interface TransaksiItem {
     total: number;
     metodePembayaran: string;
     statusSettlement: StatusSettlementUI;
+    varianLabel?: string;
 }
 
 function formatTanggal(date: Date): string {
@@ -73,6 +74,11 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
                                     jasa: { select: { jasa_id: true } },
                                 },
                             },
+                            kombinasi: {
+                                select: {
+                                    opsi: { select: { opsi: { select: { nama: true } } } },
+                                },
+                            },
                         },
                     },
                 },
@@ -97,6 +103,10 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
             items[0]?.produk.jurusan?.nama_jurusan ??
             "-";
 
+        const varianLabel = items.length === 1 && items[0].kombinasi
+            ? items[0].kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
+            : undefined;
+
         return {
             id: t.transaksi_id,
             noInvoice: t.order?.kode_invoice ?? t.kode_pembayaran ?? "-",
@@ -112,6 +122,7 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
             total: t.nominal,
             metodePembayaran: mapMetode(t.metode),
             statusSettlement: mapStatusSettlement(t.status_settlement, isRefunded),
+            varianLabel,
         };
     });
 }
@@ -195,7 +206,7 @@ export async function getPengeluaranBreakdownSmk(smk_id: string) {
 
     const persenBahanBaku = total > 0 ? Math.round((bahanBaku / total) * 100) : 0;
     const persenOperasional = total > 0 ? Math.round((operasional / total) * 100) : 0;
-    const persenLainnya = total > 0 ? 100 - persenBahanBaku - persenOperasional : 0; 
+    const persenLainnya = total > 0 ? 100 - persenBahanBaku - persenOperasional : 0;
 
     const kategoriTerbesar = total > 0
         ? [
@@ -203,7 +214,7 @@ export async function getPengeluaranBreakdownSmk(smk_id: string) {
             { name: "Operasional", persen: persenOperasional },
             { name: "Lainnya", persen: persenLainnya },
         ].sort((a, b) => b.persen - a.persen)[0]
-        : { name: "Belum ada data", persen: 0 }; 
+        : { name: "Belum ada data", persen: 0 };
 
     return {
         total,
@@ -243,7 +254,7 @@ export async function getPemasukanBreakdownSmk(smk_id: string) {
 
     const total = totalProduk + totalJasa;
     const persenProduk = total > 0 ? Math.round((totalProduk / total) * 100) : 0;
-    const persenJasa = total > 0 ? 100 - persenProduk : 0; 
+    const persenJasa = total > 0 ? 100 - persenProduk : 0;
 
     const kategoriTerbesar = total > 0
         ? [

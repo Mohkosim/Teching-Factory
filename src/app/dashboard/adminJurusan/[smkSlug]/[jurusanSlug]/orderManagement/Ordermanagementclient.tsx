@@ -151,9 +151,11 @@ function getActiveStepIndex(order: OrderRow) {
     return 0;
 }
 function namaTampilan(order: OrderRow) {
-    const first = order.items[0]?.nama_produk ?? "-";
-    if (order.items.length <= 1) return first;
-    return `${first} +${order.items.length - 1} lainnya`;
+    const first = order.items[0];
+    if (!first) return "-";
+    const label = first.varianLabel ? `${first.nama_produk} (${first.varianLabel})` : first.nama_produk;
+    if (order.items.length <= 1) return label;
+    return `${label} +${order.items.length - 1} lainnya`;
 }
 
 interface OrderManagementClientProps {
@@ -704,6 +706,9 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                                 </div>
                                                 <div className="text-sm">
                                                     <p className="font-semibold text-gray-800">{line.nama_produk}</p>
+                                                    {line.varianLabel && (
+                                                        <p className="text-gray-500">Varian : {line.varianLabel}</p>
+                                                    )}
                                                     <p className="text-gray-500">Jumlah : {line.jumlah}</p>
                                                     <p className="text-gray-500">Harga : {formatRupiah(line.harga_satuan)}</p>
                                                 </div>

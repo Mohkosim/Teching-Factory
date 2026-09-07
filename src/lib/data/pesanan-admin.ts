@@ -23,6 +23,7 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
                             barang: true,
                         },
                     },
+                    kombinasi: { include: { opsi: { include: { opsi: true } } } },
                 },
             },
         },
@@ -37,10 +38,14 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
             jumlah: detail.jumlah,
             harga_satuan: detail.harga_satuan,
             subtotal: detail.subtotal,
+            varianLabel: detail.kombinasi
+                ? detail.kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
+                : undefined,
         }));
         const firstProduk = order.orderDetail[0]?.produk;
         const kategori: "Produk" | "Jasa" =
             firstProduk && firstProduk.jasa.length > 0 ? "Jasa" : "Produk";
+
 
         return {
             order_id: order.order_id,
@@ -59,7 +64,7 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
             kurir: order.pengiriman?.kurir ?? "-",
             nomorResi: (order.pengiriman as { nomor_resi?: string } | null)?.nomor_resi ?? null,
             estimasi: order.pengiriman?.estimasi_tiba ?? null,
-            refund: order.refundRequest // ⬅️ tambahan
+            refund: order.refundRequest
                 ? {
                     id: order.refundRequest.refund_id,
                     status: order.refundRequest.status,

@@ -70,7 +70,7 @@ function StatusSettlementBadge({ status }: { status: StatusSettlement }) {
     const styles: Record<StatusSettlement, string> = {
         Settled: "bg-emerald-100 text-emerald-600",
         Pending: "bg-amber-100 text-amber-600",
-        Refund: "bg-rose-100 text-rose-600", 
+        Refund: "bg-rose-100 text-rose-600",
     };
     return (
         <span
@@ -207,10 +207,10 @@ export default function LaporanKeuanganClient({
 
     // ── Perhitungan Laba ──
     const totalPemasukan = ringkasan.totalPemasukan;
-    const hpp = ringkasan.hpp;                                  
-    const labaKotor = totalPemasukan - hpp;                    
-    const totalBiayaMidtrans = ringkasan.totalBiayaMidtrans;     
-    const totalPengeluaranOps = ringkasan.totalPengeluaran - hpp;   
+    const hpp = ringkasan.hpp;
+    const labaKotor = totalPemasukan - hpp;
+    const totalBiayaMidtrans = ringkasan.totalBiayaMidtrans;
+    const totalPengeluaranOps = ringkasan.totalPengeluaran - hpp;
     const labaBersih = labaKotor - totalPengeluaranOps - totalBiayaMidtrans;
 
     const [dateFrom, setDateFrom] = useState("");
@@ -1009,6 +1009,9 @@ export default function LaporanKeuanganClient({
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-800 uppercase text-xs">{detailItem.deskripsi}</p>
+                                    {detailItem.varianLabel && (
+                                        <p className="text-xs text-gray-500">Varian : {detailItem.varianLabel}</p>
+                                    )}
                                     <p className="text-xs text-gray-500">Jumlah : {detailItem.qty}</p>
                                     <p className="text-xs text-gray-500">Harga : {formatRupiah(detailItem.hargaSatuan)}</p>
                                 </div>
@@ -1052,7 +1055,7 @@ export default function LaporanKeuanganClient({
                                 </>
                             )}
 
-                            {detailItem.refund && (  
+                            {detailItem.refund && (
                                 <>
                                     <Separator className="my-3" />
                                     <p className="font-semibold text-gray-800 mb-1">Detail Refund</p>

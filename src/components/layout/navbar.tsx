@@ -326,13 +326,12 @@ export default function Navbar() {
                           <Heart size={16} /> Favorite
                         </span>
                         {displayedFavoriteCount > 0 && (
-                          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 aspect-square items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
-                            {displayedNotifikasiCount > 99 ? "99+" : displayedNotifikasiCount}
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                            {displayedFavoriteCount > 99 ? "99+" : displayedFavoriteCount}
                           </span>
                         )}
                       </Link>
                     </DropdownMenuItem>
-
                     <DropdownMenuSeparator />
 
                     <DropdownMenuItem

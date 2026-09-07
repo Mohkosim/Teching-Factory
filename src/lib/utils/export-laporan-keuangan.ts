@@ -11,6 +11,7 @@ export interface TransaksiExportItem {
     jenisTransaksi: JenisTransaksiUI;
     kategori: string;
     deskripsi: string;
+    varianLabel?: string;
     hargaSatuan: number;
     total: number;
     metodePembayaran: string;
@@ -27,7 +28,7 @@ export interface RingkasanExport {
     labaBersih: number;
 }
 
-const LAST_COL = 12;
+const LAST_COL = 13;
 
 const THIN_BORDER: Partial<ExcelJS.Borders> = {
     top: { style: "thin", color: { argb: "FFB0B0B0" } },
@@ -44,8 +45,9 @@ function setupSheet(workbook: ExcelJS.Workbook) {
     sheet.columns = [
         { key: "no", width: 5 }, { key: "a", width: 20 }, { key: "b", width: 12 },
         { key: "c", width: 22 }, { key: "d", width: 14 }, { key: "e", width: 14 },
-        { key: "f", width: 14 }, { key: "g", width: 28 }, { key: "h", width: 16 },
-        { key: "i", width: 16 }, { key: "j", width: 16 }, { key: "k", width: 14 },
+        { key: "f", width: 14 }, { key: "g", width: 28 }, { key: "varian", width: 20 },
+        { key: "h", width: 16 }, { key: "i", width: 16 }, { key: "j", width: 16 },
+        { key: "k", width: 14 },
     ];
 
     return sheet;
@@ -133,7 +135,7 @@ function writeRingkasanSection(
 
 const DETAIL_HEADERS = [
     "No", "No. Invoice", "Tanggal", "Pembeli/Pemasok",
-    "Jenis Transaksi", "Kategori", "Deskripsi", "Harga Satuan (Rp)",
+    "Jenis Transaksi", "Kategori", "Deskripsi", "Varian", "Harga Satuan (Rp)",
     "Total (Rp)", "Metode Pembayaran", "Status Settlement",
 ];
 
@@ -171,7 +173,7 @@ function writeGroupRows(
     items.forEach((item, idx) => {
         const values: (string | number | null)[] = [
             idx + 1, item.noInvoice, item.tanggal, item.pembeliPemasok,
-            item.jenisTransaksi, item.kategori, item.deskripsi,
+            item.jenisTransaksi, item.kategori, item.deskripsi, item.varianLabel || "-",
             item.hargaSatuan || null, item.total, item.metodePembayaran, item.statusSettlement,
         ];
 
@@ -179,7 +181,7 @@ function writeGroupRows(
             const cell = sheet.getCell(rowIdx, colIdx + 1);
             cell.value = v;
             cell.border = THIN_BORDER;
-            if (colIdx === 7 || colIdx === 8) {
+            if (colIdx === 8 || colIdx === 9) {
                 cell.numFmt = "#,##0";
                 cell.alignment = { horizontal: "right" };
             }
@@ -210,7 +212,7 @@ function writeGroupSubtotal(
     subtotalPengeluaran: number,
     subtotalRefund: number
 ): number {
-    sheet.mergeCells(rowIdx, 1, rowIdx, 7);
+    sheet.mergeCells(rowIdx, 1, rowIdx, 8);
     const subLabelCell = sheet.getCell(rowIdx, 1);
 
     let label =

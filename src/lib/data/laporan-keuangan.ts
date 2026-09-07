@@ -13,11 +13,12 @@ export interface TransaksiRow {
     hargaSatuan: number;
     total: number;
     metodePembayaran: string;
-    statusSettlement: "Settled" | "Pending" | "Refund"; 
+    statusSettlement: "Settled" | "Pending" | "Refund";
     gambarUrl?: string;
+    varianLabel?: string;
     biayaOngkir?: number;
     biayaMidtrans?: number;
-    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string }; 
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
     pembeli?: { nama: string; nomor: string; email: string; alamat: string };
     pengiriman?: { kurir: string; nomorResi: string; estimasi: string };
     historyPengeluaran?: {
@@ -36,6 +37,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
         where: { produk: { jurusan_id: jurusanId } },
         include: {
             produk: { include: { foto: true, jasa: true } },
+            kombinasi: { include: { opsi: { include: { opsi: true } } } },
             order: {
                 include: {
                     user: { include: { alamat: true } },
@@ -58,7 +60,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             od.order.user.alamat.find((a) => a.isUtama) ?? od.order.user.alamat[0];
 
         const refund = od.order.refundRequest;
-        const refundAktif = !!refund && refund.status !== "Ditolak"; 
+        const refundAktif = !!refund && refund.status !== "Ditolak";
 
         const statusSettlement: TransaksiRow["statusSettlement"] = refundAktif
             ? "Refund"
@@ -79,10 +81,13 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             hargaSatuan: od.harga_satuan,
             total: od.order.transaksi[0]?.nominal ?? 0,
             metodePembayaran: pembayaran?.metode ?? "-",
-            statusSettlement, 
+            statusSettlement,
             gambarUrl: od.produk.foto[0]?.url,
             biayaOngkir: od.order.pengiriman?.ongkir ?? 0,
             biayaMidtrans: pembayaran?.biaya_midtrans ?? 0,
+            varianLabel: od.kombinasi
+                ? od.kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
+                : undefined,
             refund: refund
                 ? { status: refund.status, alasan: refund.alasan }
                 : undefined,
@@ -135,7 +140,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
     const totalPemasukan = pemasukanRows
         .filter((r) => r.statusSettlement === "Settled")
         .reduce((s, r) => s + r.total, 0);
-    const totalBiayaMidtrans = pemasukanRows 
+    const totalBiayaMidtrans = pemasukanRows
         .filter((r) => r.statusSettlement === "Settled")
         .reduce((s, r) => s + (r.biayaMidtrans ?? 0), 0);
     const hpp = pengeluaranRows
@@ -145,7 +150,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
 
     return {
         transaksi,
-        ringkasan: { totalPemasukan, totalPengeluaran, hpp, totalBiayaMidtrans }, 
+        ringkasan: { totalPemasukan, totalPengeluaran, hpp, totalBiayaMidtrans },
     };
 }
 

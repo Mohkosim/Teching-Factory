@@ -25,19 +25,22 @@ export async function kirimPesananAction(
     data: { nomor_resi: string; estimasi_tiba?: string },
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
-    await prisma.$transaction([
-        prisma.pengiriman.update({
-            where: { order_id },
-            data: {
-                nomor_resi: data.nomor_resi,
-                estimasi_tiba: data.estimasi_tiba,
-            },
-        }),
-        prisma.order.update({
-            where: { order_id },
-            data: { status_order: "Dikirim" },
-        }),
-    ]);
+    await prisma.$transaction(
+        [
+            prisma.pengiriman.update({
+                where: { order_id },
+                data: {
+                    nomor_resi: data.nomor_resi,
+                    estimasi_tiba: data.estimasi_tiba,
+                },
+            }),
+            prisma.order.update({
+                where: { order_id },
+                data: { status_order: "Dikirim" },
+            }),
+        ],
+        { timeout: 20000, maxWait: 20000 }
+    );
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
 }
 
@@ -75,7 +78,7 @@ export async function setujuiRefundAction(
         select: { order_id: true },
     });
 
-    await prisma.order.update({        
+    await prisma.order.update({
         where: { order_id: refund.order_id },
         data: { status_order: "Dibatalkan" },
     });

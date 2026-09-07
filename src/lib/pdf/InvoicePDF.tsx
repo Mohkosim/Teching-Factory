@@ -16,6 +16,9 @@ const styles = StyleSheet.create({
     badgeTextLunas: { fontSize: 8, fontWeight: 700, color: "#059669", letterSpacing: 0.5 },
     badgeTextBelum: { fontSize: 8, fontWeight: 700, color: "#d97706", letterSpacing: 0.5 },
 
+    itemNama: { color: "#111827" },
+    itemVarian: { fontSize: 8, color: "#6b7280", marginTop: 1 },
+
     section: { marginBottom: 14 },
     sectionTitle: { fontSize: 10, fontWeight: 700, marginBottom: 6, color: "#374151" },
     row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
@@ -108,7 +111,12 @@ export function InvoiceProdukDocument({
                     </View>
                     {items.map((item) => (
                         <View style={styles.tableRow} key={item.id}>
-                            <Text style={styles.colItem}>{item.nama}</Text>
+                            <View style={styles.colItem}>
+                                <Text style={styles.itemNama}>{item.nama}</Text>
+                                {item.varianLabel && (
+                                    <Text style={styles.itemVarian}>Varian: {item.varianLabel}</Text>
+                                )}
+                            </View>
                             <Text style={styles.colQty}>{item.jumlah}</Text>
                             <Text style={styles.colPrice}>{formatRupiah(item.hargaAngka)}</Text>
                             <Text style={styles.colSubtotal}>{formatRupiah(item.hargaAngka * item.jumlah)}</Text>

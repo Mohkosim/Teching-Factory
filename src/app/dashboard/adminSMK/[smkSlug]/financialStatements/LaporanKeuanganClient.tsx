@@ -41,6 +41,7 @@ interface TransaksiItem {
     total: number;
     metodePembayaran: string;
     statusSettlement: StatusSettlement;
+    varianLabel?: string;
     refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
 }
 
@@ -477,6 +478,9 @@ export default function LaporanKeuanganClient({
                                 <DetailRow label="Jurusan" value={detailItem.jurusan} />
                                 <DetailRow label="Kategori" value={detailItem.kategori} />
                                 <DetailRow label="Deskripsi" value={detailItem.deskripsi} />
+                                {detailItem.varianLabel && (
+                                    <DetailRow label="Varian" value={detailItem.varianLabel} />
+                                )}
                                 <DetailRow
                                     label="Harga Satuan"
                                     value={detailItem.hargaSatuan ? `${formatRupiah(detailItem.hargaSatuan)}` : "-"}
