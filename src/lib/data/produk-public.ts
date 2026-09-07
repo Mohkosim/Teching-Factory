@@ -30,6 +30,14 @@ const produkDetailInclude = {
     include: { user: true, foto: true },
     orderBy: { createdAt: "desc" as const },
   },
+  varianGrup: {
+    include: { opsi: { orderBy: { urutan: "asc" as const } } },
+    orderBy: { urutan: "asc" as const },
+  },
+  varianKombinasi: {
+    where: { aktif: true },
+    include: { opsi: true },
+  },
 } as const;
 
 type ProdukDetailWithRelations = Prisma.ProdukGetPayload<{
@@ -67,6 +75,8 @@ export interface ProdukPublicItem {
   ratingBreakdown?: Record<1 | 2 | 3 | 4 | 5, number>;
   persentasePuas?: number;
   reviews?: ReviewPublicItem[];
+  varianGrup?: VarianGrupPublic[];
+  varianKombinasi?: VarianKombinasiPublic[];
 }
 
 export interface ProdukPublicListResult {
@@ -74,6 +84,23 @@ export interface ProdukPublicListResult {
   totalCount: number;
   totalPages: number;
   currentPage: number;
+}
+
+export interface VarianOpsiPublic {
+  opsi_id: string;
+  nama: string;
+}
+export interface VarianGrupPublic {
+  grup_id: string;
+  nama: string;
+  opsi: VarianOpsiPublic[];
+}
+export interface VarianKombinasiPublic {
+  kombinasi_id: string;
+  harga: number;
+  stok: number;
+  gambar: string | null;
+  opsiIds: string[];
 }
 
 const PUBLISHED_WHERE = {
@@ -118,7 +145,7 @@ function mapProdukPublicItem(p: ProdukWithRelations | ProdukDetailWithRelations)
     id: p.produk_id,
     nama: p.nama_produk,
     deskripsi: p.deskripsi ?? "",
-    noWhatsapp: p.jurusan.smk.user.phone ?? undefined, 
+    noWhatsapp: p.jurusan.smk.user.phone ?? undefined,
     gambar: fotos[0] ?? "",
     fotos: fotos.length > 0 ? fotos : [],
     harga: p.harga,
@@ -156,7 +183,29 @@ function mapProdukDetailItem(p: ProdukDetailWithRelations): ProdukPublicItem {
     fotos: r.foto.map((f) => f.url),
   }));
 
-  return { ...base, ratingBreakdown: breakdown, persentasePuas, reviews };
+  const varianGrup: VarianGrupPublic[] = p.varianGrup.map((g) => ({
+    grup_id: g.grup_id,
+    nama: g.nama,
+    opsi: g.opsi.map((o) => ({ opsi_id: o.opsi_id, nama: o.nama })),
+  }));
+
+  const varianKombinasi: VarianKombinasiPublic[] = p.varianKombinasi.map((k) => ({
+    kombinasi_id: k.kombinasi_id,
+    harga: k.harga,
+    stok: k.stok,
+    gambar: k.gambar,
+    opsiIds: k.opsi.map((ko) => ko.opsi_id),
+  }));
+
+  return {
+    ...base,
+    ratingBreakdown: breakdown,
+    persentasePuas,
+    reviews,
+    varianGrup: varianGrup.length > 0 ? varianGrup : undefined,
+    varianKombinasi: varianKombinasi.length > 0 ? varianKombinasi : undefined,
+  };
+
 }
 
 function getProdukOrderBy(

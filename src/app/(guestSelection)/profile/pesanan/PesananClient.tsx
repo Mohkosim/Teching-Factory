@@ -599,14 +599,14 @@ export default function PesananClient({
 }
 
 function OrderCard({
-    items, onLihatDetailToko, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onKonfirmasiSelesai, onAjukanRefund, isConfirmPending, // ⬅️ tambah onKonfirmasiSelesai
+    items, onLihatDetailToko, onBeliLagi, onBeriNilai, onKonfirmasiDiterima, onKonfirmasiSelesai, onAjukanRefund, isConfirmPending,
 }: {
     items: ProdukItem[];
     onLihatDetailToko: (items: ProdukItem[]) => void;
     onBeliLagi: (item: ProdukItem) => void;
     onBeriNilai: (item: ProdukItem) => void;
     onKonfirmasiDiterima: (items: ProdukItem[]) => void;
-    onKonfirmasiSelesai: (items: ProdukItem[]) => void; // ⬅️ tambahan
+    onKonfirmasiSelesai: (items: ProdukItem[]) => void;
     onAjukanRefund: (orderId: string, nama: string) => void;
     isConfirmPending: boolean;
 }) {
@@ -701,6 +701,9 @@ function TokoSection({
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">{item.nama}</p>
+                            {item.varianLabel && (
+                                <p className="text-xs text-gray-500">Varian: {item.varianLabel}</p>
+                            )}
                             <p className="text-xs text-gray-500">{item.jumlah}x {item.harga}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -980,6 +983,9 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, onKonfirmasiSe
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm font-bold text-gray-900">{item.nama}</p>
+                                {item.varianLabel && (
+                                    <p className="text-xs text-gray-500 mt-0.5">Varian: {item.varianLabel}</p>
+                                )}
                                 <p className="text-xs text-gray-600 mt-0.5">Jumlah : {item.jumlah}</p>
                                 <p className="text-xs text-gray-600">Harga : {item.harga}</p>
                             </div>
@@ -1705,7 +1711,7 @@ function RiwayatPengiriman({ kurir, nomorResi }: { kurir: string; nomorResi: str
         return <p className="text-xs text-gray-400 py-3">{error ?? "Riwayat pengiriman belum tersedia."}</p>;
     }
 
-    const manifest = [...data.manifest].reverse(); // terbaru di atas
+    const manifest = [...data.manifest].reverse();
 
     return (
         <div>

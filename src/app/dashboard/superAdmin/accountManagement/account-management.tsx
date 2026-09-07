@@ -230,7 +230,7 @@ export default function AccountManagement({
                     <TableHeader>
                         <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
                             <TableHead className="w-16 font-semibold text-gray-600 px-6">No</TableHead>
-                            <TableHead className="font-semibold text-gray-600 px-6">SMK</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Username</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Logo</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Alamat</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Phone</TableHead>

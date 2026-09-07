@@ -28,12 +28,18 @@ export async function POST(req: Request) {
 
     try {
         const { orderIds, totalKeseluruhan } = await prisma.$transaction(async (tx) => {
-            // ==== Validasi stok SEMUA produk dulu, sebelum ada order yang dibuat ====
             for (const grup of body.toko) {
                 for (const p of grup.produk) {
-                    const barang = await tx.barang.findFirst({ where: { produk_id: p.produkId } });
-                    if (!barang || barang.stok < p.jumlah) {
-                        throw new Error(`STOK_HABIS:${p.produkId}`);
+                    if (p.kombinasiId) {
+                        const kombinasi = await tx.varianKombinasi.findUnique({ where: { kombinasi_id: p.kombinasiId } });
+                        if (!kombinasi || kombinasi.stok < p.jumlah) {
+                            throw new Error(`STOK_HABIS:${p.produkId}`);
+                        }
+                    } else {
+                        const barang = await tx.barang.findFirst({ where: { produk_id: p.produkId } });
+                        if (!barang || barang.stok < p.jumlah) {
+                            throw new Error(`STOK_HABIS:${p.produkId}`);
+                        }
                     }
                 }
             }
@@ -59,6 +65,7 @@ export async function POST(req: Request) {
                                 jumlah: p.jumlah,
                                 harga_satuan: p.hargaSatuan,
                                 subtotal: p.hargaSatuan * p.jumlah,
+                                kombinasi_id: p.kombinasiId ?? null,
                             })),
                         },
                         pengiriman: {
@@ -74,10 +81,17 @@ export async function POST(req: Request) {
                 });
 
                 for (const p of grup.produk) {
-                    await tx.barang.updateMany({
-                        where: { produk_id: p.produkId },
-                        data: { stok: { decrement: p.jumlah } },
-                    });
+                    if (p.kombinasiId) {
+                        await tx.varianKombinasi.update({
+                            where: { kombinasi_id: p.kombinasiId },
+                            data: { stok: { decrement: p.jumlah } },
+                        });
+                    } else {
+                        await tx.barang.updateMany({
+                            where: { produk_id: p.produkId },
+                            data: { stok: { decrement: p.jumlah } },
+                        });
+                    }
                     await tx.produk.update({
                         where: { produk_id: p.produkId },
                         data: { sold_count: { increment: p.jumlah } },
@@ -87,7 +101,6 @@ export async function POST(req: Request) {
                 ids.push(order.order_id);
             }
 
-            // === Hapus item yang baru saja di-checkout dari keranjang (cart order lama) ===
             const keranjangDetailIds = body.toko
                 .flatMap((g) => g.produk.map((p) => p.keranjangDetailId))
                 .filter((v): v is string => Boolean(v));

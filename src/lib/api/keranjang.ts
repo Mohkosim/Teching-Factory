@@ -11,11 +11,11 @@ export async function fetchKeranjang(): Promise<KeranjangItem[]> {
     return data.items ?? [];
 }
 
-export async function tambahKeKeranjang(produkId: string, jumlah = 1) {
+export async function tambahKeKeranjang(produkId: string, jumlah = 1, kombinasiId?: string | null) {
     const res = await fetch("/api/keranjang", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ produkId, jumlah }),
+        body: JSON.stringify({ produkId, jumlah, kombinasiId }),
     });
     if (res.ok) notifyCartUpdated(jumlah);
     return res;

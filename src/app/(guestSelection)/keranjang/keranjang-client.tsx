@@ -221,6 +221,9 @@ export default function KeranjangClient({ initialItems }: { initialItems: Keranj
                                                             <p className="text-xs text-gray-500 mt-0.5">
                                                                 Stok tersedia: {item.stok ?? 0}
                                                             </p>
+                                                            {item.varianLabel && (
+                                                                <p className="text-xs text-gray-500 mt-0.5">Varian: {item.varianLabel}</p>
+                                                            )}
                                                         </div>
                                                     </div>
 

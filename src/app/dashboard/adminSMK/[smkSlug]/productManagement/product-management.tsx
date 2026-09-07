@@ -26,6 +26,8 @@ import PaginationIconsOnly from "@/components/pagination/page";
 import { publikasiProduk, revisiProduk } from "@/lib/api/produk-api";
 import type { ProdukItem } from "@/types/interfaces/produk";
 import { formatRupiah } from "@/lib/utils/format";
+import { getVarianProduk } from "@/lib/api/varian-api";
+import type { GetVarianResponse } from "@/types/interfaces/varian";
 
 
 export default function ProductManagement({
@@ -53,6 +55,8 @@ export default function ProductManagement({
     const [showRevisiForm, setShowRevisiForm] = useState(false);
     const [revisiText, setRevisiText] = useState("");
 
+    const [detailVarian, setDetailVarian] = useState<GetVarianResponse | null>(null);
+
     const filtered = useMemo(() => {
         return products.filter((item) => {
             const matchSearch =
@@ -74,12 +78,19 @@ export default function ProductManagement({
         setPage(1);
     };
 
-    const openDetail = (item: ProdukItem) => {
+    const openDetail = async (item: ProdukItem) => {
         setDetailItem(item);
         setActiveImageIndex(0);
         setShowFullDesc(false);
-        setShowRevisiForm(false);
-        setRevisiText("");
+        setDetailVarian(null);
+
+        try {
+            const data: GetVarianResponse = await getVarianProduk(item.produk_id);
+            setDetailVarian(data.grup.length > 0 ? data : null);
+        } catch (err) {
+            console.error("Gagal memuat varian:", err);
+            setDetailVarian(null);
+        }
     };
 
     const closeDetail = () => {
@@ -87,6 +98,7 @@ export default function ProductManagement({
         setShowFullDesc(false);
         setShowRevisiForm(false);
         setRevisiText("");
+        setDetailVarian(null);
     };
 
     const goPrevImage = () => {
@@ -107,11 +119,11 @@ export default function ProductManagement({
             icon: "question",
             confirmText: "Ya, publikasikan",
             confirmColor: "#10b981",
-        }); 
+        });
         if (!konfirmasi) return;
 
         startTransition(async () => {
-            tampilkanLoading("Mempublikasikan produk..."); 
+            tampilkanLoading("Mempublikasikan produk...");
             try {
                 await publikasiProduk(detailItem.produk_id);
                 Swal.close();
@@ -122,7 +134,7 @@ export default function ProductManagement({
                             : p
                     )
                 );
-                toast.success("Produk berhasil dipublikasikan"); 
+                toast.success("Produk berhasil dipublikasikan");
                 closeDetail();
             } catch {
                 Swal.close();
@@ -144,7 +156,7 @@ export default function ProductManagement({
             icon: "warning",
             confirmText: "Ya, kirim",
             confirmColor: "#ef4444",
-        }); 
+        });
         if (!konfirmasi) return;
 
         startTransition(async () => {
@@ -163,7 +175,7 @@ export default function ProductManagement({
                 closeDetail();
             } catch {
                 Swal.close();
-                toast.error("Gagal mengirim revisi"); 
+                toast.error("Gagal mengirim revisi");
             }
         });
     };
@@ -322,7 +334,7 @@ export default function ProductManagement({
 
             {/* Dialog Detail */}
             <Dialog open={!!detailItem} onOpenChange={(open) => !open && closeDetail()}>
-                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogContent className="sm:max-w-2xl md:max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
                     <DialogHeader className="px-6 py-4 shrink-0 border-b border-gray-100 bg-sky-50/60">
                         <DialogTitle className="text-base">
                             {showRevisiForm ? "Form Revisi | Detail Produk" : "Detail Produk"}
@@ -391,6 +403,57 @@ export default function ProductManagement({
                                             </button>
                                         )}
                                     </div>
+
+                                    {detailVarian && detailVarian.grup.length > 0 && (
+                                        <div className="mt-6 pt-4 border-t border-gray-100">
+                                            <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                                <table className="w-full text-xs">
+                                                    <thead className="bg-gray-50 text-gray-500">
+                                                        <tr>
+                                                            {detailVarian.grup.map((g) => (
+                                                                <th key={g.grup_id} className="px-3 py-2 text-left font-medium">
+                                                                    {g.nama}
+                                                                </th>
+                                                            ))}
+                                                            <th className="px-3 py-2 text-left font-medium">Gambar</th>
+                                                            <th className="px-3 py-2 text-left font-medium">Harga</th>
+                                                            <th className="px-3 py-2 text-left font-medium">Stok</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {detailVarian.kombinasi.map((k) => (
+                                                            <tr key={k.kombinasi_id}>
+                                                                {detailVarian.grup.map((g) => {
+                                                                    const match = k.opsi.find((ko) => ko.opsi.grup_id === g.grup_id);
+                                                                    return (
+                                                                        <td key={g.grup_id} className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                            {match?.opsi.nama ?? "-"}
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                                <td className="px-3 py-2">
+                                                                    {k.gambar ? (
+                                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                                        <img
+                                                                            src={k.gambar}
+                                                                            alt=""
+                                                                            className="h-8 w-8 rounded-md object-cover border border-gray-200"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-gray-300">-</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                    {formatRupiah(k.harga)}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-gray-600">{k.stok}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {detailItem.catatan_revisi && (
                                         <div className="mt-2 p-3 rounded-lg bg-red-50 border border-red-200">

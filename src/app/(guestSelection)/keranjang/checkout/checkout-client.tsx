@@ -391,6 +391,7 @@ export default function CheckoutClient({
                         jumlah: p.kuantitas,
                         hargaSatuan: p.harga,
                         keranjangDetailId: p.id,
+                        kombinasiId: p.kombinasiId ?? null,
                     })),
                     jasa: {
                         kurir: selectedJasa.kurir,
@@ -508,6 +509,9 @@ export default function CheckoutClient({
                                     <div>
                                         <p className="text-sm font-semibold text-gray-800">{item.nama}</p>
                                         <p className="text-xs text-gray-500 mt-0.5">{item.toko}</p>
+                                        {item.varianLabel && (
+                                            <p className="text-xs text-gray-500 mt-0.5">Varian: {item.varianLabel}</p>
+                                        )}
                                     </div>
                                 </div>
 

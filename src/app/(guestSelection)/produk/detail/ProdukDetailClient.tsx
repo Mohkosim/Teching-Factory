@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { formatRupiah } from "@/lib/utils/format";
 import GaleriGambarModal from "@/components/galeri-gambar-modal";
-
+import type { VarianGrupPublik, VarianKombinasiPublik } from "@/types/interfaces/varian";
 
 
 export default function ProdukDetailClient({
@@ -36,11 +36,15 @@ export default function ProdukDetailClient({
   rekomendasi,
   initialFavorited,
   favoritIds,
+  varianGrup,
+  varianKombinasi,
 }: {
   produk: ProdukPublicItem;
   rekomendasi: ProdukPublicItem[];
   initialFavorited: boolean;
   favoritIds: FavoritIds;
+  varianGrup: VarianGrupPublik[];
+  varianKombinasi: VarianKombinasiPublik[];
 }) {
   const [activeFoto, setActiveFoto] = useState(0);
   const [galeriOpen, setGaleriOpen] = useState(false);
@@ -49,6 +53,7 @@ export default function ProdukDetailClient({
   const [addingToCart, setAddingToCart] = useState(false);
   const [favorited, setFavorited] = useState(initialFavorited)
   const [togglingFavorit, setTogglingFavorit] = useState(false);
+  const [selectedOpsi, setSelectedOpsi] = useState<Record<string, string>>({});
 
   const fotos = produk.fotos.length > 0 ? produk.fotos : [produk.gambar];
 
@@ -56,11 +61,35 @@ export default function ProdukDetailClient({
     return rekomendasi.filter((p) => p.stok > 0);
   }, [rekomendasi]);
 
+  const pilihOpsi = (grupId: string, opsiId: string) => {
+    setSelectedOpsi((prev) => ({ ...prev, [grupId]: opsiId }));
+  };
+
+  const punyaVarian = varianGrup.length > 0;
+  const semuaVarianTerpilih = !punyaVarian || varianGrup.every((g) => !!selectedOpsi[g.grup_id]);
+
+  const kombinasiTerpilih = useMemo(() => {
+    if (!punyaVarian || !semuaVarianTerpilih) return null;
+    const targetIds = Object.values(selectedOpsi);
+    return (
+      varianKombinasi.find(
+        (k) => k.opsiIds.length === targetIds.length && targetIds.every((id) => k.opsiIds.includes(id))
+      ) ?? null
+    );
+  }, [selectedOpsi, punyaVarian, semuaVarianTerpilih, varianKombinasi]);
+
+  const hargaTampil = kombinasiTerpilih?.harga ?? produk.harga;
+  const stokTampil = punyaVarian ? (kombinasiTerpilih?.stok ?? 0) : produk.stok;
+
   const handleAddToCart = async () => {
+    if (punyaVarian && !kombinasiTerpilih) {
+      toast.error("Pilih semua varian terlebih dahulu");
+      return;
+    }
     setAddingToCart(true);
     tampilkanLoading("Menambahkan ke keranjang...");
     try {
-      const res = await tambahKeKeranjang(produk.id, qty);
+      const res = await tambahKeKeranjang(produk.id, qty, kombinasiTerpilih?.kombinasi_id ?? null);
       Swal.close();
       if (res.ok) {
         toast.success(`${produk.nama} ditambahkan ke keranjang`);
@@ -159,7 +188,7 @@ export default function ProdukDetailClient({
                   <ChevronLeft className="h-4 w-4" />
                 </button>
 
-                <div className="flex flex-1 gap-2 overflow-x-auto">
+                <div className="flex flex-1 justify-center gap-2 overflow-x-auto">
                   {fotos.map((foto, i) => (
                     <button
                       key={foto + i}
@@ -192,7 +221,7 @@ export default function ProdukDetailClient({
 
             <h1 className="text-2xl font-bold uppercase text-gray-900 sm:text-3xl">{produk.nama}</h1>
 
-            <p className="text-xl font-bold text-gray-900">{formatRupiah(produk.harga)}</p>
+            <p className="text-xl font-bold text-gray-900">{formatRupiah(hargaTampil)}</p>
 
             <div className="flex items-center gap-1.5">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -209,12 +238,51 @@ export default function ProdukDetailClient({
             </div>
 
             <div className="space-y-3 pt-2">
+              {punyaVarian && (
+                <div className="space-y-4">
+                  {varianGrup.map((grup) => (
+                    <div key={grup.grup_id}>
+                      <p className="text-sm font-semibold text-gray-700 mb-2">{grup.nama}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {grup.opsi.map((opsi) => {
+                          const aktif = selectedOpsi[grup.grup_id] === opsi.opsi_id;
+                          const previewGambar = varianKombinasi.find((k) => k.opsiIds.includes(opsi.opsi_id))?.gambar;
+                          return (
+                            <button
+                              key={opsi.opsi_id}
+                              type="button"
+                              onClick={() => pilihOpsi(grup.grup_id, opsi.opsi_id)}
+                              className={cn(
+                                "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors",
+                                aktif
+                                  ? "border-sky-500 bg-sky-50 font-medium text-sky-600"
+                                  : "border-gray-200 text-gray-600 hover:border-sky-300"
+                              )}
+                            >
+                              {previewGambar && (
+                                <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-md">
+                                  <Image src={previewGambar} alt={opsi.nama} fill className="object-cover" />
+                                </span>
+                              )}
+                              {opsi.nama}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {!kombinasiTerpilih && (
+                    <p className="text-xs text-amber-600">Pilih semua varian dulu</p>
+                  )}
+                </div>
+              )}
+
               <div className="flex w-fit items-center rounded-full border border-gray-300">
                 <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-3 py-2 text-gray-500 hover:text-sky-500">
                   <Minus className="h-4 w-4" />
                 </button>
                 <span className="w-8 text-center text-sm font-medium">{qty}</span>
-                <button onClick={() => setQty((q) => Math.min(produk.stok, q + 1))} className="px-3 py-2 text-gray-500 hover:text-sky-500">
+                <button onClick={() => setQty((q) => Math.min(stokTampil || 1, q + 1))} className="px-3 py-2 text-gray-500 hover:text-sky-500">
                   <Plus className="h-4 w-4" />
                 </button>
               </div>

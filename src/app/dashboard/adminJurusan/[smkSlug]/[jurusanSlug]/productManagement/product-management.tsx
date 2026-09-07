@@ -25,9 +25,12 @@ import {
 import PaginationIconsOnly from "@/components/pagination/page";
 
 import { produkSchema, type ProdukForm } from "@/lib/validations/produk";
+import { simpanVarianSchema } from "@/lib/validations/varian";
 import { createProduk, updateProduk, deleteProduk, uploadProdukImages } from "@/lib/api/produk-api";
+import { getVarianProduk, simpanVarianProduk, uploadVarianImage } from "@/lib/api/varian-api";
 import type { ProdukItem } from "@/types/interfaces/produk";
-import { formatRupiah, formatAngka } from "@/lib/utils/format";
+import { formatRupiah, formatNominalInput } from "@/lib/utils/format";
+import type { GetVarianResponse, VarianGrupRecord } from "@/types/interfaces/varian";
 
 const emptyForm: ProdukForm = {
     nama_produk: "",
@@ -40,6 +43,30 @@ const emptyForm: ProdukForm = {
 };
 
 const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
+
+interface VarianOpsiState {
+    nama: string;
+    gambar?: string;
+}
+interface VarianGrupState {
+    nama: string;
+    opsi: VarianOpsiState[];
+}
+interface VarianKombinasiState {
+    opsi_nama: string[];
+    harga: number;
+    stok: number;
+    gambar?: string;
+}
+
+const emptyVarianGrup: VarianGrupState = { nama: "", opsi: [{ nama: "" }] };
+
+function cartesianProduct(arrays: string[][]): string[][] {
+    return arrays.reduce<string[][]>(
+        (acc, curr) => acc.flatMap((combo) => curr.map((item) => [...combo, item])),
+        [[]]
+    );
+}
 
 function isKontenBerubah(
     original: ProdukItem,
@@ -64,6 +91,8 @@ export default function ProductManagement({ initialData }: { initialData: Produk
     const [isPending, startTransition] = useTransition();
 
     const [detailItem, setDetailItem] = useState<ProdukItem | null>(null);
+    const [detailVarian, setDetailVarian] = useState<GetVarianResponse | null>(null);
+    const [loadingDetailVarian, setLoadingDetailVarian] = useState(false);
 
     const [formOpen, setFormOpen] = useState(false);
     const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -77,6 +106,16 @@ export default function ProductManagement({ initialData }: { initialData: Produk
     const [newFiles, setNewFiles] = useState<File[]>([]);
     const [newPreviews, setNewPreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // ── State varian ──
+    const [varianAktif, setVarianAktif] = useState(false);
+    const [varianGrup, setVarianGrup] = useState<VarianGrupState[]>([emptyVarianGrup]);
+    const [varianKombinasi, setVarianKombinasi] = useState<VarianKombinasiState[]>([]);
+    const [loadingVarian, setLoadingVarian] = useState(false);
+
+    const gambarInputRef = useRef<HTMLInputElement>(null);
+    const [gambarTargetIdx, setGambarTargetIdx] = useState<number | null>(null);
+    const [uploadingGambarIdx, setUploadingGambarIdx] = useState<number | null>(null);
 
     const MAX_FILE_SIZE = 2 * 1024 * 1024;
     const MAX_FILES = 5;
@@ -95,6 +134,12 @@ export default function ProductManagement({ initialData }: { initialData: Produk
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
+    const resetVarianState = () => {
+        setVarianAktif(false);
+        setVarianGrup([emptyVarianGrup]);
+        setVarianKombinasi([]);
+    };
+
     const openCreateForm = () => {
         setFormMode("create");
         setFormData(emptyForm);
@@ -102,10 +147,11 @@ export default function ProductManagement({ initialData }: { initialData: Produk
         setExistingFotos([]);
         setNewFiles([]);
         setNewPreviews([]);
+        resetVarianState();
         setFormOpen(true);
     };
 
-    const openEditForm = (item: ProdukItem) => {
+    const openEditForm = async (item: ProdukItem) => {
         setFormMode("edit");
         setEditingId(item.produk_id);
         setFormData({
@@ -120,13 +166,44 @@ export default function ProductManagement({ initialData }: { initialData: Produk
         setExistingFotos(item.fotos);
         setNewFiles([]);
         setNewPreviews([]);
+        resetVarianState();
         setFormOpen(true);
+
+        setLoadingVarian(true);
+        try {
+            const data: GetVarianResponse = await getVarianProduk(item.produk_id);
+            if (data.grup.length > 0) {
+                const grupState: VarianGrupState[] = data.grup.map((g) => ({
+                    nama: g.nama,
+                    opsi: g.opsi.map((o) => ({ nama: o.nama, gambar: o.gambar ?? undefined })),
+                }));
+
+                const kombinasiState: VarianKombinasiState[] = data.kombinasi.map((k) => ({
+                    opsi_nama: data.grup.map((g: VarianGrupRecord) => {
+                        const match = k.opsi.find((ko) => ko.opsi.grup_id === g.grup_id);
+                        return match?.opsi.nama ?? "";
+                    }),
+                    harga: k.harga,
+                    stok: k.stok,
+                    gambar: k.gambar ?? undefined,
+                }));
+
+                setVarianAktif(true);
+                setVarianGrup(grupState);
+                setVarianKombinasi(kombinasiState);
+            }
+        } catch (err) {
+            console.error("Gagal memuat varian:", err);
+        } finally {
+            setLoadingVarian(false);
+        }
     };
 
     const closeForm = () => {
         setFormOpen(false);
         setFormData(emptyForm);
         setEditingId(null);
+        resetVarianState();
     };
 
     const handleFormChange = <K extends keyof ProdukForm>(field: K, value: ProdukForm[K]) => {
@@ -186,10 +263,22 @@ export default function ProductManagement({ initialData }: { initialData: Produk
         setNewPreviews((prev) => prev.filter((_, i) => i !== idx));
     };
 
-    const openDetail = (item: ProdukItem) => {
+    const openDetail = async (item: ProdukItem) => {
         setDetailItem(item);
         setActiveImageIndex(0);
         setShowFullDesc(false);
+        setDetailVarian(null);
+
+        setLoadingDetailVarian(true);
+        try {
+            const data = await getVarianProduk(item.produk_id);
+            setDetailVarian(data.grup.length > 0 ? data : null);
+        } catch (err) {
+            console.error("Gagal memuat varian produk:", err);
+            setDetailVarian(null);
+        } finally {
+            setLoadingDetailVarian(false);
+        }
     };
 
     const goPrevImage = () => {
@@ -202,11 +291,135 @@ export default function ProductManagement({ initialData }: { initialData: Produk
         setActiveImageIndex((i) => (i === detailItem.fotos.length - 1 ? 0 : i + 1));
     };
 
+    // ── Handler varian ──
+    const addVarianGrup = () => {
+        if (varianGrup.length >= 3) {
+            toast.error("Maksimal 3 grup varian per produk");
+            return;
+        }
+        setVarianGrup((prev) => [...prev, { nama: "", opsi: [{ nama: "" }] }]);
+    };
+
+    const removeVarianGrup = (idx: number) => {
+        setVarianGrup((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const updateVarianGrupNama = (idx: number, nama: string) => {
+        setVarianGrup((prev) => prev.map((g, i) => (i === idx ? { ...g, nama } : g)));
+    };
+
+    const addVarianOpsi = (grupIdx: number) => {
+        setVarianGrup((prev) =>
+            prev.map((g, i) => (i === grupIdx ? { ...g, opsi: [...g.opsi, { nama: "" }] } : g))
+        );
+    };
+
+    const removeVarianOpsi = (grupIdx: number, opsiIdx: number) => {
+        setVarianGrup((prev) =>
+            prev.map((g, i) =>
+                i === grupIdx ? { ...g, opsi: g.opsi.filter((_, j) => j !== opsiIdx) } : g
+            )
+        );
+    };
+
+    const updateVarianOpsiNama = (grupIdx: number, opsiIdx: number, nama: string) => {
+        setVarianGrup((prev) =>
+            prev.map((g, i) =>
+                i === grupIdx
+                    ? { ...g, opsi: g.opsi.map((o, j) => (j === opsiIdx ? { ...o, nama } : o)) }
+                    : g
+            )
+        );
+    };
+
+    const grupValid = useMemo(() => {
+        const grupSeen = new Set<string>();
+        const result: { nama: string; opsi: { nama: string }[] }[] = [];
+
+        for (const g of varianGrup) {
+            const namaGrup = g.nama.trim();
+            if (namaGrup.length === 0 || grupSeen.has(namaGrup)) continue;
+
+            const opsiSeen = new Set<string>();
+            const opsiUnik: { nama: string }[] = [];
+            for (const o of g.opsi) {
+                const namaOpsi = o.nama.trim();
+                if (namaOpsi.length === 0 || opsiSeen.has(namaOpsi)) continue;
+                opsiSeen.add(namaOpsi);
+                opsiUnik.push({ nama: namaOpsi });
+            }
+
+            if (opsiUnik.length === 0) continue;
+            grupSeen.add(namaGrup);
+            result.push({ nama: namaGrup, opsi: opsiUnik });
+        }
+
+        return result;
+    }, [varianGrup]);
+
+    const generateKombinasi = () => {
+        if (grupValid.length === 0) {
+            toast.error("Isi minimal 1 grup varian dengan nama & minimal 1 opsi dulu");
+            setVarianKombinasi([]);
+            return;
+        }
+
+        const opsiPerGrup = grupValid.map((g) => g.opsi.map((o) => o.nama));
+        const kombinasiBaru = cartesianProduct(opsiPerGrup).map((opsi_nama) => {
+            const existing = varianKombinasi.find(
+                (k) => JSON.stringify(k.opsi_nama) === JSON.stringify(opsi_nama)
+            );
+            return existing ?? { opsi_nama, harga: 0, stok: 0 };
+        });
+
+        setVarianKombinasi(kombinasiBaru);
+        toast.success(`${kombinasiBaru.length} kombinasi varian dibuat`);
+    };
+
+    const updateKombinasiHarga = (idx: number, harga: number) => {
+        setVarianKombinasi((prev) => prev.map((k, i) => (i === idx ? { ...k, harga } : k)));
+    };
+
+    const updateKombinasiStok = (idx: number, stok: number) => {
+        setVarianKombinasi((prev) => prev.map((k, i) => (i === idx ? { ...k, stok } : k)));
+    };
+
+    const removeKombinasi = (idx: number) => {
+        setVarianKombinasi((prev) => prev.filter((_, i) => i !== idx));
+    };
+
     const handleSubmitForm = () => {
         if (existingFotos.length + newFiles.length === 0) {
             toast.error("Minimal 1 foto produk");
             return;
         }
+
+        if (varianAktif && varianKombinasi.length === 0) {
+            toast.error('Varian aktif tapi belum ada kombinasi — klik "Generate Kombinasi" dulu');
+            return;
+        }
+
+        let varianPayload: { grup: typeof grupValid; kombinasi: VarianKombinasiState[] } | null = null;
+        if (varianAktif) {
+            const parsedVarian = simpanVarianSchema.safeParse({
+                grup: grupValid,
+                kombinasi: varianKombinasi,
+            });
+            if (!parsedVarian.success) {
+                toast.error(parsedVarian.error.issues[0]?.message ?? "Data varian tidak valid");
+                return;
+            }
+            varianPayload = parsedVarian.data;
+        }
+
+        const hargaEfektif = varianAktif
+            ? Math.min(...varianKombinasi.map((k) => k.harga))
+            : formData.harga;
+        const stokEfektif = varianAktif
+            ? varianKombinasi.reduce((sum, k) => sum + k.stok, 0)
+            : formData.stok;
+        const statusEfektif =
+            varianAktif && stokEfektif <= 0 ? "Habis" : formData.status;
 
         startTransition(async () => {
             tampilkanLoading(formMode === "create" ? "Menambahkan produk..." : "Menyimpan perubahan...");
@@ -217,15 +430,25 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                 }
                 const fotos = [...existingFotos, ...uploadedUrls];
 
-                const parsed = produkSchema.safeParse({ ...formData, fotos });
+                const parsed = produkSchema.safeParse({
+                    ...formData,
+                    harga: hargaEfektif,
+                    stok: stokEfektif,
+                    status: statusEfektif,
+                    fotos,
+                });
                 if (!parsed.success) {
                     Swal.close();
                     toast.error(parsed.error.issues[0]?.message ?? "Data tidak valid");
                     return;
                 }
 
+                let produkId: string;
+
                 if (formMode === "create") {
                     const res = await createProduk(parsed.data);
+                    produkId = res.data.produk_id;
+
                     const newItem: ProdukItem = {
                         produk_id: res.data.produk_id,
                         jurusan_id: res.data.jurusan_id,
@@ -241,9 +464,8 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                         status_publikasi: res.data.status_publikasi ?? "Pending",
                     };
                     setProducts((prev) => [newItem, ...prev]);
-                    Swal.close();
-                    toast.success("Produk berhasil ditambahkan");
                 } else if (formMode === "edit" && editingId) {
+                    produkId = editingId;
                     const original = products.find((p) => p.produk_id === editingId);
 
                     const kontenBerubah = original
@@ -270,14 +492,22 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                 : p
                         )
                     );
-
+                } else {
                     Swal.close();
-                    toast.success(
-                        harusReviewUlang
-                            ? "Produk berhasil diperbarui, menunggu review ulang"
-                            : "Produk berhasil diperbarui"
-                    );
+                    return;
                 }
+
+                await simpanVarianProduk(produkId, {
+                    grup: varianAktif && varianPayload ? varianPayload.grup : [],
+                    kombinasi: varianAktif && varianPayload ? varianPayload.kombinasi : [],
+                });
+
+                Swal.close();
+                toast.success(
+                    formMode === "create"
+                        ? "Produk berhasil ditambahkan"
+                        : "Produk berhasil diperbarui"
+                );
                 closeForm();
             } catch (err) {
                 Swal.close();
@@ -310,6 +540,48 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                 }
             });
         });
+    };
+
+    const triggerUploadGambar = (idx: number) => {
+        setGambarTargetIdx(idx);
+        gambarInputRef.current?.click();
+    };
+
+    const handleGambarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file || gambarTargetIdx === null) return;
+        handleUploadGambarKombinasi(gambarTargetIdx, file);
+    };
+
+    const handleUploadGambarKombinasi = async (idx: number, file: File) => {
+        if (!file.type.startsWith("image/")) {
+            toast.error("File harus berupa gambar");
+            return;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+            toast.error("Ukuran gambar melebihi 2MB");
+            return;
+        }
+        setUploadingGambarIdx(idx);
+        try {
+            const url = await uploadVarianImage(file);
+            setVarianKombinasi((prev) => prev.map((k, i) => (i === idx ? { ...k, gambar: url } : k)));
+        } catch (err) {
+            if (err instanceof Error && err.message === "FileTooLarge") {
+                toast.error("Ukuran gambar melebihi 2MB");
+            } else if (err instanceof Error && err.message === "FileTipeSalah") {
+                toast.error("Tipe file tidak didukung");
+            } else {
+                toast.error("Gagal mengunggah gambar");
+            }
+        } finally {
+            setUploadingGambarIdx(null);
+        }
+    };
+
+    const removeGambarKombinasi = (idx: number) => {
+        setVarianKombinasi((prev) => prev.map((k, i) => (i === idx ? { ...k, gambar: undefined } : k)));
     };
 
     return (
@@ -458,7 +730,15 @@ export default function ProductManagement({ initialData }: { initialData: Produk
             </div>
 
             {/* Detail */}
-            <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
+            <Dialog
+                open={!!detailItem}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDetailItem(null);
+                        setDetailVarian(null);
+                    }
+                }}
+            >
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
                     <DialogHeader className="px-6 py-4 shrink-0 border-b border-gray-100 bg-sky-50/60">
                         <DialogTitle className="text-base">Detail Produk</DialogTitle>
@@ -571,6 +851,63 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                     )}
                                 </div>
                             </div>
+
+                            {/* Varian Produk */}
+                            {loadingDetailVarian && (
+                                <p className="text-xs text-gray-400 mt-4">Memuat varian...</p>
+                            )}
+
+                            {detailVarian && detailVarian.grup.length > 0 && (
+                                <div className="mt-6 pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-700 mb-2">Varian Produk</p>
+                                    <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-gray-50 text-gray-500">
+                                                <tr>
+                                                    {detailVarian.grup.map((g) => (
+                                                        <th key={g.grup_id} className="px-3 py-2 text-left font-medium">
+                                                            {g.nama}
+                                                        </th>
+                                                    ))}
+                                                    <th className="px-3 py-2 text-left font-medium">Gambar</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Harga</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Stok</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {detailVarian.kombinasi.map((k) => (
+                                                    <tr key={k.kombinasi_id}>
+                                                        {detailVarian.grup.map((g) => {
+                                                            const match = k.opsi.find((ko) => ko.opsi.grup_id === g.grup_id);
+                                                            return (
+                                                                <td key={g.grup_id} className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                                    {match?.opsi.nama ?? "-"}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                        <td className="px-3 py-2">
+                                                            {k.gambar ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img
+                                                                    src={k.gambar}
+                                                                    alt=""
+                                                                    className="h-8 w-8 rounded-md object-cover border border-gray-200"
+                                                                />
+                                                            ) : (
+                                                                <span className="text-gray-300">-</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                            {formatRupiah(k.harga)}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-gray-600">{k.stok}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </DialogContent>
@@ -578,7 +915,7 @@ export default function ProductManagement({ initialData }: { initialData: Produk
 
             {/* Tambah / Edit */}
             <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
-                <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
                     <DialogHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-gray-100">
                         <DialogTitle>{formMode === "create" ? "Tambah Produk" : "Edit Produk"}</DialogTitle>
                     </DialogHeader>
@@ -654,38 +991,229 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                 className="hidden"
                                 onChange={handleFileChange}
                             />
+
+                            {/* Input tersembunyi untuk upload gambar per kombinasi varian */}
+                            <input
+                                ref={gambarInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                onChange={handleGambarFileChange}
+                            />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <Label className="text-sm text-gray-600">Harga</Label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
-                                        Rp
-                                    </span>
+                        {/* ── Toggle Varian ── */}
+                        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                            <div>
+                                <p className="text-sm font-medium text-gray-700">Varian Produk</p>
+                                <p className="text-xs text-gray-400">Aktifkan kalau produk punya pilihan seperti Rasa, Desain, atau Warna</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setVarianAktif((v) => !v)}
+                                disabled={loadingVarian}
+                                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${varianAktif ? "bg-sky-500" : "bg-gray-300"}`}
+                            >
+                                <span
+                                    className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${varianAktif ? "translate-x-5" : "translate-x-0"}`}
+                                />
+                            </button>
+                        </div>
+
+                        {!varianAktif ? (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm text-gray-600">Harga</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                                            Rp
+                                        </span>
+                                        <Input
+                                            value={formData.harga === 0 ? "" : formatNominalInput(String(formData.harga))}
+                                            onChange={(e) => {
+                                                const digits = e.target.value.replace(/\D/g, "");
+                                                handleFormChange("harga", digits === "" ? 0 : Number(digits));
+                                            }}
+                                            inputMode="numeric"
+                                            placeholder="0"
+                                            className="bg-gray-50 border-gray-200 rounded-lg pl-9"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm text-gray-600">Stok</Label>
                                     <Input
-                                        value={formData.harga === 0 ? "" : formatAngka(formData.harga)}
-                                        onChange={(e) => {
-                                            const digits = e.target.value.replace(/\D/g, "");
-                                            handleFormChange("harga", digits === "" ? 0 : Number(digits));
-                                        }}
-                                        inputMode="numeric"
+                                        type="number"
+                                        value={formData.stok === 0 ? "" : formData.stok}
+                                        onChange={(e) => handleFormChange("stok", e.target.value === "" ? 0 : Number(e.target.value))}
                                         placeholder="0"
-                                        className="bg-gray-50 border-gray-200 rounded-lg pl-9"
+                                        className="bg-gray-50 border-gray-200 rounded-lg"
                                     />
                                 </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-sm text-gray-600">Stok</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.stok === 0 ? "" : formData.stok}
-                                    onChange={(e) => handleFormChange("stok", e.target.value === "" ? 0 : Number(e.target.value))}
-                                    placeholder="0"
-                                    className="bg-gray-50 border-gray-200 rounded-lg"
-                                />
+                        ) : (
+                            <div className="space-y-4 rounded-lg border border-sky-200 bg-sky-50/40 p-4">
+                                {/* Grup varian */}
+                                <div className="space-y-3">
+                                    {varianGrup.map((grup, grupIdx) => (
+                                        <div key={grupIdx} className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    value={grup.nama}
+                                                    onChange={(e) => updateVarianGrupNama(grupIdx, e.target.value)}
+                                                    placeholder="Nama grup, contoh: Rasa"
+                                                    className="bg-gray-50 border-gray-200 rounded-lg text-sm"
+                                                />
+                                                {varianGrup.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeVarianGrup(grupIdx)}
+                                                        className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2 pl-1">
+                                                {grup.opsi.map((opsi, opsiIdx) => (
+                                                    <div key={opsiIdx} className="flex items-center gap-1">
+                                                        <Input
+                                                            value={opsi.nama}
+                                                            onChange={(e) => updateVarianOpsiNama(grupIdx, opsiIdx, e.target.value)}
+                                                            placeholder="mis. Oreo"
+                                                            className="h-8 w-32 bg-gray-50 border-gray-200 rounded-lg text-xs"
+                                                        />
+                                                        {grup.opsi.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeVarianOpsi(grupIdx, opsiIdx)}
+                                                                className="h-6 w-6 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addVarianOpsi(grupIdx)}
+                                                    className="h-8 px-2 flex items-center gap-1 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-sky-400 hover:text-sky-500"
+                                                >
+                                                    <Plus className="h-3 w-3" /> Opsi
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <button
+                                        type="button"
+                                        onClick={addVarianGrup}
+                                        className="flex items-center gap-1.5 text-xs font-medium text-sky-600 hover:text-sky-700"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" /> Tambah Grup Varian
+                                    </button>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    onClick={generateKombinasi}
+                                    variant="outline"
+                                    className="w-full rounded-lg border-sky-300 text-sky-600 hover:bg-sky-50"
+                                >
+                                    Generate Kombinasi
+                                </Button>
+
+                                {/* Tabel kombinasi */}
+                                {varianKombinasi.length > 0 && (
+                                    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                        <table className="w-full text-xs">
+                                            <thead className="bg-gray-50 text-gray-500">
+                                                <tr>
+                                                    {grupValid.map((g) => (
+                                                        <th key={g.nama} className="px-3 py-2 text-left font-medium">{g.nama}</th>
+                                                    ))}
+                                                    <th className="px-3 py-2 text-left font-medium">Gambar</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Harga</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Stok</th>
+                                                    <th className="px-3 py-2"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100">
+                                                {varianKombinasi.map((k, idx) => (
+                                                    <tr key={idx}>
+                                                        {k.opsi_nama.map((nama, i) => (
+                                                            <td key={i} className="px-3 py-2 text-gray-600 whitespace-nowrap">{nama}</td>
+                                                        ))}
+                                                        <td className="px-3 py-2">
+                                                            {k.gambar ? (
+                                                                <div className="relative h-10 w-10 rounded-md overflow-hidden border border-gray-200 group">
+                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                    <img src={k.gambar} alt="" className="h-full w-full object-cover" />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeGambarKombinasi(idx)}
+                                                                        className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    >
+                                                                        <X className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => triggerUploadGambar(idx)}
+                                                                    disabled={uploadingGambarIdx === idx}
+                                                                    className="h-10 w-10 flex items-center justify-center rounded-md border-2 border-dashed border-gray-300 text-gray-400 hover:border-sky-400 hover:text-sky-500 disabled:opacity-50"
+                                                                >
+                                                                    {uploadingGambarIdx === idx ? (
+                                                                        <span className="text-[9px]">...</span>
+                                                                    ) : (
+                                                                        <ImagePlus className="h-4 w-4" />
+                                                                    )}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                value={k.harga === 0 ? "" : formatNominalInput(String(k.harga))}
+                                                                onChange={(e) => {
+                                                                    const digits = e.target.value.replace(/\D/g, "");
+                                                                    updateKombinasiHarga(idx, digits === "" ? 0 : Number(digits));
+                                                                }}
+                                                                inputMode="numeric"
+                                                                placeholder="0"
+                                                                className="h-8 w-24 bg-gray-50 border-gray-200 rounded-md text-xs"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                value={k.stok === 0 ? "" : k.stok}
+                                                                onChange={(e) => updateKombinasiStok(idx, e.target.value === "" ? 0 : Number(e.target.value))}
+                                                                placeholder="0"
+                                                                className="h-8 w-16 bg-gray-50 border-gray-200 rounded-md text-xs"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeKombinasi(idx)}
+                                                                className="h-6 w-6 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                                            >
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                                <p className="text-[11px] text-gray-400">
+                                    Harga & Stok di atas (untuk tampilan tabel produk) akan otomatis dihitung dari harga terendah dan total stok semua kombinasi.
+                                </p>
                             </div>
-                        </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
@@ -697,26 +1225,28 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                                     className="bg-gray-50 border-gray-200 rounded-lg"
                                 />
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-sm text-gray-600">Status</Label>
-                                <Select
-                                    value={formData.status}
-                                    onValueChange={(v) => handleFormChange("status", v as ProdukForm["status"])}
-                                    disabled={formData.stok === 0}
-                                >
-                                    <SelectTrigger className="bg-gray-50 border-gray-200 rounded-lg">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Tersedia">Tersedia</SelectItem>
-                                        <SelectItem value="Habis">Habis</SelectItem>
-                                        <SelectItem value="Nonaktif">Nonaktif</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {formData.stok === 0 && (
-                                    <p className="text-[11px] text-amber-600">Status otomatis habis karena stok 0</p>
-                                )}
-                            </div>
+                            {!varianAktif && (
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm text-gray-600">Status</Label>
+                                    <Select
+                                        value={formData.status}
+                                        onValueChange={(v) => handleFormChange("status", v as ProdukForm["status"])}
+                                        disabled={formData.stok === 0}
+                                    >
+                                        <SelectTrigger className="bg-gray-50 border-gray-200 rounded-lg">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Tersedia">Tersedia</SelectItem>
+                                            <SelectItem value="Habis">Habis</SelectItem>
+                                            <SelectItem value="Nonaktif">Nonaktif</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {formData.stok === 0 && (
+                                        <p className="text-[11px] text-amber-600">Status otomatis habis karena stok 0</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

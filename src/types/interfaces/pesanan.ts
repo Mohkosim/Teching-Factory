@@ -17,6 +17,7 @@ export interface ProdukItem {
     kodeInvoice: string;
     produkId: string;
     nama: string;
+    varianLabel?: string;
     harga: string;
     hargaAngka: number;
     thumbnail: string;

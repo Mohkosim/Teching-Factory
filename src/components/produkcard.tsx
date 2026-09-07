@@ -7,12 +7,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
-import { Star, Heart, ShoppingCart } from "lucide-react";
+import { Star, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { tambahKeKeranjang } from "@/lib/api/keranjang";
 import { toggleFavoritProduk } from "@/lib/api/favorit";
 import { cn } from "@/lib/utils";
 import type { ProdukPublicItem } from "@/lib/data/produk-public";
@@ -29,7 +28,6 @@ export default function ProdukCard({
 }) {
     const router = useRouter();
     const [favorited, setFavorited] = useState(initialFavorited);
-    const [addingToCart, setAddingToCart] = useState(false);
     const stokHabis = product.stok <= 0;
 
     function handleClickCard() {
@@ -37,26 +35,6 @@ export default function ProdukCard({
         router.push(`/produk/detail?id=${product.id}`);
     }
 
-    async function handleAddToCart(e: React.MouseEvent) {
-        e.stopPropagation();
-        if (stokHabis) return;
-        setAddingToCart(true);
-        tampilkanLoading("Menambahkan ke keranjang...");
-        try {
-            const res = await tambahKeKeranjang(product.id);
-            Swal.close();
-            if (res.ok) {
-                toast.success(`${product.nama} ditambahkan ke keranjang`);
-            } else {
-                toast.error(res.status === 401 ? "Silakan login untuk menambah ke keranjang" : "Gagal menambahkan ke keranjang");
-            }
-        } catch {
-            Swal.close();
-            toast.error("Gagal menambahkan ke keranjang");
-        } finally {
-            setAddingToCart(false);
-        }
-    }
 
     async function handleToggleFavorite(e: React.MouseEvent) {
         e.stopPropagation();
@@ -147,13 +125,6 @@ export default function ProdukCard({
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                            onClick={handleAddToCart}
-                            disabled={addingToCart || stokHabis}
-                            className="p-1.5 rounded-md border border-gray-200 hover:border-sky-400 hover:text-sky-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-400"
-                        >
-                            <ShoppingCart size={14} className="text-gray-400 hover:text-sky-500" />
-                        </button>
                         {stokHabis ? (
                             <span className="text-xs font-semibold text-gray-400 border border-gray-200 rounded-lg px-3 py-1 cursor-not-allowed">
                                 Stok Habis

@@ -43,10 +43,17 @@ export async function POST(req: Request) {
 
             for (const order of orders) {
                 for (const detail of order.orderDetail) {
-                    await tx.barang.updateMany({
-                        where: { produk_id: detail.produk_id },
-                        data: { stok: { increment: detail.jumlah } },
-                    });
+                    if (detail.kombinasi_id) {
+                        await tx.varianKombinasi.update({
+                            where: { kombinasi_id: detail.kombinasi_id },
+                            data: { stok: { increment: detail.jumlah } },
+                        });
+                    } else {
+                        await tx.barang.updateMany({
+                            where: { produk_id: detail.produk_id },
+                            data: { stok: { increment: detail.jumlah } },
+                        });
+                    }
                     await tx.produk.update({
                         where: { produk_id: detail.produk_id },
                         data: { sold_count: { decrement: detail.jumlah } },
@@ -59,7 +66,11 @@ export async function POST(req: Request) {
                     }
 
                     const existing = await tx.order_Detail.findFirst({
-                        where: { order_id: cartOrder.order_id, produk_id: detail.produk_id },
+                        where: {
+                            order_id: cartOrder.order_id,
+                            produk_id: detail.produk_id,
+                            kombinasi_id: detail.kombinasi_id,
+                        },
                     });
 
                     if (existing) {
@@ -76,6 +87,7 @@ export async function POST(req: Request) {
                                 jumlah: detail.jumlah,
                                 harga_satuan: detail.harga_satuan,
                                 subtotal: detail.subtotal,
+                                kombinasi_id: detail.kombinasi_id,
                             },
                         });
                     }

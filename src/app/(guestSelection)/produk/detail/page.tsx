@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { getProdukDetailById, getProdukRekomendasi } from "@/lib/data/produk-public";
 import { getFavoritIds } from "@/lib/data/favorit-public";
 import ProdukDetailClient from "./ProdukDetailClient";
+import type { VarianGrupPublik, VarianKombinasiPublik } from "@/types/interfaces/varian";
 
 import type { Metadata } from "next";
 
@@ -37,14 +39,41 @@ export default async function ProdukDetailPage({
   const rekomendasi = await getProdukRekomendasi(produk.id);
   const favoritIds = await getFavoritIds();
   const initialFavorited = favoritIds.produkIds.includes(produk.id);
-  
+
+  const [grupVarianRaw, kombinasiVarianRaw] = await Promise.all([
+    prisma.varianGrup.findMany({
+      where: { produk_id: produk.id },
+      include: { opsi: { orderBy: { urutan: "asc" } } },
+      orderBy: { urutan: "asc" },
+    }),
+    prisma.varianKombinasi.findMany({
+      where: { produk_id: produk.id, aktif: true },
+      include: { opsi: true },
+    }),
+  ]);
+
+  const varianGrup: VarianGrupPublik[] = grupVarianRaw.map((g) => ({
+    grup_id: g.grup_id,
+    nama: g.nama,
+    opsi: g.opsi.map((o) => ({ opsi_id: o.opsi_id, nama: o.nama })),
+  }));
+
+  const varianKombinasi: VarianKombinasiPublik[] = kombinasiVarianRaw.map((k) => ({
+    kombinasi_id: k.kombinasi_id,
+    harga: k.harga,
+    stok: k.stok,
+    gambar: k.gambar,
+    opsiIds: k.opsi.map((ko) => ko.opsi_id),
+  }));
+
   return (
     <ProdukDetailClient
-      key={produk.id}
       produk={produk}
       rekomendasi={rekomendasi}
       initialFavorited={initialFavorited}
       favoritIds={favoritIds}
+      varianGrup={varianGrup}
+      varianKombinasi={varianKombinasi}
     />
   );
 }

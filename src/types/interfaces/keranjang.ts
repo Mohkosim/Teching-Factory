@@ -11,4 +11,6 @@ export interface KeranjangItem {
     thumbnail: string;
     kuantitas: number;
     noWhatsapp?: string;
+    kombinasiId?: string | null;
+    varianLabel?: string;
 }

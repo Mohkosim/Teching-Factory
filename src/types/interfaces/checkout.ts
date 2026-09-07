@@ -3,6 +3,7 @@ export interface ProdukCheckoutItem {
     jumlah: number;
     hargaSatuan: number;
     keranjangDetailId?: string;
+    kombinasiId?: string | null;
 }
 
 export interface CheckoutPayload {

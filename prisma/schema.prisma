@@ -231,6 +231,8 @@ model Produk {
   review Review[]
   favorites Favorite[]
   orderDetail Order_Detail[]
+  varianGrup      VarianGrup[]
+  varianKombinasi VarianKombinasi[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -413,9 +415,12 @@ model Order_Detail {
 
   review Review?
 
+  kombinasi_id String?
+  kombinasi    VarianKombinasi? @relation(fields: [kombinasi_id], references: [kombinasi_id])
+
   createdAt DateTime @default(now())
 
-  @@unique([order_id, produk_id])
+  @@unique([order_id, produk_id, kombinasi_id])
 }
 
 model Transaksi {
@@ -548,4 +553,68 @@ model RefundBukti {
   tipe TipeBuktiRefund
 
   createdAt DateTime @default(now())
+}
+
+model VarianGrup {
+  grup_id String @id @default(uuid())
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id], onDelete: Cascade)
+
+  nama   String
+  urutan Int    @default(0)
+
+  opsi VarianOpsi[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([produk_id, nama])
+}
+
+model VarianOpsi {
+  opsi_id String @id @default(uuid())
+
+  grup_id String
+  grup    VarianGrup @relation(fields: [grup_id], references: [grup_id], onDelete: Cascade)
+
+  nama   String
+  urutan Int     @default(0)
+
+  kombinasi VarianKombinasiOpsi[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([grup_id, nama])
+}
+
+model VarianKombinasi {
+  kombinasi_id String @id @default(uuid())
+
+  produk_id String
+  produk    Produk @relation(fields: [produk_id], references: [produk_id], onDelete: Cascade)
+
+  harga  Int
+  stok   Int     @default(0)
+  gambar String?
+  aktif  Boolean @default(true)
+
+  opsi        VarianKombinasiOpsi[]
+  orderDetail Order_Detail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VarianKombinasiOpsi {
+  id String @id @default(cuid())
+
+  kombinasi_id String
+  kombinasi    VarianKombinasi @relation(fields: [kombinasi_id], references: [kombinasi_id], onDelete: Cascade)
+
+  opsi_id String
+  opsi    VarianOpsi @relation(fields: [opsi_id], references: [opsi_id], onDelete: Cascade)
+
+  @@unique([kombinasi_id, opsi_id])
 }

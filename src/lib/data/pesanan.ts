@@ -29,6 +29,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
             orderDetail: {
                 include: {
                     review: { include: { foto: true } },
+                    kombinasi: { include: { opsi: { include: { opsi: true } } } },
                     produk: {
                         include: {
                             foto: true,
@@ -83,6 +84,9 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
             const thumbnail = p.foto[0]?.url ?? "";
             const review = detail.review;
             const fotoUlasan = review?.foto.map((f) => ({ id: f.foto_id, url: f.url })) ?? [];
+            const varianLabel = detail.kombinasi
+                ? detail.kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
+                : undefined;
 
             if (p.barang.length > 0) {
                 produk.push({
@@ -95,10 +99,11 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                     hargaAngka: detail.harga_satuan,
                     thumbnail,
                     jumlah: detail.jumlah,
+                    varianLabel,
                     statusBayar: order.status_pembayaran === "Lunas" ? "Dibayar" : "Belum Dibayar",
                     statusKirim:
-                        order.status_order === "Selesai" ? "Selesai" :        
-                            order.status_order === "Diterima" ? "Diterima" :    
+                        order.status_order === "Selesai" ? "Selesai" :
+                            order.status_order === "Diterima" ? "Diterima" :
                                 order.status_order === "Dikirim" ? "Sedang Dikirim" : "Diproses",
                     tanggal: order.createdAt.toISOString(),
                     timelineStep,
@@ -119,9 +124,9 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                         kurir: order.pengiriman?.kurir ?? "-",
                         nomorResi: order.pengiriman?.nomor_resi ?? "-",
                         estimasi: order.pengiriman?.estimasi_tiba ?? "-",
-                        statusResi: order.pengiriman?.status_resi ?? undefined,         
-                        cekTerakhirAt: order.pengiriman?.cek_terakhir_at?.toISOString(), 
-                        autoConfirmed: order.pengiriman?.auto_confirmed ?? false,       
+                        statusResi: order.pengiriman?.status_resi ?? undefined,
+                        cekTerakhirAt: order.pengiriman?.cek_terakhir_at?.toISOString(),
+                        autoConfirmed: order.pengiriman?.auto_confirmed ?? false,
                     },
                 });
             }

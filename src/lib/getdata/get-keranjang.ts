@@ -3,7 +3,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { KeranjangItem } from "@/types/interfaces/keranjang";
 
-// Order yang dianggap "keranjang": status Menunggu & belum punya data pengiriman
 export async function findCartOrder(userId: string) {
     return prisma.order.findFirst({
         where: {
@@ -21,13 +20,16 @@ export async function findCartOrder(userId: string) {
                             barang: true,
                             jurusan: {
                                 include: {
-                                    user: true, 
+                                    user: true,
                                     smk: {
-                                        include: { user: true }, 
+                                        include: { user: true },
                                     },
                                 },
                             },
                         },
+                    },
+                    kombinasi: {
+                        include: { opsi: { include: { opsi: true } } },
                     },
                 },
             },
@@ -44,6 +46,9 @@ export async function getKeranjangItems(): Promise<KeranjangItem[]> {
     return (cartOrder?.orderDetail ?? []).map((d) => {
         const p = d.produk;
         const smk = p.jurusan?.smk;
+        const varianLabel = d.kombinasi
+            ? d.kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
+            : undefined;
         return {
             id: d.order_detail_id,
             produkId: p.produk_id,
@@ -57,6 +62,8 @@ export async function getKeranjangItems(): Promise<KeranjangItem[]> {
             thumbnail: p.foto[0]?.url ?? "",
             kuantitas: d.jumlah,
             noWhatsapp: p.jurusan?.user?.phone ?? undefined,
+            kombinasiId: d.kombinasi_id,
+            varianLabel,
         };
     });
 }
