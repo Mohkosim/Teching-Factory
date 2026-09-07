@@ -1240,7 +1240,6 @@ function RatingModal({ items, onClose, onSave }: {
     const [hoverMap, setHoverMap] = useState<Record<string, number>>({});
     const [isPending, setIsPending] = useState(false);
 
-    // ⬇️ state ulasan & foto sekarang PER PRODUK, bukan global
     const [reviews, setReviews] = useState<Record<string, {
         deskripsi: string;
         fotoLamaKept: FotoUlasan[];
