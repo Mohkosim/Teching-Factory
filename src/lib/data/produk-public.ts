@@ -72,7 +72,6 @@ export interface ProdukPublicItem {
   lokasi: string | null;
   badge: string;
   kondisi: string | null;
-  // Field tambahan khusus halaman detail (hanya diisi oleh getProdukDetailById)
   ratingBreakdown?: Record<1 | 2 | 3 | 4 | 5, number>;
   persentasePuas?: number;
   reviews?: ReviewPublicItem[];

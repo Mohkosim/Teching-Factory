@@ -105,7 +105,7 @@ export default function Filter({ value, onApply, lokasiOptions }: FilterProps) {
                 </div>
 
                 <div className="border-t border-gray-100 px-5 py-4 space-y-3">
-                    <p className="text-sm font-medium text-gray-400">Penilaian minimal</p>
+                    <p className="text-sm font-medium text-gray-400">Penilaian</p>
                     {ratingOptions.map((r) => (
                         <label key={r} className="flex items-center gap-3 cursor-pointer">
                             <Checkbox

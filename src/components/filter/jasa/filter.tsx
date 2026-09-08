@@ -9,7 +9,7 @@ import {
     Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 
-const ratingOptions = [5, 3, 2];
+const ratingOptions = [5, 4, 3, 2, 1];
 
 export interface FilterJasaValue {
     lokasi: string[];

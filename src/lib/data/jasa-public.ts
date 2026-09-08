@@ -30,7 +30,6 @@ export interface JasaPublicItem {
   sekolah: string;
   noWhatsapp?: string;
   portofolio: PortofolioPublicItem[];
-  // Field tambahan khusus halaman detail (hanya diisi oleh getJasaDetailById)
   ratingBreakdown?: Record<1 | 2 | 3 | 4 | 5, number>;
   persentasePuas?: number;
   reviews?: ReviewPublicItem[];

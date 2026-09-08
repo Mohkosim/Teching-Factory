@@ -39,7 +39,7 @@ export default function JasaPageClient({ jasa, lokasiOptions, favoritIds }: Jasa
         let hasil = jasa.filter((j) => {
             const matchSearch = keyword === "" || j.nama.toLowerCase().includes(keyword);
             const matchLokasi = filter.lokasi.length === 0 || (j.provinsi ? filter.lokasi.includes(j.provinsi) : false);
-            const matchRating = filter.rating === null || j.rating >= filter.rating;
+            const matchRating = filter.rating === null || Math.round(j.rating) === filter.rating;
             const matchHargaMin = filter.hargaMin === "" || j.harga >= Number(filter.hargaMin);
             const matchHargaMax = filter.hargaMax === "" || j.harga <= Number(filter.hargaMax);
 
