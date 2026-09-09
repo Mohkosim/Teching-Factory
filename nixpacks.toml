@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ["...", "curl", "ca-certificates"]
+
+[phases.install]
+cmds = [
+  "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -",
+  "apt-get install -y nodejs",
+  "npm install"
+]
