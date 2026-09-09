@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["curl"]
+nixPkgs = ["curl", "nodejs_22", "openssl"]
 
 [phases.install]
 cmds = [
