@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["curl", "cacert"]
+nixPkgs = ["curl"]
 
 [phases.install]
 cmds = [
