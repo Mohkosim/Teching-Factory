@@ -1,18 +1,23 @@
 export default function LokasiMap({
-  mapLink,
+  latitude,
+  longitude,
   alamat,
   kota,
   provinsi,
 }: {
-  mapLink?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   alamat: string;
   kota: string;
   provinsi: string;
 }) {
-  const fallbackSrc = `https://www.google.com/maps?q=${encodeURIComponent(
-    `${alamat}, ${kota}, ${provinsi}`
-  )}&output=embed`;
-  const src = mapLink || fallbackSrc;
+  const hasCoordinate = latitude != null && longitude != null;
+
+  const src = hasCoordinate
+    ? `https://www.google.com/maps?q=${latitude},${longitude}&output=embed`
+    : `https://www.google.com/maps?q=${encodeURIComponent(
+        `${alamat}, ${kota}, ${provinsi}`
+      )}&output=embed`;
 
   return (
     <section className="mx-auto max-w-6xl px-4 pb-16">

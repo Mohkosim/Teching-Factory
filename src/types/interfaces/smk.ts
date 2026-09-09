@@ -26,7 +26,8 @@ export interface SMKDetailData {
   alamat: string;
   kota: string;
   provinsi: string;
-  map_link: string | null;
+  latitude: number | null;
+  longitude: number | null;
   status_verifikasi: boolean;
   jumlahJurusan: number;
 }

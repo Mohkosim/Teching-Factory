@@ -31,7 +31,8 @@ export default async function SMKDetailPage({
       <SMKDetailHero smk={smk} />
       <JurusanListClient smkId={smk.smk_id} />
       <LokasiMap
-        mapLink={smk.map_link}
+        latitude={smk.latitude}
+        longitude={smk.longitude}
         alamat={smk.alamat}
         kota={smk.kota}
         provinsi={smk.provinsi}
