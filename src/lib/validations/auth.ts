@@ -53,3 +53,25 @@ export const resetPasswordSchema = z
 
 export type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
+
+export const verifyOtpSchema = z.object({
+  email: z
+    .string()
+    .min(1, "E-mail wajib diisi")
+    .email("Format e-mail tidak valid"),
+  otp: z
+    .string()
+    .min(1, "Kode OTP wajib diisi")
+    .length(6, "Kode OTP harus 6 digit")
+    .regex(/^\d+$/, "Kode OTP hanya boleh berisi angka"),
+});
+
+export const resendOtpSchema = z.object({
+  email: z
+    .string()
+    .min(1, "E-mail wajib diisi")
+    .email("Format e-mail tidak valid"),
+});
+
+export type VerifyOtpSchema = z.infer<typeof verifyOtpSchema>;
+export type ResendOtpSchema = z.infer<typeof resendOtpSchema>;

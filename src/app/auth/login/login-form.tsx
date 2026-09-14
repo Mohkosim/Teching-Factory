@@ -51,6 +51,14 @@ export default function Login() {
         toast.error("Akun dinonaktifkan", {
           description: "Akun Anda sedang dinonaktifkan. Hubungi admin untuk informasi lebih lanjut.",
         });
+      } else if (result.error === "EmailNotVerified") {
+        toast.error("Akun belum diverifikasi", {
+          description: "Silakan verifikasi e-mail Anda terlebih dahulu.",
+          duration: 1500,
+          onAutoClose: () => {
+            router.push(`/auth/verify-otp?email=${encodeURIComponent(data.email)}`);
+          },
+        });
       } else {
         toast.error("Login gagal", {
           description: "E-mail atau kata sandi salah. Jika Anda mendaftar dengan Google, gunakan \"Lupa Kata Sandi\" untuk membuat kata sandi baru.",

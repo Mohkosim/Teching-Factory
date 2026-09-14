@@ -128,6 +128,11 @@ model User {
   galeri   Galeri[]
   favorites Favorite[]
    
+  isVerified    Boolean   @default(false)
+  otpCode       String?
+  otpExpiresAt  DateTime?
+  otpLastSentAt DateTime?
+  otpAttempts   Int       @default(0)
 
   resetToken       String?
   resetTokenExpiry DateTime?

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSplash } from "@/components/SplashContext";
+import { useSplash } from "@/components/Navigation/SplashContext";
 
 export default function NavigationInterceptor() {
     const router = useRouter();

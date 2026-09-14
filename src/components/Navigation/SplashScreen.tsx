@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { useSplash } from "@/components/SplashContext";
+import { useSplash } from "@/components/Navigation/SplashContext";
 
 const FIRST_LOAD_DURATION = 1600;
 

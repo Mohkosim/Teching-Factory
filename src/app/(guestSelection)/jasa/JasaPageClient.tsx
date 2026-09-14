@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import FilterJasa, { FilterJasaValue, emptyFilterJasaValue } from "@/components/filter/jasa/filter";
 import type { JasaPublicItem } from "@/lib/data/jasa-public";
 import type { FavoritIds } from "@/lib/data/favorit-public";
-import JasaCard from "@/components/jasa.card";
+import JasaCard from "@/components/card/jasa_card";
 import Pagination from "@/components/pagination/Pagination";
 
 type UrutanToolbar = "default" | "termurah" | "termahal" | "terlaris";

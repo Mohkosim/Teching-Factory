@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
                 password: hashedPassword,
                 role: "AdminJurusan",
                 isActive: true,
+                isVerified: true,
             },
         });
 

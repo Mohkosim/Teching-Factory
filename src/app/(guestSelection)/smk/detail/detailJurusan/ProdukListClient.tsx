@@ -8,8 +8,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Pagination from "@/components/pagination/Pagination";
-import ProdukCard from "@/components/produkcard";
-import JasaCard from "@/components/jasa.card";
+import ProdukCard from "@/components/card/produk_card";
+import JasaCard from "@/components/card/jasa_card";
 import type { ProdukSortOption } from "@/types/interfaces/produk";
 import type { ProdukPublicListResult } from "@/lib/data/produk-public";
 import { JasaListResult } from "@/lib/data/jasa-public";

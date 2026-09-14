@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import Filter, { FilterValue, emptyFilterValue } from "@/components/filter/produk/filter";
 import Sorting, { SortOption } from "@/components/filter/produk/sorting";
-import ProdukCard from "@/components/produkcard";
+import ProdukCard from "@/components/card/produk_card";
 import type { ProdukPublicItem } from "@/lib/data/produk-public";
 import Pagination from "@/components/pagination/Pagination";
 

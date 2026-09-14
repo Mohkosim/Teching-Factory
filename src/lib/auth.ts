@@ -36,6 +36,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error("AccountDisabled");
         }
 
+        if (user.role === "User" && !user.isVerified) {
+          throw new Error("EmailNotVerified");
+        }
+
         return {
           id: user.user_id,
           name: user.name,
@@ -54,7 +58,6 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 60 * 25,
   },
 
   cookies: {
@@ -79,6 +82,13 @@ export const authOptions: NextAuthOptions = {
         if (existing) {
           if (!existing.isActive) return false;
 
+          if (!existing.isVerified) {
+            await prisma.user.update({
+              where: { user_id: existing.user_id },
+              data: { isVerified: true, otpCode: null, otpExpiresAt: null, otpLastSentAt: null },
+            });
+          }
+
           user.id = existing.user_id;
           user.role = existing.role;
           user.name = existing.name;
@@ -93,6 +103,7 @@ export const authOptions: NextAuthOptions = {
               img: user.image ?? null,
               role: "User",
               isActive: true,
+              isVerified: true,
               password: randomPassword,
             },
           });

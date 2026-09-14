@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import JasaCard from "@/components/jasa.card";
+import JasaCard from "@/components/card/jasa_card";
 import { getJasaPublicList } from "@/lib/data/jasa-public";
 
 export default async function JasaSection() {

@@ -9,8 +9,8 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import ProdukCard from "@/components/produkcard";
-import JasaCard from "@/components/jasa.card";
+import ProdukCard from "@/components/card/produk_card";
+import JasaCard from "@/components/card/jasa_card";
 import type { TabKey } from "@/types/interfaces/favorite";
 import type { ProdukPublicItem } from "@/lib/data/produk-public";
 import type { JasaPublicItem } from "@/lib/data/jasa-public";

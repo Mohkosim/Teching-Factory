@@ -16,6 +16,7 @@ async function main() {
       password: hashedPassword,
       phone: "081234567890",
       role: "SuperAdmin",
+      isVerified: true,
     },
   });
 

@@ -42,10 +42,10 @@ export default function RegisterForm() {
             }
 
             toast.success("Akun berhasil dibuat!", {
-                description: "Silakan masuk menggunakan akun Anda.",
+                description: "Silakan cek email Anda untuk kode verifikasi.",
                 duration: 1500,
                 onAutoClose: () => {
-                    router.push("/auth/login");
+                    router.push(`/auth/verify-otp?email=${encodeURIComponent(data.email)}`);
                 },
             });
         } catch (err) {
@@ -60,17 +60,17 @@ export default function RegisterForm() {
     return (
         <>
             <div className="text-center w-full">
-                    <span className="text-3xl font-black text-gray-900 tracking-tight block">
-                      <Image
+                <span className="text-3xl font-black text-gray-900 tracking-tight block">
+                    <Image
                         src="/img/LogoTefa.png"
                         alt="Logo Tefa"
                         width={150}
                         height={80}
                         className="object-contain w-auto h-auto mx-auto block"
                         priority
-                      />
-                    </span>
-                  </div>
+                    />
+                </span>
+            </div>
 
             <AuthTabs />
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import SessionGuard from "@/components/SessionGuard";
-import SplashScreen from "@/components/SplashScreen";
-import NavigationInterceptor from "@/components/NavigationInterceptor";
-import { SplashProvider } from "@/components/SplashContext";
+import SessionGuard from "@/components/Navigation/SessionGuard";
+import SplashScreen from "@/components/Navigation/SplashScreen";
+import NavigationInterceptor from "@/components/Navigation/NavigationInterceptor";
+import { SplashProvider } from "@/components/Navigation/SplashContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

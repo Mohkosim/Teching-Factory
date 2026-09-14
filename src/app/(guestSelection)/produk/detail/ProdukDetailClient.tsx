@@ -8,7 +8,7 @@ import { tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
 import { Star, Heart, ShoppingCart, MessageCircle, Minus, Plus, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import ProdukCard from "@/components/produkcard";
+import ProdukCard from "@/components/card/produk_card";
 import RingkasanRating from "./RingkasanRating";
 import DaftarUlasan from "./DaftarUlasan";
 import DeskripsiFormatted from "./DeskripsiFormatted";

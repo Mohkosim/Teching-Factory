@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import type { JasaPublicItem } from "@/lib/data/jasa-public";
 import { buatPesananJasa, batalkanPesananJasa } from "@/lib/api/pesanan-api";
 import { useMidtransSnap } from "@/lib/hooks/useMidtransSnap";
-import JasaCard from "@/components/jasa.card";
+import JasaCard from "@/components/card/jasa_card";
 import type { FavoritIds } from "@/lib/data/favorit-public";
 import RingkasanRatingJasa from "./RingkasanRatingJasa";
 import DaftarUlasanJasa from "./DaftarUlasanJasa";

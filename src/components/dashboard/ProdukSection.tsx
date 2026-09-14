@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import ProdukCard from "@/components/produkcard";
+import ProdukCard from "@/components/card/produk_card";
 import { getProdukPublicList } from "@/lib/data/produk-public";
 
 const JUMLAH_TAMPIL = 4;
