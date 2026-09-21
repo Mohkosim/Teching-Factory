@@ -7,7 +7,6 @@ export interface SMKAccount {
   role: "User" | "SuperAdmin" | "AdminSMK" | "AdminJurusan";
   isActive: boolean;
 
-  // Data dari relasi SMK (opsional, hanya ada kalau role AdminSMK)
   kepala_sekolah?: string | null;
   smk_id?: string | null;
   alamat?: string | null;
@@ -32,3 +31,30 @@ export interface JurusanAccount {
   totalProduk?: number;
   totalJasa?: number;
 };
+
+export interface SMKAccountDetail {
+  user_id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  img: string | null;
+  isActive: boolean;
+  createdAt: string;
+
+  smk: {
+    smk_id: string;
+    kepala_sekolah: string | null;
+    deskripsi: string | null;
+    alamat: string;
+    kecamatan: string | null;
+    kota: string;
+    kode_pos: string | null;
+    provinsi: string;
+    latitude: number | null;
+    longitude: number | null;
+    tahun_berdiri: number;
+    status_verifikasi: boolean;
+  } | null;
+
+  jurusans: JurusanAccount[];
+}

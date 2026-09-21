@@ -37,17 +37,28 @@ export default function RegisterForm() {
             const json = await res.json();
             Swal.close();
 
-            if (!res.ok) {
+            if (!res.ok && !json.pendingVerification) {
                 throw new Error(json.message ?? "Terjadi kesalahan");
             }
 
-            toast.success("Akun berhasil dibuat!", {
-                description: "Silakan cek email Anda untuk kode verifikasi.",
-                duration: 1500,
-                onAutoClose: () => {
-                    router.push(`/auth/verify-otp?email=${encodeURIComponent(data.email)}`);
-                },
-            });
+            const emailBelumTerkirim = !res.ok;
+            const pergiKeVerifikasi = () => {
+                router.push(`/auth/verify-otp?email=${encodeURIComponent(data.email)}`);
+            };
+
+            if (emailBelumTerkirim) {
+                toast.warning("Akun dibuat, tapi email belum terkirim", {
+                    description: json.message,
+                    duration: 2500,
+                    onAutoClose: pergiKeVerifikasi,
+                });
+            } else {
+                toast.success("Akun berhasil dibuat!", {
+                    description: "Silakan cek email Anda untuk kode verifikasi (cek juga folder Spam).",
+                    duration: 1500,
+                    onAutoClose: pergiKeVerifikasi,
+                });
+            }
         } catch (err) {
             Swal.close();
             const errormassage = err instanceof Error ? err.message : "Terjadi kesalahan";

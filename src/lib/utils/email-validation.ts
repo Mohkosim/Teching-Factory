@@ -32,7 +32,17 @@ export function hasValidMxRecord(email: string): Promise<boolean> {
   });
 }
 
+const PLUS_ALIAS_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
+
+export function hasPlusAlias(email: string): boolean {
+  const [local = "", domain = ""] = email.toLowerCase().split("@");
+  return PLUS_ALIAS_DOMAINS.has(domain) && local.includes("+");
+}
+
 export async function validateEmailForRegistration(email: string): Promise<string | null> {
+  if (hasPlusAlias(email)) {
+    return "Gunakan alamat e-mail utama Anda, tanpa tanda + (alias)";
+  }
   if (isDisposableEmail(email)) {
     return "Gunakan email pribadi/permanen, bukan email sementara (temp-mail)";
   }

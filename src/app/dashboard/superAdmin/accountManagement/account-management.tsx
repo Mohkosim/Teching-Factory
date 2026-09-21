@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye, Trash2, School, Power, Pencil } from "lucide-react";
+import { Search, Eye, Trash2, School, Power, Pencil, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,7 +59,6 @@ export default function AccountManagement({
 
     const [detailItem, setDetailItem] = useState<SMKAccount | null>(null);
 
-    // ── Filtering ──
     const filtered = useMemo(() => {
         if (!search.trim()) return accounts;
         const q = search.toLowerCase();
@@ -70,14 +69,21 @@ export default function AccountManagement({
         });
     }, [accounts, search]);
 
-    // ── Pagination ──
+
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paginated = useMemo(() => {
         const start = (page - 1) * pageSize;
         return filtered.slice(start, start + pageSize);
     }, [filtered, page, pageSize]);
 
-    // ── Handlers ──
+    const handleLihatDetail = (item: SMKAccount) => {
+        if (item.role === "AdminSMK") {
+            router.push(`/dashboard/superAdmin/accountManagement/${item.user_id}`);
+            return;
+        }
+        setDetailItem(item);
+    };
+
     const handleUpgradeRole = async (item: SMKAccount) => {
         const konfirmasi = await confirmAksi({
             title: "Jadikan Admin SMK?",
@@ -299,10 +305,10 @@ export default function AccountManagement({
                                     <TableCell className="py-4 px-6">
                                         <div className="flex items-center justify-end gap-1.5">
                                             <button
-                                                onClick={() => setDetailItem(item)}
+                                                onClick={() => handleLihatDetail(item)}
                                                 disabled={!item.isActive}
                                                 className="h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 hover:bg-green-100 text-green-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-50"
-                                                title="Lihat Detail"
+                                                title={item.role === "AdminSMK" ? "Lihat Detail SMK" : "Lihat Detail"}
                                             >
                                                 <Eye className="h-3.5 w-3.5" />
                                             </button>
@@ -356,11 +362,11 @@ export default function AccountManagement({
                 />
             </div>
 
-            {/* ── Dialog Detail Akun (bukan aksi, tetap pakai shadcn Dialog) ── */}
+            {/* Popup detail hanya untuk akun User. Admin SMK memakai halaman detail sendiri. */}
             <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Detail Akun SMK</DialogTitle>
+                        <DialogTitle>Detail Akun User</DialogTitle>
                     </DialogHeader>
                     {detailItem && (
                         <div className="space-y-5 py-2">
@@ -375,7 +381,7 @@ export default function AccountManagement({
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
-                                        <School className="h-7 w-7 text-blue-500" />
+                                        <UserIcon className="h-7 w-7 text-blue-500" />
                                     )}
                                 </div>
                                 <div className="min-w-0">
@@ -405,12 +411,6 @@ export default function AccountManagement({
                                     >
                                         {!detailItem.isActive ? "Nonaktif" : "Aktif"}
                                     </span>
-                                </div>
-                                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 col-span-2">
-                                    <p className="text-xs font-medium uppercase text-gray-400">Penangung Jawab</p>
-                                    <p className="mt-1 text-sm font-semibold text-gray-700 truncate">
-                                        {detailItem.kepala_sekolah || "-"}
-                                    </p>
                                 </div>
                                 <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 col-span-2">
                                     <p className="text-xs font-medium uppercase text-gray-400">Email</p>

@@ -23,7 +23,24 @@ export function rateLimit(key: string, limit: number, windowMs: number) {
 }
 
 export function getClientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
+  const headers = req.headers;
+
+  const trusted = process.env.TRUSTED_IP_HEADER?.trim().toLowerCase();
+  if (trusted) {
+    return headers.get(trusted)?.split(",")[0].trim() || "unknown";
+  }
+
+  const platformIp =
+    headers.get("cf-connecting-ip") ??
+    headers.get("x-nf-client-connection-ip") ??
+    headers.get("x-real-ip");
+  if (platformIp) return platformIp.trim();
+
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) {
+    const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+
+  return "unknown";
 }

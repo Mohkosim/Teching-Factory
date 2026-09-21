@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { tampilkanLoading } from "@/lib/utils/alert";
+import { getRoleRedirect } from "@/lib/utils/role-redirect";
 import { Button } from "@/components/ui/button";
 import { MailCheck } from "lucide-react";
 import Link from "next/link";
@@ -61,18 +63,49 @@ export default function VerifyOtpForm() {
         body: JSON.stringify({ email, otp }),
       });
       const result = await res.json();
-      Swal.close();
 
       if (!res.ok) {
+        Swal.close();
         toast.error("Verifikasi gagal", { description: result.message });
         return;
       }
 
+      const goToLogin = () => {
+        Swal.close();
+        toast.success("Akun berhasil diverifikasi!", {
+          description: "Silakan masuk menggunakan akun Anda.",
+          duration: 1500,
+          onAutoClose: () => {
+            router.replace("/auth/login");
+          },
+        });
+      };
+
+      if (!result.loginTicket) {
+        goToLogin();
+        return;
+      }
+
+      const loginResult = await signIn("otp-ticket", {
+        ticket: result.loginTicket,
+        redirect: false,
+      });
+
+      if (loginResult?.error) {
+        goToLogin();
+        return;
+      }
+
+      const sessionRes = await fetch("/api/auth/session");
+      const session = await sessionRes.json();
+      const target = getRoleRedirect(session?.user?.role);
+
+      Swal.close();
       toast.success("Akun berhasil diverifikasi!", {
-        description: "Silakan masuk menggunakan akun Anda.",
-        duration: 1500,
+        description: "Selamat datang di Teaching Factory.",
+        duration: 1200,
         onAutoClose: () => {
-          router.push("/auth/login");
+          router.replace(target);
         },
       });
     } catch (error) {
@@ -102,7 +135,12 @@ export default function VerifyOtpForm() {
         return;
       }
 
-      toast.success("Kode OTP baru sudah dikirim");
+      toast.success("Kode OTP baru sudah dikirim", {
+        description:
+          typeof result.remainingToday === "number"
+            ? `Sisa permintaan kode hari ini: ${result.remainingToday}x`
+            : undefined,
+      });
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (error) {
       Swal.close();
@@ -160,6 +198,10 @@ export default function VerifyOtpForm() {
             >
               {cooldown > 0 ? `Kirim Ulang (${cooldown}d)` : isResending ? "Mengirim..." : "Kirim Ulang"}
             </button>
+          </p>
+          <p className="text-gray-400 leading-relaxed">
+            Email belum masuk? Cek juga folder <b>Spam</b>. Kode baru bisa diminta
+            maksimal 3 kali per hari.
           </p>
         </div>
       </div>

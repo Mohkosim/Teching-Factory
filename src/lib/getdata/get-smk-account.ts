@@ -13,7 +13,7 @@ export async function getSMKAccounts(): Promise<SMKAccount[]> {
 
     const users = await prisma.user.findMany({
         where: {
-            role: { in: ["User", "AdminSMK", "AdminJurusan"] },
+            role: { in: ["User", "AdminSMK"] },
         },
         orderBy: { createdAt: "desc" },
         include: {

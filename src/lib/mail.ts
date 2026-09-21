@@ -6,9 +6,9 @@ type MailPayload = {
   to: string;
   subject: string;
   html: string;
+  text: string;
 };
 
-// ---------- Provider ----------
 function getProvider(): "smtp" | "resend" {
   const explicit = process.env.MAIL_PROVIDER?.toLowerCase();
   if (explicit === "smtp" || explicit === "resend") return explicit;
@@ -23,7 +23,6 @@ function getFrom(): string {
   return from;
 }
 
-// ---------- SMTP (Gmail / Brevo / dll) ----------
 let smtpTransporter: Transporter | null = null;
 
 function getSmtpTransporter(): Transporter {
@@ -40,23 +39,23 @@ function getSmtpTransporter(): Transporter {
   smtpTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST ?? "smtp.gmail.com",
     port,
-    secure: port === 465, // 465 = SSL langsung, 587 = STARTTLS
+    secure: port === 465,
     auth: { user, pass },
   });
 
   return smtpTransporter;
 }
 
-async function sendViaSmtp({ to, subject, html }: MailPayload) {
+async function sendViaSmtp({ to, subject, html, text }: MailPayload) {
   await getSmtpTransporter().sendMail({
     from: getFrom(),
     to,
     subject,
     html,
+    text,
   });
 }
 
-// ---------- Resend ----------
 let resendClient: Resend | null = null;
 
 function getResend(): Resend {
@@ -69,12 +68,13 @@ function getResend(): Resend {
   return resendClient;
 }
 
-async function sendViaResend({ to, subject, html }: MailPayload) {
+async function sendViaResend({ to, subject, html, text }: MailPayload) {
   const { error } = await getResend().emails.send({
     from: getFrom(),
     to,
     subject,
     html,
+    text,
   });
 
   if (error) {
@@ -82,7 +82,6 @@ async function sendViaResend({ to, subject, html }: MailPayload) {
   }
 }
 
-// ---------- Entry point ----------
 async function sendMail(payload: MailPayload) {
   if (getProvider() === "smtp") {
     await sendViaSmtp(payload);
@@ -95,6 +94,15 @@ export async function sendResetPasswordEmail(to: string, resetUrl: string) {
   await sendMail({
     to,
     subject: "Reset Kata Sandi - Teaching Factory",
+    text: [
+      "Reset Kata Sandi",
+      "",
+      "Kami menerima permintaan untuk mereset kata sandi akun Teaching Factory Anda.",
+      "Buka link berikut untuk membuat kata sandi baru (berlaku 30 menit):",
+      resetUrl,
+      "",
+      "Jika Anda tidak meminta reset kata sandi, abaikan email ini.",
+    ].join("\n"),
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2 style="color: #0ea5e9;">Reset Kata Sandi</h2>
@@ -113,6 +121,15 @@ export async function sendOtpEmail(to: string, otp: string) {
   await sendMail({
     to,
     subject: "Kode Verifikasi Akun - Teaching Factory",
+    text: [
+      "Verifikasi Akun Anda",
+      "",
+      `Kode verifikasi Teaching Factory Anda: ${otp}`,
+      "",
+      "Kode ini berlaku selama 10 menit. Jangan bagikan kode ini kepada siapa pun, termasuk pihak yang mengaku sebagai admin Teaching Factory.",
+      "",
+      "Jika Anda tidak merasa mendaftar/meminta kode ini, abaikan email ini.",
+    ].join("\n"),
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2 style="color: #0ea5e9;">Verifikasi Akun Anda</h2>

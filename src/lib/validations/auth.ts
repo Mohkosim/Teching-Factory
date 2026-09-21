@@ -1,10 +1,16 @@
 import { z } from "zod";
 
+// E-mail selalu dirapikan (spasi dibuang, huruf kecil) supaya "Nama@Gmail.com" dan
+// "nama@gmail.com" dianggap satu akun.
+const emailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "E-mail wajib diisi")
+  .email("Format e-mail tidak valid");
+
 export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, "E-mail wajib diisi")
-    .email("Format e-mail tidak valid"),
+  email: emailField,
   password: z
     .string()
     .min(1, "Kata sandi wajib diisi")
@@ -18,10 +24,7 @@ export const registerSchema = z.object({
     .min(3, "Nama pengguna minimal 3 karakter")
     .max(30, "Nama pengguna maksimal 30 karakter")
     .regex(/^[a-zA-Z0-9_]+$/, "Hanya boleh huruf, angka, dan underscore"),
-  email: z
-    .string()
-    .min(1, "E-mail wajib diisi")
-    .email("Format e-mail tidak valid"),
+  email: emailField,
   password: z
     .string()
     .min(1, "Kata sandi wajib diisi")
@@ -34,10 +37,7 @@ export type LoginSchema = z.infer<typeof loginSchema>;
 export type RegisterSchema = z.infer<typeof registerSchema>;
 
 export const forgotPasswordSchema = z.object({
-  email: z
-    .string()
-    .min(1, "E-mail wajib diisi")
-    .email("Format e-mail tidak valid"),
+  email: emailField,
 });
 
 export const resetPasswordSchema = z
@@ -55,10 +55,7 @@ export type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
 
 export const verifyOtpSchema = z.object({
-  email: z
-    .string()
-    .min(1, "E-mail wajib diisi")
-    .email("Format e-mail tidak valid"),
+  email: emailField,
   otp: z
     .string()
     .min(1, "Kode OTP wajib diisi")
@@ -67,10 +64,7 @@ export const verifyOtpSchema = z.object({
 });
 
 export const resendOtpSchema = z.object({
-  email: z
-    .string()
-    .min(1, "E-mail wajib diisi")
-    .email("Format e-mail tidak valid"),
+  email: emailField,
 });
 
 export type VerifyOtpSchema = z.infer<typeof verifyOtpSchema>;

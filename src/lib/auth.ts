@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { slugify } from "@/lib/utils/slug";
+import { verifyOtpLoginTicket } from "@/lib/utils/otp-login-ticket";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,18 +18,20 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const email = credentials.email.trim().toLowerCase();
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
 
         if (!user) {
-          console.log("❌ Email tidak ditemukan:", credentials.email);
+          console.log("❌ Email tidak ditemukan:", email);
           return null;
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) {
-          console.log("❌ Password salah untuk:", credentials.email);
+          console.log("❌ Password salah untuk:", email);
           return null;
         }
 
@@ -54,6 +57,38 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
+
+    CredentialsProvider({
+      id: "otp-ticket",
+      name: "OTP Ticket",
+      credentials: {
+        ticket: { label: "Ticket", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.ticket) return null;
+
+        const userId = await verifyOtpLoginTicket(credentials.ticket);
+        if (!userId) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { user_id: userId },
+        });
+
+        if (!user || !user.isVerified) return null;
+
+        if (!user.isActive) {
+          throw new Error("AccountDisabled");
+        }
+
+        return {
+          id: user.user_id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          image: user.img ?? null,
+        };
+      },
+    }),
   ],
 
   session: {
@@ -73,33 +108,56 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
+        if ((profile as { email_verified?: boolean } | undefined)?.email_verified === false) {
+          return false;
+        }
+
+        const email = user.email!.trim().toLowerCase();
+
         const existing = await prisma.user.findUnique({
-          where: { email: user.email! },
+          where: { email },
         });
 
         if (existing) {
           if (!existing.isActive) return false;
 
           if (!existing.isVerified) {
+            const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+            const newName = user.name ?? existing.name;
+
             await prisma.user.update({
               where: { user_id: existing.user_id },
-              data: { isVerified: true, otpCode: null, otpExpiresAt: null, otpLastSentAt: null },
+              data: {
+                name: newName,
+                password: randomPassword,
+                isVerified: true,
+                otpCode: null,
+                otpExpiresAt: null,
+                otpLastSentAt: null,
+                otpAttempts: 0,
+                regKeyHash: null,
+              },
             });
-          }
 
-          user.id = existing.user_id;
-          user.role = existing.role;
-          user.name = existing.name;
-          user.image = existing.img ?? user.image ?? null;
+            user.id = existing.user_id;
+            user.role = existing.role;
+            user.name = newName;
+            user.image = existing.img ?? user.image ?? null;
+          } else {
+            user.id = existing.user_id;
+            user.role = existing.role;
+            user.name = existing.name;
+            user.image = existing.img ?? user.image ?? null;
+          }
         } else {
           const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
 
           const created = await prisma.user.create({
             data: {
-              email: user.email!,
-              name: user.name ?? user.email!.split("@")[0],
+              email,
+              name: user.name ?? email.split("@")[0],
               img: user.image ?? null,
               role: "User",
               isActive: true,
