@@ -1,10 +1,98 @@
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+type MailPayload = {
+  to: string;
+  subject: string;
+  html: string;
+};
+
+// ---------- Provider ----------
+function getProvider(): "smtp" | "resend" {
+  const explicit = process.env.MAIL_PROVIDER?.toLowerCase();
+  if (explicit === "smtp" || explicit === "resend") return explicit;
+  return process.env.SMTP_USER && process.env.SMTP_PASS ? "smtp" : "resend";
+}
+
+function getFrom(): string {
+  const from = process.env.EMAIL_FROM;
+  if (!from) {
+    throw new Error("EMAIL_FROM belum diisi di environment variable");
+  }
+  return from;
+}
+
+// ---------- SMTP (Gmail / Brevo / dll) ----------
+let smtpTransporter: Transporter | null = null;
+
+function getSmtpTransporter(): Transporter {
+  if (smtpTransporter) return smtpTransporter;
+
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) {
+    throw new Error("SMTP_USER dan SMTP_PASS belum diisi di environment variable");
+  }
+
+  const port = Number(process.env.SMTP_PORT ?? 465);
+
+  smtpTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? "smtp.gmail.com",
+    port,
+    secure: port === 465, // 465 = SSL langsung, 587 = STARTTLS
+    auth: { user, pass },
+  });
+
+  return smtpTransporter;
+}
+
+async function sendViaSmtp({ to, subject, html }: MailPayload) {
+  await getSmtpTransporter().sendMail({
+    from: getFrom(),
+    to,
+    subject,
+    html,
+  });
+}
+
+// ---------- Resend ----------
+let resendClient: Resend | null = null;
+
+function getResend(): Resend {
+  if (resendClient) return resendClient;
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    throw new Error("RESEND_API_KEY belum diisi di environment variable");
+  }
+  resendClient = new Resend(key);
+  return resendClient;
+}
+
+async function sendViaResend({ to, subject, html }: MailPayload) {
+  const { error } = await getResend().emails.send({
+    from: getFrom(),
+    to,
+    subject,
+    html,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+// ---------- Entry point ----------
+async function sendMail(payload: MailPayload) {
+  if (getProvider() === "smtp") {
+    await sendViaSmtp(payload);
+  } else {
+    await sendViaResend(payload);
+  }
+}
 
 export async function sendResetPasswordEmail(to: string, resetUrl: string) {
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM as string,
+  await sendMail({
     to,
     subject: "Reset Kata Sandi - Teaching Factory",
     html: `
@@ -19,15 +107,10 @@ export async function sendResetPasswordEmail(to: string, resetUrl: string) {
       </div>
     `,
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
 }
 
 export async function sendOtpEmail(to: string, otp: string) {
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM as string,
+  await sendMail({
     to,
     subject: "Kode Verifikasi Akun - Teaching Factory",
     html: `
@@ -42,8 +125,4 @@ export async function sendOtpEmail(to: string, otp: string) {
       </div>
     `,
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
 }
