@@ -47,7 +47,6 @@ export async function getSMKList({
         smk_id: true,
         kota: true,
         provinsi: true,
-        status_verifikasi: true,
         user: {
           select: { name: true, img: true },
         },
@@ -64,7 +63,6 @@ export async function getSMKList({
       img: smk.user.img,
       kota: smk.kota,
       provinsi: smk.provinsi,
-      status_verifikasi: smk.status_verifikasi,
       jumlahJurusan: smk._count.jurusans,
     })),
     totalCount,

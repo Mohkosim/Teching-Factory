@@ -5,7 +5,6 @@ export interface SMKListItem {
 
   kota: string;
   provinsi: string;
-  status_verifikasi: boolean;
   jumlahJurusan: number;
 }
 
@@ -28,6 +27,5 @@ export interface SMKDetailData {
   provinsi: string;
   latitude: number | null;
   longitude: number | null;
-  status_verifikasi: boolean;
   jumlahJurusan: number;
 }

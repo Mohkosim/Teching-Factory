@@ -32,7 +32,6 @@ export interface dataSMK {
     kota: string;
     provinsi: string;
     tahun_berdiri: number;
-    status_verifikasi: boolean;
 }
 
 export interface dataJurusan {

@@ -37,7 +37,7 @@ export async function PATCH(
                     alamat: "-",
                     kota: "-",
                     provinsi: "-",
-                    tahun_berdiri: new Date().getFullYear(),
+                    tahun_berdiri: "-",
                 },
             });
 

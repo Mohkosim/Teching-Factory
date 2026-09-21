@@ -165,8 +165,7 @@ model SMK {
   provinsi          String
   latitude          Float?
   longitude         Float? 
-  tahun_berdiri     Int
-  status_verifikasi Boolean
+  tahun_berdiri     Int?
 
   jurusans Jurusan[]
 

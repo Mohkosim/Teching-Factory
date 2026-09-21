@@ -12,7 +12,6 @@ export interface SMKAccount {
   alamat?: string | null;
   kota?: string | null;
   provinsi?: string | null;
-  status_verifikasi?: boolean | null;
 }
 
 export interface JurusanAccount {
@@ -52,8 +51,7 @@ export interface SMKAccountDetail {
     provinsi: string;
     latitude: number | null;
     longitude: number | null;
-    tahun_berdiri: number;
-    status_verifikasi: boolean;
+    tahun_berdiri: number | null;
   } | null;
 
   jurusans: JurusanAccount[];

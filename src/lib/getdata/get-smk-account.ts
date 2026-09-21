@@ -45,7 +45,6 @@ export async function getSMKAccounts(): Promise<SMKAccount[]> {
             alamat: alamatText,
             kota: u.smk?.kota ?? alamatUtama?.kota ?? null,
             provinsi: u.smk?.provinsi ?? alamatUtama?.provinsi ?? null,
-            status_verifikasi: u.smk?.status_verifikasi ?? null,
         };
     });
 

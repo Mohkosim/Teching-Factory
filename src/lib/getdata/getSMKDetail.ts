@@ -14,7 +14,6 @@ export async function getSMKDetail(smkId: string): Promise<SMKDetailData | null>
       provinsi: true,
       latitude: true,
       longitude: true,
-      status_verifikasi: true,
       user: { select: { name: true, img: true } },
       _count: { select: { jurusans: true } },
     },
@@ -32,7 +31,6 @@ export async function getSMKDetail(smkId: string): Promise<SMKDetailData | null>
     provinsi: smk.provinsi,
     latitude: smk.latitude,
     longitude: smk.longitude,
-    status_verifikasi: smk.status_verifikasi,
     jumlahJurusan: smk._count.jurusans,
   };
 }

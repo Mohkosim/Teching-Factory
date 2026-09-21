@@ -61,7 +61,6 @@ export async function getSMKAccountDetail(userId: string): Promise<SMKAccountDet
                   latitude: smk.latitude ?? null,
                   longitude: smk.longitude ?? null,
                   tahun_berdiri: smk.tahun_berdiri,
-                  status_verifikasi: smk.status_verifikasi,
               }
             : null,
         jurusans: (smk?.jurusans ?? []).map((j) => ({

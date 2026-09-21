@@ -126,7 +126,6 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
         return filtered.slice(start, start + pageSize);
     }, [filtered, page, pageSize]);
 
-    const jurusanAktif = jurusans.filter((j) => j.isActive).length;
     const totalProduk = jurusans.reduce((sum, j) => sum + (j.totalProduk ?? 0), 0);
     const totalJasa = jurusans.reduce((sum, j) => sum + (j.totalJasa ?? 0), 0);
 
@@ -188,21 +187,6 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
                         </h2>
                         <div className="flex flex-wrap items-center gap-2">
                             <StatusBadge aktif={data.isActive} />
-                            {smk && (
-                                <span
-                                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${smk.status_verifikasi
-                                            ? "bg-blue-100 text-blue-600"
-                                            : "bg-amber-100 text-amber-600"
-                                        }`}
-                                >
-                                    {smk.status_verifikasi ? (
-                                        <BadgeCheck className="h-3.5 w-3.5" />
-                                    ) : (
-                                        <Clock className="h-3.5 w-3.5" />
-                                    )}
-                                    {smk.status_verifikasi ? "SMK Terverifikasi" : "Menunggu Verifikasi"}
-                                </span>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -215,7 +199,7 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
                     {smk ? (
                         <>
                             <InfoItem label="Penanggung Jawab">{smk.kepala_sekolah || "-"}</InfoItem>
-                            <InfoItem label="Tahun Berdiri">{smk.tahun_berdiri}</InfoItem>
+                            <InfoItem label="Tahun Berdiri">{smk.tahun_berdiri ?? "-"}</InfoItem>
                             <InfoItem label="ID SMK">
                                 <span className="font-mono text-xs">{smk.smk_id}</span>
                             </InfoItem>
@@ -260,16 +244,11 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
             </section>
 
             {/* ── Ringkasan ── */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <StatCard
                     icon={<Layers className="h-5 w-5" />}
                     label="Jumlah Jurusan"
                     value={jurusans.length}
-                />
-                <StatCard
-                    icon={<BadgeCheck className="h-5 w-5" />}
-                    label="Jurusan Aktif"
-                    value={jurusanAktif}
                 />
                 <StatCard
                     icon={<Package className="h-5 w-5" />}
