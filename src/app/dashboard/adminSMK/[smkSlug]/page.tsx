@@ -7,7 +7,9 @@ import {
   getProdukJasaProportion,
   getMonthlyTrend,
 } from "@/lib/data/dashboard-admin-smk";
+import { checkProfileCompleteness } from "@/lib/utils/profile-completeness";
 
+import { ProfileCompleteBanner } from "@/components/layout/admin/ProfileCompleteBanner";
 import { StatsAdminSMK } from "@/components/layout/admin/dashboard/adminSMK/StatsAdminSMK";
 import { StatisticsPenjualanJurusan } from "@/components/layout/admin/dashboard/adminSMK/StatisticsPenjualanJurusan";
 import { ProdukJasaChart } from "@/components/layout/admin/dashboard/adminSMK/ProdukJasaChart";
@@ -31,6 +33,8 @@ export default async function AdminSMK() {
   if (!smk_id) {
     redirect("/auth/login");
   }
+
+  const profileComplete = await checkProfileCompleteness(session.user.id, "AdminSMK");
 
   const [statistikJurusan, produkJasaProportion, produkMonthly, jasaMonthly] =
     await Promise.all([
@@ -57,6 +61,13 @@ export default async function AdminSMK() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
+
+      {!profileComplete && session.user.smkSlug && (
+        <ProfileCompleteBanner
+          role="AdminSMK"
+          profileHref={`/dashboard/adminSMK/${session.user.smkSlug}/profile`}
+        />
+      )}
 
       {/* Stats Cards */}
       <StatsAdminSMK />

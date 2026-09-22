@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { checkProfileCompleteness } from "@/lib/utils/profile-completeness";
 
 const guestPaths = ["/", "/produk", "/jasa", "/galeri", "/smk", "/tentang", "/kontak"];
 
@@ -8,6 +9,12 @@ function isGuestPath(pathname: string) {
   return guestPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
+}
+
+// Segmen path pertama setelah base role yang tetap boleh diakses walau
+// profil belum lengkap (halaman dashboard utama & halaman Profile sendiri).
+function isAllowedWhileIncomplete(restSegments: string[]) {
+  return restSegments.length === 0 || restSegments[0] === "profile";
 }
 
 export async function proxy(req: NextRequest) {
@@ -29,6 +36,7 @@ export async function proxy(req: NextRequest) {
   });
   const isAuthPage = pathname.startsWith("/auth");
   const role = token?.role as string | undefined;
+  const userId = token?.id as string | undefined;
   const smkSlug = token?.smkSlug as string | undefined;
   const jurusanSlug = token?.jurusanSlug as string | undefined;
 
@@ -84,6 +92,16 @@ export async function proxy(req: NextRequest) {
       if (urlSlug !== smkSlug) {
         return NextResponse.redirect(new URL(`/dashboard/adminSMK/${smkSlug}`, req.url));
       }
+
+      // Profil belum lengkap -> kunci akses ke fitur lain, dorong ke halaman Profile.
+      // Dashboard utama & halaman Profile sendiri tetap boleh dibuka.
+      const restSegments = segments.slice(4).filter(Boolean);
+      if (userId && !isAllowedWhileIncomplete(restSegments)) {
+        const complete = await checkProfileCompleteness(userId, "AdminSMK");
+        if (!complete) {
+          return NextResponse.redirect(new URL(`/dashboard/adminSMK/${smkSlug}/profile`, req.url));
+        }
+      }
     }
   }
 
@@ -114,6 +132,17 @@ export async function proxy(req: NextRequest) {
         return NextResponse.redirect(
           new URL(`/dashboard/adminJurusan/${smkSlug}/${jurusanSlug}`, req.url)
         );
+      }
+
+      // Profil belum lengkap -> kunci akses ke fitur lain, dorong ke halaman Profile.
+      const restSegments = segments.slice(5).filter(Boolean);
+      if (userId && !isAllowedWhileIncomplete(restSegments)) {
+        const complete = await checkProfileCompleteness(userId, "AdminJurusan");
+        if (!complete) {
+          return NextResponse.redirect(
+            new URL(`/dashboard/adminJurusan/${smkSlug}/${jurusanSlug}/profile`, req.url)
+          );
+        }
       }
     }
   }

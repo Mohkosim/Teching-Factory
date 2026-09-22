@@ -7,7 +7,9 @@ import {
   getPendapatanBulanan,
   getPesananBulanan,
 } from "@/lib/data/dashboard-admin-jurusan";
+import { checkProfileCompleteness } from "@/lib/utils/profile-completeness";
 
+import { ProfileCompleteBanner } from "@/components/layout/admin/ProfileCompleteBanner";
 import { StatsAdminJurusan } from "@/components/layout/admin/dashboard/adminJurusan/StatsAdminJurusan";
 import { ProdukJasaChart } from "@/components/layout/admin/dashboard/adminJurusan/ProdukJasaChart";
 import { PendapatanChart } from "@/components/layout/admin/dashboard/adminJurusan/PendapatanChart";
@@ -32,6 +34,8 @@ export default async function AdminJurusan() {
     redirect("/auth/login");
   }
 
+  const profileComplete = await checkProfileCompleteness(session.user.id, "AdminJurusan");
+
   const [produkJasaProportion, pendapatan, pesanan] = await Promise.all([
     getProdukJasaProportionJurusan(jurusan_id),
     getPendapatanBulanan(jurusan_id),
@@ -55,6 +59,13 @@ export default async function AdminJurusan() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
+
+      {!profileComplete && session.user.smkSlug && session.user.jurusanSlug && (
+        <ProfileCompleteBanner
+          role="AdminJurusan"
+          profileHref={`/dashboard/adminJurusan/${session.user.smkSlug}/${session.user.jurusanSlug}/profile`}
+        />
+      )}
 
       {/* Stats Cards */}
       <StatsAdminJurusan />
