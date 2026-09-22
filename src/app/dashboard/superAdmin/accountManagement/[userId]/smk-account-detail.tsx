@@ -11,8 +11,6 @@ import {
     Package,
     Wrench,
     ExternalLink,
-    BadgeCheck,
-    Clock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,7 +70,7 @@ function InfoItem({
                 }`}
         >
             <p className="text-xs font-medium uppercase text-gray-400">{label}</p>
-            <div className="mt-1 text-sm font-semibold text-gray-700 break-words">
+            <div className="mt-1 text-sm font-semibold text-gray-700 wrap-break-word">
                 {children}
             </div>
         </div>
@@ -182,7 +180,7 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
                         )}
                     </div>
                     <div className="min-w-0 space-y-2">
-                        <h2 className="text-lg font-bold text-gray-800 break-words">
+                        <h2 className="text-lg font-bold text-gray-800 wrap-break-word">
                             {data.name}
                         </h2>
                         <div className="flex flex-wrap items-center gap-2">
@@ -292,13 +290,14 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
                             <TableHead className="font-semibold text-gray-600 px-6">Telepon</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Jam Operasional</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Produk</TableHead>
+                            <TableHead className="font-semibold text-gray-600 px-6">Jasa</TableHead>
                             <TableHead className="font-semibold text-gray-600 px-6">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {paginated.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={10} className="text-center py-12 text-gray-400">
+                                <TableCell colSpan={11} className="text-center py-12 text-gray-400">
                                     {jurusans.length === 0
                                         ? "Belum ada akun jurusan di SMK ini"
                                         : "Tidak ada data ditemukan"}
@@ -345,6 +344,9 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
                                     </TableCell>
                                     <TableCell className="text-gray-600 py-4 px-6">
                                         {item.totalProduk ?? 0}
+                                    </TableCell>
+                                    <TableCell className="text-gray-600 py-4 px-6">
+                                        {item.totalJasa ?? 0}
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
                                         <StatusBadge aktif={item.isActive} />

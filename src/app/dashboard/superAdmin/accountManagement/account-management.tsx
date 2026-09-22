@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Eye, Trash2, School, Power, Pencil, User as UserIcon } from "lucide-react";
+import { Search, Eye, Trash2, School, Power, Pencil, User as UserIcon, Mail, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Table,
     TableBody,
@@ -58,6 +59,14 @@ export default function AccountManagement({
     const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
 
     const [detailItem, setDetailItem] = useState<SMKAccount | null>(null);
+
+    // ── Ubah Email ──
+    const [emailItem, setEmailItem] = useState<SMKAccount | null>(null);
+    const [newEmail, setNewEmail] = useState("");
+    const [emailCheckStatus, setEmailCheckStatus] = useState<
+        "idle" | "checking" | "available" | "taken" | "invalid"
+    >("idle");
+    const [isSavingEmail, setIsSavingEmail] = useState(false);
 
     const filtered = useMemo(() => {
         if (!search.trim()) return accounts;
@@ -199,6 +208,120 @@ export default function AccountManagement({
         });
     };
 
+    // ── Ubah Email ──
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearEmailCheckTimeout = () => {
+        if (emailCheckTimeoutRef.current) {
+            clearTimeout(emailCheckTimeoutRef.current);
+            emailCheckTimeoutRef.current = null;
+        }
+    };
+
+    const openEmailDialog = (item: SMKAccount) => {
+        clearEmailCheckTimeout();
+        setEmailItem(item);
+        setNewEmail(item.email);
+        setEmailCheckStatus("idle");
+    };
+
+    const closeEmailDialog = () => {
+        clearEmailCheckTimeout();
+        setEmailItem(null);
+        setNewEmail("");
+        setEmailCheckStatus("idle");
+    };
+
+    const scheduleEmailAvailabilityCheck = (trimmed: string, excludeUserId: string) => {
+        clearEmailCheckTimeout();
+        setEmailCheckStatus("checking");
+        emailCheckTimeoutRef.current = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `/api/account/email-availability?email=${encodeURIComponent(trimmed)}&excludeUserId=${excludeUserId}`
+                );
+                const json = await res.json();
+                setEmailCheckStatus(json.available ? "available" : "taken");
+            } catch {
+                setEmailCheckStatus("idle");
+            }
+        }, 500);
+    };
+
+    const handleNewEmailChange = (value: string) => {
+        setNewEmail(value);
+        if (!emailItem) return;
+
+        const trimmed = value.trim().toLowerCase();
+
+        if (trimmed.length === 0 || trimmed === emailItem.email.toLowerCase()) {
+            clearEmailCheckTimeout();
+            setEmailCheckStatus("idle");
+            return;
+        }
+
+        if (!emailPattern.test(trimmed)) {
+            clearEmailCheckTimeout();
+            setEmailCheckStatus("invalid");
+            return;
+        }
+
+        scheduleEmailAvailabilityCheck(trimmed, emailItem.user_id);
+    };
+
+    const handleSubmitEmailChange = async () => {
+        if (!emailItem) return;
+        const trimmed = newEmail.trim().toLowerCase();
+        if (emailCheckStatus !== "available") return;
+
+        const konfirmasi = await confirmAksi({
+            title: "Ubah E-mail Akun?",
+            text: `E-mail akun "${emailItem.name}" akan diubah menjadi "${trimmed}". Pastikan identitas pemohon sudah diverifikasi di luar sistem ini. Link atur ulang kata sandi akan dikirim ke e-mail baru.`,
+            icon: "warning",
+            confirmText: "Ya, ubah e-mail",
+        });
+        if (!konfirmasi) return;
+
+        setIsSavingEmail(true);
+        tampilkanLoading("Menyimpan perubahan e-mail...");
+        try {
+            const res = await fetch(`/api/account/${emailItem.user_id}/email`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ newEmail: trimmed }),
+            });
+            const json = await res.json();
+            Swal.close();
+
+            if (!res.ok && res.status !== 207) {
+                toast.error(json.message ?? "Gagal mengubah e-mail");
+                return;
+            }
+
+            setAccounts((prev) =>
+                prev.map((acc) =>
+                    acc.user_id === emailItem.user_id ? { ...acc, email: json.data.email } : acc
+                )
+            );
+
+            if (res.status === 207) {
+                toast.warning(json.message);
+            } else {
+                toast.success(json.message ?? "E-mail berhasil diubah");
+            }
+
+            closeEmailDialog();
+            router.refresh();
+        } catch (error) {
+            Swal.close();
+            console.error(error);
+            toast.error("Terjadi kesalahan saat mengubah e-mail");
+        } finally {
+            setIsSavingEmail(false);
+        }
+    };
+
     return (
         <div className="space-y-6 px-6">
             <div className="flex items-center justify-between">
@@ -301,7 +424,7 @@ export default function AccountManagement({
                                             {!item.isActive ? "Nonaktif" : "Aktif"}
                                         </span>
                                     </TableCell>
-                                    {/* Cell Aksi TIDAK diberi opacity-60 — supaya tombol PowerOff tetap terlihat normal */}
+
                                     <TableCell className="py-4 px-6">
                                         <div className="flex items-center justify-end gap-1.5">
                                             <button
@@ -312,6 +435,17 @@ export default function AccountManagement({
                                             >
                                                 <Eye className="h-3.5 w-3.5" />
                                             </button>
+
+                                            {item.role === "AdminSMK" && (
+                                                <button
+                                                    onClick={() => openEmailDialog(item)}
+                                                    disabled={isPending || !item.isActive}
+                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-sky-50"
+                                                    title="Ubah Email"
+                                                >
+                                                    <Mail className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
 
                                             {item.role === "User" && (
                                                 <button
@@ -436,6 +570,81 @@ export default function AccountManagement({
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDetailItem(null)}>
                             Tutup
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Ubah Email: dipakai saat pemilik akun kehilangan akses ke e-mail lamanya.
+                Identitas pemohon harus sudah diverifikasi SuperAdmin di luar sistem ini. */}
+            <Dialog open={!!emailItem} onOpenChange={(open) => !open && closeEmailDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Ubah Email Akun</DialogTitle>
+                    </DialogHeader>
+                    {emailItem && (
+                        <div className="space-y-4 py-2">
+                            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                                <p className="text-xs font-medium uppercase text-gray-400">Akun</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-700">
+                                    {emailItem.name}
+                                </p>
+                                <p className="text-sm text-gray-500">{emailItem.email}</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="new-email">Email Baru</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="new-email"
+                                        type="email"
+                                        value={newEmail}
+                                        onChange={(e) => handleNewEmailChange(e.target.value)}
+                                        placeholder="nama@contoh.com"
+                                        className="pr-9"
+                                    />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        {emailCheckStatus === "checking" && (
+                                            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                        )}
+                                        {emailCheckStatus === "available" && (
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        )}
+                                        {(emailCheckStatus === "taken" ||
+                                            emailCheckStatus === "invalid") && (
+                                            <XCircle className="h-4 w-4 text-red-500" />
+                                        )}
+                                    </div>
+                                </div>
+                                {emailCheckStatus === "taken" && (
+                                    <p className="text-xs text-red-500">
+                                        Email tersebut sudah dipakai akun lain
+                                    </p>
+                                )}
+                                {emailCheckStatus === "invalid" && (
+                                    <p className="text-xs text-red-500">Format email tidak valid</p>
+                                )}
+                                {emailCheckStatus === "available" && (
+                                    <p className="text-xs text-green-600">Email tersedia</p>
+                                )}
+                            </div>
+
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                Pastikan identitas pemohon sudah diverifikasi di luar sistem ini
+                                (mis. telepon ke sekolah atau surat resmi). Setelah email diubah,
+                                link atur ulang kata sandi akan dikirim ke email baru.
+                            </p>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeEmailDialog}>
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleSubmitEmailChange}
+                            disabled={emailCheckStatus !== "available" || isSavingEmail}
+                        >
+                            Simpan
                         </Button>
                     </DialogFooter>
                 </DialogContent>

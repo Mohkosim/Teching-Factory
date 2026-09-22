@@ -9,6 +9,7 @@ type MailPayload = {
   text: string;
 };
 
+
 function getProvider(): "smtp" | "resend" {
   const explicit = process.env.MAIL_PROVIDER?.toLowerCase();
   if (explicit === "smtp" || explicit === "resend") return explicit;
@@ -23,6 +24,7 @@ function getFrom(): string {
   return from;
 }
 
+// ---------- SMTP (Gmail / Brevo / dll) ----------
 let smtpTransporter: Transporter | null = null;
 
 function getSmtpTransporter(): Transporter {
@@ -56,6 +58,7 @@ async function sendViaSmtp({ to, subject, html, text }: MailPayload) {
   });
 }
 
+// ---------- Resend ----------
 let resendClient: Resend | null = null;
 
 function getResend(): Resend {
@@ -82,6 +85,7 @@ async function sendViaResend({ to, subject, html, text }: MailPayload) {
   }
 }
 
+// ---------- Entry point ----------
 async function sendMail(payload: MailPayload) {
   if (getProvider() === "smtp") {
     await sendViaSmtp(payload);
@@ -112,6 +116,28 @@ export async function sendResetPasswordEmail(to: string, resetUrl: string) {
         </a>
         <p>Link ini hanya berlaku selama <b>30 menit</b>. Jika Anda tidak meminta reset kata sandi, abaikan email ini.</p>
         <p style="color:#888; font-size:12px;">Atau salin link berikut ke browser Anda:<br/>${resetUrl}</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendEmailChangedNotice(to: string, newEmail: string) {
+  await sendMail({
+    to,
+    subject: "Pemberitahuan Perubahan E-mail Akun - Teaching Factory",
+    text: [
+      "Pemberitahuan Perubahan E-mail",
+      "",
+      `E-mail akun Teaching Factory Anda telah diubah oleh admin menjadi: ${newEmail}`,
+      "",
+      "Jika Anda tidak mengajukan perubahan ini, segera hubungi admin Teaching Factory.",
+    ].join("\n"),
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #0ea5e9;">Pemberitahuan Perubahan E-mail</h2>
+        <p>E-mail akun Teaching Factory Anda telah diubah oleh admin menjadi:</p>
+        <p style="font-weight:bold; font-size:16px;">${newEmail}</p>
+        <p>Jika Anda tidak mengajukan perubahan ini, segera hubungi admin Teaching Factory.</p>
       </div>
     `,
   });

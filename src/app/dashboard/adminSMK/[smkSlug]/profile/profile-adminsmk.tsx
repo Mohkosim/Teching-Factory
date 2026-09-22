@@ -2,7 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import Swal from "sweetalert2";
-import { User, Camera } from "lucide-react";
+import { User, Camera, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import { useSession } from "next-auth/react";
@@ -49,8 +49,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         kode_pos: initialData.kode_pos ?? "",
         provinsi: initialData.provinsi ?? "",
         tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
-        latitude: initialData.latitude ?? null as number | null,   
-        longitude: initialData.longitude ?? null as number | null, 
+        latitude: initialData.latitude ?? null as number | null,
+        longitude: initialData.longitude ?? null as number | null,
     });
 
     const [passwordForm, setPasswordForm] = useState({
@@ -62,12 +62,18 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
     const [avatarPreview, setAvatarPreview] = useState<string | null>(initialData.img);
     const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isPending, startTransition] = useTransition();
+
+    const [isProfilePending, startProfileTransition] = useTransition();
+    const [isPasswordPending, startPasswordTransition] = useTransition();
 
     const [prevInitialData, setPrevInitialData] = useState(initialData);
 
     const [destinationOptions, setDestinationOptions] = useState<OngkirDestination[]>([]);
     const [searchingDestination, setSearchingDestination] = useState(false);
+
+    const [showPasswordLama, setShowPasswordLama] = useState(false);
+    const [showPasswordBaru, setShowPasswordBaru] = useState(false);
+    const [showKonfirmasiPassword, setShowKonfirmasiPassword] = useState(false);
 
     if (initialData !== prevInitialData) {
         setPrevInitialData(initialData);
@@ -84,7 +90,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             kode_pos: initialData.kode_pos ?? "",
             provinsi: initialData.provinsi ?? "",
             tahun_berdiri: initialData.tahun_berdiri ? String(initialData.tahun_berdiri) : "",
-            latitude: initialData.latitude ?? null,  
+            latitude: initialData.latitude ?? null,
             longitude: initialData.longitude ?? null,
         });
         setAvatarPreview(initialData.img);
@@ -125,8 +131,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             kota: result.kota,
             provinsi: result.provinsi,
             kode_pos: result.kode_pos,
-            latitude: result.latitude,   
-            longitude: result.longitude, 
+            latitude: result.latitude,
+            longitude: result.longitude,
             kota_id: null,
         }));
 
@@ -182,22 +188,8 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         setDestinationOptions([]);
     };
 
-    const handleSimpanPerubahan = () => {
-        const isGantiPassword =
-            passwordForm.passwordLama ||
-            passwordForm.passwordBaru ||
-            passwordForm.konfirmasiPassword;
-
-        if (isGantiPassword && passwordForm.passwordBaru !== passwordForm.konfirmasiPassword) {
-            toast.error("Konfirmasi password tidak sama dengan password baru");
-            return;
-        }
-
-        if (isGantiPassword && (!passwordForm.passwordLama || !passwordForm.passwordBaru)) {
-            toast.error("Lengkapi semua field password untuk mengganti kata sandi");
-            return;
-        }
-
+    // ── Simpan Informasi Profil (tanpa menyentuh kata sandi) ──
+    const handleSimpanProfil = () => {
         if (!profileForm.alamat || !profileForm.kota || !profileForm.provinsi || !profileForm.tahun_berdiri) {
             toast.error("Alamat, kota, provinsi, dan tahun berdiri wajib diisi");
             return;
@@ -209,11 +201,11 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
         }
 
         if (profileForm.latitude == null || profileForm.longitude == null) {
-    toast.error("Tandai titik lokasi sekolah di peta terlebih dahulu");
-    return;
-}
+            toast.error("Tandai titik lokasi sekolah di peta terlebih dahulu");
+            return;
+        }
 
-        startTransition(async () => {
+        startProfileTransition(async () => {
             tampilkanLoading("Menyimpan perubahan...");
             try {
                 let imgUrl: string | undefined;
@@ -235,14 +227,9 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     kode_pos: profileForm.kode_pos,
                     provinsi: profileForm.provinsi,
                     tahun_berdiri: Number(profileForm.tahun_berdiri),
-                    latitude: profileForm.latitude,   
-                    longitude: profileForm.longitude, 
+                    latitude: profileForm.latitude,
+                    longitude: profileForm.longitude,
                 });
-
-                if (isGantiPassword) {
-                    await updatePassword(passwordForm.passwordLama, passwordForm.passwordBaru);
-                    setPasswordForm({ passwordLama: "", passwordBaru: "", konfirmasiPassword: "" });
-                }
 
                 const updatedSession = await update({
                     name: updated.name,
@@ -251,7 +238,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
 
                 setAvatarBase64(null);
                 Swal.close();
-                toast.success("Perubahan berhasil disimpan");
+                toast.success("Profil berhasil disimpan");
                 const newSmkSlug = updatedSession?.user?.smkSlug;
 
                 if (newSmkSlug) {
@@ -268,13 +255,41 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
             } catch (error) {
                 Swal.close();
                 console.error(error);
-                let message = "Terjadi kesalahan saat menyimpan perubahan";
+                let message = "Terjadi kesalahan saat menyimpan profil";
                 if (error instanceof Error) {
                     if (error.message === "EmailTaken") message = "Email sudah digunakan";
                     else if (error.message === "FileTooLarge") message = "Ukuran foto terlalu besar";
                     else if (error.message === "UploadFailed") message = "Gagal mengunggah foto";
                     else message = error.message;
                 }
+                toast.error(message);
+            }
+        });
+    };
+
+    // ── Ubah Kata Sandi (berdiri sendiri, tidak butuh alamat/lokasi terisi) ──
+    const handleSimpanPassword = () => {
+        if (!passwordForm.passwordLama || !passwordForm.passwordBaru || !passwordForm.konfirmasiPassword) {
+            toast.error("Lengkapi semua field password untuk mengganti kata sandi");
+            return;
+        }
+
+        if (passwordForm.passwordBaru !== passwordForm.konfirmasiPassword) {
+            toast.error("Konfirmasi password tidak sama dengan password baru");
+            return;
+        }
+
+        startPasswordTransition(async () => {
+            tampilkanLoading("Menyimpan kata sandi baru...");
+            try {
+                await updatePassword(passwordForm.passwordLama, passwordForm.passwordBaru);
+                setPasswordForm({ passwordLama: "", passwordBaru: "", konfirmasiPassword: "" });
+                Swal.close();
+                toast.success("Kata sandi berhasil diubah");
+            } catch (error) {
+                Swal.close();
+                console.error(error);
+                const message = error instanceof Error ? error.message : "Gagal mengubah kata sandi";
                 toast.error(message);
             }
         });
@@ -297,6 +312,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                 </Breadcrumb>
             </div>
 
+            {/* ── Card 1: Informasi Profil ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100">
                     <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
@@ -304,7 +320,7 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                     </h2>
                 </div>
 
-                <div className="p-6 space-y-5 border-b border-gray-100">
+                <div className="p-6 space-y-5">
                     <div className="flex items-center gap-4">
                         <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
                             <div className="w-16 h-16 rounded-full border border-gray-200 flex items-center justify-center bg-gray-50 overflow-hidden">
@@ -553,8 +569,20 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                         />
                     </div>
 
+                    <div className="flex justify-end pt-1">
+                        <Button
+                            onClick={handleSimpanProfil}
+                            disabled={isProfilePending}
+                            className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg h-9 px-5 text-sm"
+                        >
+                            {isProfilePending ? "Menyimpan..." : "Simpan Profil"}
+                        </Button>
+                    </div>
                 </div>
+            </div>
 
+            {/* ── Card 2: Perbarui Kata Sandi ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100">
                     <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
                         Perbarui Kata Sandi
@@ -566,54 +594,96 @@ export default function ProfileClient({ initialData }: { initialData: ProfileDat
                         <Label htmlFor="passwordLama" className="text-sm text-gray-600">
                             Password lama
                         </Label>
-                        <Input
-                            id="passwordLama"
-                            type="password"
-                            value={passwordForm.passwordLama}
-                            onChange={(e) =>
-                                setPasswordForm({ ...passwordForm, passwordLama: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                        />
+                        <div className="relative">
+                            <Input
+                                id="passwordLama"
+                                type={showPasswordLama ? "text" : "password"}
+                                value={passwordForm.passwordLama}
+                                onChange={(e) =>
+                                    setPasswordForm({ ...passwordForm, passwordLama: e.target.value })
+                                }
+                                className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300 pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPasswordLama((prev) => !prev)}
+                                tabIndex={-1}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                {showPasswordLama ? (
+                                    <Eye className="w-4 h-4" />
+                                ) : (
+                                    <EyeOff className="w-4 h-4" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-1.5">
                         <Label htmlFor="passwordBaru" className="text-sm text-gray-600">
                             Password baru
                         </Label>
-                        <Input
-                            id="passwordBaru"
-                            type="password"
-                            value={passwordForm.passwordBaru}
-                            onChange={(e) =>
-                                setPasswordForm({ ...passwordForm, passwordBaru: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                        />
+                        <div className="relative">
+                            <Input
+                                id="passwordBaru"
+                                type={showPasswordBaru ? "text" : "password"}
+                                value={passwordForm.passwordBaru}
+                                onChange={(e) =>
+                                    setPasswordForm({ ...passwordForm, passwordBaru: e.target.value })
+                                }
+                                className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300 pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPasswordBaru((prev) => !prev)}
+                                tabIndex={-1}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                {showPasswordBaru ? (
+                                    <Eye className="w-4 h-4" />
+                                ) : (
+                                    <EyeOff className="w-4 h-4" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-1.5">
                         <Label htmlFor="konfirmasiPassword" className="text-sm text-gray-600">
                             Konfirmasi password
                         </Label>
-                        <Input
-                            id="konfirmasiPassword"
-                            type="password"
-                            value={passwordForm.konfirmasiPassword}
-                            onChange={(e) =>
-                                setPasswordForm({ ...passwordForm, konfirmasiPassword: e.target.value })
-                            }
-                            className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300"
-                        />
+                        <div className="relative">
+                            <Input
+                                id="konfirmasiPassword"
+                                type={showKonfirmasiPassword ? "text" : "password"}
+                                value={passwordForm.konfirmasiPassword}
+                                onChange={(e) =>
+                                    setPasswordForm({ ...passwordForm, konfirmasiPassword: e.target.value })
+                                }
+                                className="bg-gray-50 border-gray-200 rounded-lg h-10 text-sm shadow-none focus-visible:ring-1 focus-visible:ring-sky-300 pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowKonfirmasiPassword((prev) => !prev)}
+                                tabIndex={-1}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                {showKonfirmasiPassword ? (
+                                    <Eye className="w-4 h-4" />
+                                ) : (
+                                    <EyeOff className="w-4 h-4" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex justify-end pt-1">
                         <Button
-                            onClick={handleSimpanPerubahan}
-                            disabled={isPending}
+                            onClick={handleSimpanPassword}
+                            disabled={isPasswordPending}
                             className="bg-sky-500 hover:bg-sky-600 text-white rounded-lg h-9 px-5 text-sm"
                         >
-                            {isPending ? "Menyimpan..." : "Simpan Perubahan"}
+                            {isPasswordPending ? "Menyimpan..." : "Ubah Kata Sandi"}
                         </Button>
                     </div>
                 </div>

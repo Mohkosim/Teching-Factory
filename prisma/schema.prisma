@@ -149,6 +149,24 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model AuditLog {
+  log_id String @id @default(uuid())
+
+  actorId   String 
+  actorName String
+
+  action       String
+  targetUserId String
+  targetName   String
+
+  detail Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([targetUserId])
+  @@index([createdAt])
+}
+
 model SMK {
   smk_id String @id @default(uuid())
 

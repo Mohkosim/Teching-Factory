@@ -28,7 +28,6 @@ export async function getSMKAccountDetail(userId: string): Promise<SMKAccountDet
                                     isActive: true,
                                 },
                             },
-                            _count: { select: { produk: true } },
                         },
                     },
                 },
@@ -39,6 +38,25 @@ export async function getSMKAccountDetail(userId: string): Promise<SMKAccountDet
     if (!user || user.role !== "AdminSMK") return null;
 
     const smk = user.smk;
+
+    const jurusanIds = (smk?.jurusans ?? []).map((j) => j.jurusan_id);
+    const produkRows = jurusanIds.length
+        ? await prisma.produk.findMany({
+              where: { jurusan_id: { in: jurusanIds } },
+              select: {
+                  jurusan_id: true,
+                  _count: { select: { barang: true, jasa: true } },
+              },
+          })
+        : [];
+
+    const totalPerJurusan = new Map<string, { produk: number; jasa: number }>();
+    for (const row of produkRows) {
+        const total = totalPerJurusan.get(row.jurusan_id) ?? { produk: 0, jasa: 0 };
+        if (row._count.barang > 0) total.produk += 1;
+        total.jasa += row._count.jasa;
+        totalPerJurusan.set(row.jurusan_id, total);
+    }
 
     return {
         user_id: user.user_id,
@@ -76,7 +94,8 @@ export async function getSMKAccountDetail(userId: string): Promise<SMKAccountDet
             email: j.user.email,
             phoneNumber: j.user.phone ?? null,
             isActive: j.user.isActive,
-            totalProduk: j._count.produk,
+            totalProduk: totalPerJurusan.get(j.jurusan_id)?.produk ?? 0,
+            totalJasa: totalPerJurusan.get(j.jurusan_id)?.jasa ?? 0,
         })),
     };
 }

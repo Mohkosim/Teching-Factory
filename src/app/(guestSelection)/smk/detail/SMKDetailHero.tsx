@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { CheckCircle2 } from "lucide-react";
 import { SMKDetailData } from "@/types/interfaces/smk";
 
 export default function SMKDetailHero({ smk }: { smk: SMKDetailData }) {
