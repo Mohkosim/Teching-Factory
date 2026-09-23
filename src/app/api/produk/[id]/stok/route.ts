@@ -6,9 +6,18 @@ import { computeStatusProduk } from "@/lib/utils/status-produk";
 import { z } from "zod";
 
 const stokSchema = z.object({
-    stok: z.coerce.number().min(0, "Stok tidak boleh negatif"),
+    stok: z.coerce.number().min(0, "Stok tidak boleh negatif").optional(),
+    kombinasi: z
+        .array(
+            z.object({
+                kombinasi_id: z.string().min(1),
+                stok: z.coerce.number().min(0, "Stok tidak boleh negatif"),
+            })
+        )
+        .optional(),
+}).refine((d) => d.stok !== undefined || (d.kombinasi && d.kombinasi.length > 0), {
+    message: "Data stok tidak valid",
 });
-
 
 export async function PATCH(
     req: NextRequest,
@@ -37,16 +46,67 @@ export async function PATCH(
         return NextResponse.json({ message: "Produk tidak ditemukan" }, { status: 404 });
     }
 
-    const { stok } = parsed.data;
-    // Kalau produk sedang "Nonaktif", itu tetap menang. Selain itu, endpoint ini
-    // hanya mengelola stok — jadi status yang "diminta" default-nya "Tersedia",
-    // dan computeStatusProduk yang menentukan jadi "Habis" kalau stok 0 lagi.
-    const statusBaru = computeStatusProduk(
-        stok,
-        produk.status === "Nonaktif" ? "Nonaktif" : "Tersedia"
-    );
+    const { kombinasi } = parsed.data;
 
     try {
+
+        if (kombinasi && kombinasi.length > 0) {
+            const milikProduk = await prisma.varianKombinasi.findMany({
+                where: { produk_id: id, kombinasi_id: { in: kombinasi.map((k) => k.kombinasi_id) } },
+                select: { kombinasi_id: true },
+            });
+            if (milikProduk.length !== kombinasi.length) {
+                return NextResponse.json(
+                    { message: "Ada kombinasi varian yang tidak ditemukan untuk produk ini" },
+                    { status: 400 }
+                );
+            }
+
+            const updated = await prisma.$transaction(async (tx) => {
+                for (const k of kombinasi) {
+                    await tx.varianKombinasi.update({
+                        where: { kombinasi_id: k.kombinasi_id },
+                        data: { stok: k.stok },
+                    });
+                }
+
+                const totalStok = await tx.varianKombinasi.aggregate({
+                    where: { produk_id: id, aktif: true },
+                    _sum: { stok: true },
+                });
+                const stokBaru = totalStok._sum.stok ?? 0;
+                const statusBaru = computeStatusProduk(
+                    stokBaru,
+                    produk.status === "Nonaktif" ? "Nonaktif" : "Tersedia"
+                );
+
+                if (produk.barang[0]) {
+                    await tx.barang.update({
+                        where: { barang_id: produk.barang[0].barang_id },
+                        data: { stok: stokBaru },
+                    });
+                } else {
+                    await tx.barang.create({
+                        data: { produk_id: id, stok: stokBaru, kondisi: "Baru" },
+                    });
+                }
+
+                return tx.produk.update({
+                    where: { produk_id: id },
+                    data: { status: statusBaru },
+                    include: { barang: true },
+                });
+            });
+
+            return NextResponse.json({ message: "Stok varian berhasil diperbarui", data: updated });
+        }
+
+        const stok = parsed.data.stok as number;
+        const statusBaru = computeStatusProduk(
+            stok,
+            produk.status === "Nonaktif" ? "Nonaktif" : "Tersedia"
+        );
+
         const updated = await prisma.$transaction(async (tx) => {
             if (produk.barang[0]) {
                 await tx.barang.update({
@@ -72,3 +132,4 @@ export async function PATCH(
         return NextResponse.json({ message: "Terjadi kesalahan server" }, { status: 500 });
     }
 }
+

@@ -108,6 +108,8 @@ export default function ProductManagement({
 
     const [stokDialogItem, setStokDialogItem] = useState<ProdukItem | null>(null);
     const [stokDialogValue, setStokDialogValue] = useState(0);
+    const [stokKombinasi, setStokKombinasi] = useState<{ kombinasi_id: string; label: string; stok: number }[]>([]);
+    const [loadingStokDialog, setLoadingStokDialog] = useState(false);
     const [savingStok, setSavingStok] = useState(false);
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -558,19 +560,51 @@ export default function ProductManagement({
         gambarInputRef.current?.click();
     };
 
-    const openStokDialog = (item: ProdukItem) => {
+    const openStokDialog = async (item: ProdukItem) => {
         setStokDialogItem(item);
         setStokDialogValue(item.stok);
+        setStokKombinasi([]);
+        setLoadingStokDialog(true);
+        try {
+            const data: GetVarianResponse = await getVarianProduk(item.produk_id);
+            if (data.kombinasi.length > 0) {
+                setStokKombinasi(
+                    data.kombinasi.map((k) => ({
+                        kombinasi_id: k.kombinasi_id,
+                        label: k.opsi.map((o) => o.opsi.nama).join(" / "),
+                        stok: k.stok,
+                    }))
+                );
+            }
+        } catch (err) {
+            console.error("Gagal memuat kombinasi varian untuk Kelola Stok:", err);
+        } finally {
+            setLoadingStokDialog(false);
+        }
     };
 
     const closeStokDialog = () => {
         setStokDialogItem(null);
         setStokDialogValue(0);
+        setStokKombinasi([]);
+    };
+
+    const updateStokKombinasiValue = (kombinasiId: string, stok: number) => {
+        setStokKombinasi((prev) =>
+            prev.map((k) => (k.kombinasi_id === kombinasiId ? { ...k, stok } : k))
+        );
     };
 
     const handleSimpanStok = () => {
         if (!stokDialogItem) return;
-        if (stokDialogValue < 0) {
+
+        const isVarian = stokKombinasi.length > 0;
+        if (isVarian) {
+            if (stokKombinasi.some((k) => k.stok < 0)) {
+                toast.error("Stok tidak boleh negatif");
+                return;
+            }
+        } else if (stokDialogValue < 0) {
             toast.error("Stok tidak boleh negatif");
             return;
         }
@@ -579,11 +613,17 @@ export default function ProductManagement({
         startTransition(async () => {
             tampilkanLoading("Menyimpan stok...");
             try {
-                const res = await updateStokProduk(stokDialogItem.produk_id, stokDialogValue);
+                const payload = isVarian
+                    ? { kombinasi: stokKombinasi.map((k) => ({ kombinasi_id: k.kombinasi_id, stok: k.stok })) }
+                    : stokDialogValue;
+                const res = await updateStokProduk(stokDialogItem.produk_id, payload);
+                const stokTotal = isVarian
+                    ? stokKombinasi.reduce((sum, k) => sum + k.stok, 0)
+                    : stokDialogValue;
                 setProducts((prev) =>
                     prev.map((p) =>
                         p.produk_id === stokDialogItem.produk_id
-                            ? { ...p, stok: stokDialogValue, status: res.data.status }
+                            ? { ...p, stok: stokTotal, status: res.data.status }
                             : p
                     )
                 );
@@ -968,7 +1008,6 @@ export default function ProductManagement({
                 </DialogContent>
             </Dialog>
 
-            {/* Kelola Stok — input terpisah dari Edit produk, sesuai catatan dosen */}
             <Dialog open={!!stokDialogItem} onOpenChange={(open) => !open && closeStokDialog()}>
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
@@ -979,23 +1018,58 @@ export default function ProductManagement({
                             <p className="text-sm text-gray-600">
                                 Produk: <span className="font-medium text-gray-800">{stokDialogItem.nama_produk}</span>
                             </p>
-                            <div className="space-y-1.5">
-                                <Label className="text-sm text-gray-600">Stok Saat Ini</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    value={stokDialogValue === 0 ? "" : stokDialogValue}
-                                    onChange={(e) => setStokDialogValue(e.target.value === "" ? 0 : Number(e.target.value))}
-                                />
-                                {stokDialogValue === 0 && (
-                                    <p className="text-[11px] text-amber-600">Status produk otomatis jadi Habis kalau stok 0</p>
-                                )}
-                            </div>
+
+                            {loadingStokDialog ? (
+                                <p className="text-sm text-gray-400">Memuat data stok...</p>
+                            ) : stokKombinasi.length > 0 ? (
+                                <div className="space-y-2">
+                                    <p className="text-[11px] text-gray-400">
+                                        Produk ini punya varian — atur stok per kombinasi di bawah. Total stok produk
+                                        akan otomatis dijumlahkan dari semua kombinasi.
+                                    </p>
+                                    <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                                        {stokKombinasi.map((k) => (
+                                            <div key={k.kombinasi_id} className="flex items-center justify-between gap-3 px-3 py-2">
+                                                <span className="text-sm text-gray-700">{k.label || "-"}</span>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    value={k.stok === 0 ? "" : k.stok}
+                                                    onChange={(e) =>
+                                                        updateStokKombinasiValue(
+                                                            k.kombinasi_id,
+                                                            e.target.value === "" ? 0 : Number(e.target.value)
+                                                        )
+                                                    }
+                                                    placeholder="0"
+                                                    className="h-8 w-20 bg-gray-50 border-gray-200 rounded-md text-xs"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {stokKombinasi.reduce((sum, k) => sum + k.stok, 0) === 0 && (
+                                        <p className="text-[11px] text-amber-600">Status produk otomatis jadi Habis kalau total stok 0</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    <Label className="text-sm text-gray-600">Stok Saat Ini</Label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={stokDialogValue === 0 ? "" : stokDialogValue}
+                                        onChange={(e) => setStokDialogValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                                    />
+                                    {stokDialogValue === 0 && (
+                                        <p className="text-[11px] text-amber-600">Status produk otomatis jadi Habis kalau stok 0</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                     <DialogFooter>
                         <Button variant="outline" onClick={closeStokDialog} disabled={savingStok}>Batal</Button>
-                        <Button onClick={handleSimpanStok} disabled={savingStok}>Simpan</Button>
+                        <Button onClick={handleSimpanStok} disabled={savingStok || loadingStokDialog}>Simpan</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1288,7 +1362,9 @@ export default function ProductManagement({
                                                                 value={k.stok === 0 ? "" : k.stok}
                                                                 onChange={(e) => updateKombinasiStok(idx, e.target.value === "" ? 0 : Number(e.target.value))}
                                                                 placeholder="0"
-                                                                className="h-8 w-16 bg-gray-50 border-gray-200 rounded-md text-xs"
+                                                                disabled={formMode === "edit"}
+                                                                title={formMode === "edit" ? "Gunakan tombol Kelola Stok untuk mengubah stok" : undefined}
+                                                                className="h-8 w-16 bg-gray-50 border-gray-200 rounded-md text-xs disabled:opacity-60 disabled:cursor-not-allowed"
                                                             />
                                                         </td>
                                                         <td className="px-3 py-2">
@@ -1308,6 +1384,7 @@ export default function ProductManagement({
                                 )}
                                 <p className="text-[11px] text-gray-400">
                                     Harga & Stok di atas (untuk tampilan tabel produk) akan otomatis dihitung dari harga terendah dan total stok semua kombinasi.
+                                    {formMode === "edit" && " Stok tidak diubah lewat form ini — gunakan tombol \"Kelola Stok\" di daftar produk."}
                                 </p>
                             </div>
                         )}

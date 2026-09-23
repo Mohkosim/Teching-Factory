@@ -35,11 +35,15 @@ export async function deleteProduk(id: string) {
     return res.json();
 }
 
-export async function updateStokProduk(id: string, stok: number) {
+export async function updateStokProduk(
+    id: string,
+    payload: number | { kombinasi: { kombinasi_id: string; stok: number }[] }
+) {
+    const body = typeof payload === "number" ? { stok: payload } : payload;
     const res = await fetch(`/api/produk/${id}/stok`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stok }),
+        body: JSON.stringify(body),
     });
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -68,7 +72,6 @@ export async function uploadProdukImages(files: File[]): Promise<string[]> {
     return data.urls as string[];
 }
 
-// ── Aksi AdminSMK, pakai endpoint yang sama dengan updateProduk ──
 export async function publikasiProduk(id: string) {
     const res = await fetch(`/api/produk/${id}`, {
         method: "PATCH",
