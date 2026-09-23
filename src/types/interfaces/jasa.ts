@@ -7,6 +7,7 @@ export interface JasaItem {
     status: "Tersedia" | "Habis" | "Nonaktif";
     estimasi_pengerjaan: string | null;
     total_project: number;
+    minimal_dp_persen: number;
     view_count: number;
     fotos: string[];
 

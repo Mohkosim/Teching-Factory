@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { produkSchema } from "@/lib/validations/produk";
+import { computeStatusProduk } from "@/lib/utils/status-produk";
 import { z } from "zod";
 
 async function assertOwnedByAdminJurusan(produkId: string, userId: string) {
@@ -138,7 +139,7 @@ export async function PATCH(
         const updated = await prisma.produk.update({
             where: { produk_id: id },
             data: {
-                nama_produk, deskripsi, harga, status,
+                nama_produk, deskripsi, harga, status: computeStatusProduk(stok, status),
                 ...(produk.status_publikasi === "Revisi"
                     ? { status_publikasi: "Pending" }
                     : {}),

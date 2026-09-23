@@ -296,6 +296,7 @@ model Jasa {
   nama_jasa           String
   estimasi_pengerjaan String?
   total_project       Int     @default(0)
+  minimal_dp_persen   Int     @default(0)
 
   portofolio Portofolio[]
   favorites Favorite[]
@@ -506,7 +507,7 @@ model Pengiriman {
   alamat        String
   kurir         String
   ongkir        Int
-  nomor_resi String?
+  nomor_resi String? @unique
   estimasi_tiba String?
   status_resi      String?
   cek_terakhir_at  DateTime?

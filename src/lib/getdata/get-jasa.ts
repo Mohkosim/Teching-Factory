@@ -56,6 +56,7 @@ export async function getJasaList(): Promise<JasaItem[]> {
         status: j.produk.status,
         estimasi_pengerjaan: j.estimasi_pengerjaan,
         total_project: j.total_project,
+        minimal_dp_persen: j.minimal_dp_persen,
         view_count: j.produk.view_count,
 
         nama_jurusan: j.produk.jurusan.nama_jurusan,

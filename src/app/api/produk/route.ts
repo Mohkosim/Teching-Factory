@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { produkSchema } from "@/lib/validations/produk";
+import { computeStatusProduk } from "@/lib/utils/status-produk";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
                 nama_produk,
                 deskripsi,
                 harga,
-                status,
+                status: computeStatusProduk(stok, status),
                 foto: {
                     create: fotos.map((url) => ({ url })),
                 },

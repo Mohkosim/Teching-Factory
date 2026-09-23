@@ -22,6 +22,7 @@ export interface JasaPublicItem {
   gambar: string;
   fotos: string[];
   estimasiPengerjaan?: string;
+  minimalDpPersen: number;
   lokasi?: string;
   provinsi?: string;
   rating: number;
@@ -112,6 +113,7 @@ function mapJasaPublicItem(p: ProdukWithJasa | ProdukWithJasaDetail): JasaPublic
     gambar: p.foto[0]?.url ?? "",
     fotos: p.foto.map((f) => f.url),
     estimasiPengerjaan: p.jasa[0]?.estimasi_pengerjaan ?? undefined,
+    minimalDpPersen: p.jasa[0]?.minimal_dp_persen ?? 0,
     lokasi: p.jurusan.smk?.alamat,
     provinsi: normalizeProvinsi(p.jurusan.smk?.provinsi),
     rating: avgRating,

@@ -110,7 +110,7 @@ export async function PATCH(
 
     const {
         nama_jasa, deskripsi, harga, status,
-        estimasi_pengerjaan, total_project, fotos,
+        estimasi_pengerjaan, total_project, minimal_dp_persen, fotos,
     } = parsed.data;
 
     try {
@@ -126,7 +126,7 @@ export async function PATCH(
 
         const updated = await prisma.jasa.update({
             where: { jasa_id: id },
-            data: { nama_jasa, estimasi_pengerjaan, total_project },
+            data: { nama_jasa, estimasi_pengerjaan, total_project, minimal_dp_persen },
         });
 
         await prisma.fotoProduk.deleteMany({ where: { produk_id: jasa.produk_id } });

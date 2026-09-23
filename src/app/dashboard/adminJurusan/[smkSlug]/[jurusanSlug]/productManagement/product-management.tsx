@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useTransition } from "react";
-import { Search, Eye, Pencil, Trash2, Plus, Package, ImagePlus, X, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
+import { Search, Eye, Pencil, Trash2, Plus, Package, ImagePlus, X, ChevronLeft, ChevronRight, TriangleAlert, Boxes } from "lucide-react";
 import { toast } from "sonner";
 import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
@@ -27,7 +27,7 @@ import PaginationIconsOnly from "@/components/pagination/page";
 
 import { produkSchema, type ProdukForm } from "@/lib/validations/produk";
 import { simpanVarianSchema } from "@/lib/validations/varian";
-import { createProduk, updateProduk, deleteProduk, uploadProdukImages } from "@/lib/api/produk-api";
+import { createProduk, updateProduk, deleteProduk, uploadProdukImages, updateStokProduk } from "@/lib/api/produk-api";
 import { getVarianProduk, simpanVarianProduk, uploadVarianImage } from "@/lib/api/varian-api";
 import type { ProdukItem } from "@/types/interfaces/produk";
 import { formatRupiah, formatNominalInput } from "@/lib/utils/format";
@@ -105,6 +105,10 @@ export default function ProductManagement({
     const [formMode, setFormMode] = useState<"create" | "edit">("create");
     const [formData, setFormData] = useState<ProdukForm>(emptyForm);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    const [stokDialogItem, setStokDialogItem] = useState<ProdukItem | null>(null);
+    const [stokDialogValue, setStokDialogValue] = useState(0);
+    const [savingStok, setSavingStok] = useState(false);
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [showFullDesc, setShowFullDesc] = useState(false);
@@ -554,6 +558,47 @@ export default function ProductManagement({
         gambarInputRef.current?.click();
     };
 
+    const openStokDialog = (item: ProdukItem) => {
+        setStokDialogItem(item);
+        setStokDialogValue(item.stok);
+    };
+
+    const closeStokDialog = () => {
+        setStokDialogItem(null);
+        setStokDialogValue(0);
+    };
+
+    const handleSimpanStok = () => {
+        if (!stokDialogItem) return;
+        if (stokDialogValue < 0) {
+            toast.error("Stok tidak boleh negatif");
+            return;
+        }
+
+        setSavingStok(true);
+        startTransition(async () => {
+            tampilkanLoading("Menyimpan stok...");
+            try {
+                const res = await updateStokProduk(stokDialogItem.produk_id, stokDialogValue);
+                setProducts((prev) =>
+                    prev.map((p) =>
+                        p.produk_id === stokDialogItem.produk_id
+                            ? { ...p, stok: stokDialogValue, status: res.data.status }
+                            : p
+                    )
+                );
+                Swal.close();
+                toast.success("Stok berhasil diperbarui");
+                closeStokDialog();
+            } catch {
+                Swal.close();
+                toast.error("Gagal memperbarui stok");
+            } finally {
+                setSavingStok(false);
+            }
+        });
+    };
+
     const handleGambarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         e.target.value = "";
@@ -715,6 +760,9 @@ export default function ProductManagement({
                                             </button>
                                             <button onClick={() => openEditForm(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-500 transition-colors" title="Edit Produk">
                                                 <Pencil className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button onClick={() => openStokDialog(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-500 transition-colors" title="Kelola Stok">
+                                                <Boxes className="h-3.5 w-3.5" />
                                             </button>
                                             <button onClick={() => handleDelete(item)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 transition-colors" title="Hapus Produk">
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -920,6 +968,38 @@ export default function ProductManagement({
                 </DialogContent>
             </Dialog>
 
+            {/* Kelola Stok — input terpisah dari Edit produk, sesuai catatan dosen */}
+            <Dialog open={!!stokDialogItem} onOpenChange={(open) => !open && closeStokDialog()}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="text-base">Kelola Stok</DialogTitle>
+                    </DialogHeader>
+                    {stokDialogItem && (
+                        <div className="space-y-3">
+                            <p className="text-sm text-gray-600">
+                                Produk: <span className="font-medium text-gray-800">{stokDialogItem.nama_produk}</span>
+                            </p>
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Stok Saat Ini</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={stokDialogValue === 0 ? "" : stokDialogValue}
+                                    onChange={(e) => setStokDialogValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                                />
+                                {stokDialogValue === 0 && (
+                                    <p className="text-[11px] text-amber-600">Status produk otomatis jadi Habis kalau stok 0</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeStokDialog} disabled={savingStok}>Batal</Button>
+                        <Button onClick={handleSimpanStok} disabled={savingStok}>Simpan</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Tambah / Edit */}
             <Dialog open={formOpen} onOpenChange={(open) => !open && closeForm()}>
                 <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
@@ -1060,8 +1140,12 @@ export default function ProductManagement({
                                         value={formData.stok === 0 ? "" : formData.stok}
                                         onChange={(e) => handleFormChange("stok", e.target.value === "" ? 0 : Number(e.target.value))}
                                         placeholder="0"
-                                        className="bg-gray-50 border-gray-200 rounded-lg"
+                                        disabled={formMode === "edit"}
+                                        className="bg-gray-50 border-gray-200 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
                                     />
+                                    {formMode === "edit" && (
+                                        <p className="text-[11px] text-gray-400">gunakan tombol Kelola Stok untuk mengubah stok</p>
+                                    )}
                                 </div>
                             </div>
                         ) : (

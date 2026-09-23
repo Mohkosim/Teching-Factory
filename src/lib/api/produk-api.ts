@@ -35,6 +35,19 @@ export async function deleteProduk(id: string) {
     return res.json();
 }
 
+export async function updateStokProduk(id: string, stok: number) {
+    const res = await fetch(`/api/produk/${id}/stok`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stok }),
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "UpdateStokFailed");
+    }
+    return res.json();
+}
+
 export async function uploadProdukImages(files: File[]): Promise<string[]> {
     const formData = new FormData();
     files.forEach((file) => formData.append("files", file));

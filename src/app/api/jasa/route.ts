@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     const {
         nama_jasa, deskripsi, harga, status,
-        estimasi_pengerjaan, total_project, fotos,
+        estimasi_pengerjaan, total_project, minimal_dp_persen, fotos,
         portofolio,
     } = parsed.data;
 
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
                         nama_jasa,
                         estimasi_pengerjaan,
                         total_project,
+                        minimal_dp_persen,
                         portofolio: portofolio && portofolio.length > 0
                             ? {
                                 create: portofolio.map((p) => ({

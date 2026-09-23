@@ -38,6 +38,17 @@ export async function POST(request: Request) {
         );
     }
 
+    const minimalDpPersen = produk.jasa[0]?.minimal_dp_persen ?? 0;
+    const minimalDp = Math.ceil((minimalDpPersen / 100) * produk.harga);
+    if (nominalBayar < minimalDp) {
+        return NextResponse.json(
+            {
+                message: `Nominal DP minimal Rp ${minimalDp.toLocaleString("id-ID")} (${minimalDpPersen}% dari harga jasa)`,
+            },
+            { status: 400 }
+        );
+    }
+
     const kodeInvoice = `INV-JASA-${Date.now()}`;
 
     const order = await prisma.order.create({

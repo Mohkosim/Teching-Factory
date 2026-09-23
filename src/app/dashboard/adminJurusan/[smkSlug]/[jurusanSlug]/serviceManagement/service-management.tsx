@@ -52,6 +52,7 @@ const emptyForm: Omit<JasaForm, "fotos"> = {
     status: "Tersedia",
     estimasi_pengerjaan: "",
     total_project: 0,
+    minimal_dp_persen: 0,
 };
 
 const statusOptions = ["Semua", "Tersedia", "Habis", "Nonaktif"] as const;
@@ -171,6 +172,7 @@ export default function ServiceManagement({
             status: item.status,
             estimasi_pengerjaan: item.estimasi_pengerjaan ?? "",
             total_project: item.total_project,
+            minimal_dp_persen: item.minimal_dp_persen,
         });
         setExistingFotos(item.fotos);
         setNewFiles([]);
@@ -352,6 +354,7 @@ export default function ServiceManagement({
                         status: res.data.status,
                         estimasi_pengerjaan: parsed.data.estimasi_pengerjaan ?? null,
                         total_project: parsed.data.total_project,
+                        minimal_dp_persen: parsed.data.minimal_dp_persen,
                         view_count: res.data.view_count,
                         status_publikasi: res.data.status_publikasi ?? "Pending",
                         catatan_revisi: res.data.catatan_revisi ?? null,
@@ -676,7 +679,7 @@ export default function ServiceManagement({
                                     </div>
 
                                     <p className="text-xs text-gray-400 pt-1">
-                                        Estimasi : {detailItem.estimasi_pengerjaan ?? "-"} &nbsp;·&nbsp; Total Project : {detailItem.total_project} &nbsp;·&nbsp; Status : {detailItem.status}
+                                        Estimasi : {detailItem.estimasi_pengerjaan ?? "-"} &nbsp;·&nbsp; Total Project : {detailItem.total_project} &nbsp;·&nbsp; Status : {detailItem.status} &nbsp;·&nbsp; Minimal DP : {detailItem.minimal_dp_persen}%
                                     </p>
 
                                     {/* Daftar portofolio PDF pada detail */}
@@ -930,6 +933,31 @@ export default function ServiceManagement({
                                         <SelectItem value="Nonaktif">Nonaktif</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Minimal DP (%)</Label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={formData.minimal_dp_persen === 0 ? "" : formData.minimal_dp_persen}
+                                        onChange={(e) => {
+                                            const raw = e.target.value === "" ? 0 : Number(e.target.value);
+                                            const clamped = Math.min(100, Math.max(0, raw));
+                                            handleFormChange("minimal_dp_persen", clamped);
+                                        }}
+                                        placeholder="0"
+                                        className="bg-gray-50 border-gray-200 rounded-lg pr-8"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                                        %
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-gray-400">0 = pelanggan bebas isi DP berapapun, seperti sebelumnya</p>
                             </div>
                         </div>
                     </div>

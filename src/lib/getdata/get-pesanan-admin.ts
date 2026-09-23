@@ -25,22 +25,45 @@ export async function kirimPesananAction(
     data: { nomor_resi: string; estimasi_tiba?: string },
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
-    await prisma.$transaction(
-        [
-            prisma.pengiriman.update({
-                where: { order_id },
-                data: {
-                    nomor_resi: data.nomor_resi,
-                    estimasi_tiba: data.estimasi_tiba,
-                },
-            }),
-            prisma.order.update({
-                where: { order_id },
-                data: { status_order: "Dikirim" },
-            }),
-        ],
-        { timeout: 20000, maxWait: 20000 }
-    );
+    const resiDipakai = await prisma.pengiriman.findFirst({
+        where: {
+            nomor_resi: data.nomor_resi,
+            order_id: { not: order_id },
+        },
+    });
+    if (resiDipakai) {
+        throw new Error(`RESI_DUPLIKAT:Nomor resi "${data.nomor_resi}" sudah dipakai di pesanan lain, silakan periksa kembali`);
+    }
+
+    try {
+        await prisma.$transaction(
+            [
+                prisma.pengiriman.update({
+                    where: { order_id },
+                    data: {
+                        nomor_resi: data.nomor_resi,
+                        estimasi_tiba: data.estimasi_tiba,
+                    },
+                }),
+                prisma.order.update({
+                    where: { order_id },
+                    data: { status_order: "Dikirim" },
+                }),
+            ],
+            { timeout: 20000, maxWait: 20000 }
+        );
+    } catch (err) {
+        // Pengaman kedua: kalau ada race condition dan dua request lolos pengecekan
+        // di atas bersamaan, constraint unik di database yang menahan duplikatnya.
+        if (
+            err instanceof Error &&
+            "code" in err &&
+            (err as { code?: string }).code === "P2002"
+        ) {
+            throw new Error(`RESI_DUPLIKAT:Nomor resi "${data.nomor_resi}" sudah dipakai di pesanan lain, silakan periksa kembali`);
+        }
+        throw err;
+    }
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
 }
 

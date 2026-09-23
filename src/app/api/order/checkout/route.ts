@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { snap } from "@/lib/midtrans";
 import { generateKodeInvoice } from "@/lib/utils/invoice";
+import { computeStatusProduk } from "@/lib/utils/status-produk";
 import type { CheckoutPayload } from "@/types/interfaces/checkout";
 
 export async function POST(req: Request) {
@@ -100,6 +101,23 @@ export async function POST(req: Request) {
                         where: { produk_id: p.produkId },
                         data: { sold_count: { increment: p.jumlah } },
                     });
+
+                    // Sinkronkan status produk kalau stok tersisa jadi 0 setelah checkout ini
+                    const barangSisa = await tx.barang.findFirst({ where: { produk_id: p.produkId } });
+                    const produkSaatIni = await tx.produk.findUnique({
+                        where: { produk_id: p.produkId },
+                        select: { status: true },
+                    });
+                    const statusBaru = computeStatusProduk(
+                        barangSisa?.stok ?? 0,
+                        produkSaatIni?.status ?? "Tersedia"
+                    );
+                    if (produkSaatIni && statusBaru !== produkSaatIni.status) {
+                        await tx.produk.update({
+                            where: { produk_id: p.produkId },
+                            data: { status: statusBaru },
+                        });
+                    }
                 }
 
                 ids.push(order.order_id);

@@ -381,14 +381,20 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                 Swal.close();
                 toast.success("Pesanan berhasil ditandai dikirim");
                 router.refresh();
-            } catch {
+            } catch (err) {
                 updateOrder(order_id, {
                     statusPengiriman: previousStatus,
                     nomorResi: previousResi,
                     estimasi: previousEstimasi,
                 });
                 Swal.close();
-                toast.error("Gagal mengirim pesanan");
+                const message = err instanceof Error ? err.message : "";
+                if (message.startsWith("RESI_DUPLIKAT:")) {
+                    toast.error(message.replace("RESI_DUPLIKAT:", ""));
+                    setShipFormOpen(true);
+                } else {
+                    toast.error("Gagal mengirim pesanan");
+                }
             }
         });
     };

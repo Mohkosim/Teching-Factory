@@ -163,11 +163,13 @@ export default function JasaDetailClient({
     };
 
     const nominalAngka = Number(formData.nominalBayar) || 0;
+    const minimalDp = Math.ceil((jasa.minimalDpPersen / 100) * jasa.harga);
     const formValid =
         formData.namaPelanggan.trim() !== "" &&
         formData.tanggal !== "" &&
         nominalAngka > 0 &&
-        nominalAngka <= jasa.harga;
+        nominalAngka <= jasa.harga &&
+        nominalAngka >= minimalDp;
 
     const bukaSnapPay = (snapToken: string, orderId: string) => {
         if (!window.snap) {
@@ -199,6 +201,10 @@ export default function JasaDetailClient({
 
     const handleSubmitPesanan = async () => {
         if (!formValid) {
+            if (nominalAngka > 0 && nominalAngka < minimalDp) {
+                toast.error(`Nominal DP minimal ${formatRupiah(minimalDp)} (${jasa.minimalDpPersen}% dari harga jasa)`);
+                return;
+            }
             toast.error("Lengkapi nama, tanggal, dan nominal pembayaran terlebih dahulu");
             return;
         }
@@ -546,9 +552,16 @@ export default function JasaDetailClient({
                                     Nominal melebihi harga jasa ({formatRupiah(jasa.harga)})
                                 </p>
                             )}
+                            {nominalAngka > 0 && nominalAngka < minimalDp && (
+                                <p className="text-xs text-red-500">
+                                    Nominal DP minimal {formatRupiah(minimalDp)} ({jasa.minimalDpPersen}% dari harga jasa)
+                                </p>
+                            )}
                             <p className="text-xs text-gray-400">
-                                Total harga jasa {formatRupiah(jasa.harga)}. Bisa bayar DP dulu (kurang dari harga) atau
-                                langsung lunas — sisanya bisa dilunasi kapan saja lewat halaman Pesanan Saya.
+                                Total harga jasa {formatRupiah(jasa.harga)}.
+                                {jasa.minimalDpPersen > 0
+                                    ? ` Minimal DP ${formatRupiah(minimalDp)} (${jasa.minimalDpPersen}%), sisanya bisa dilunasi kapan saja lewat halaman Pesanan Saya.`
+                                    : " Bisa bayar DP dulu (kurang dari harga) atau langsung lunas — sisanya bisa dilunasi kapan saja lewat halaman Pesanan Saya."}
                             </p>
                         </div>
 
