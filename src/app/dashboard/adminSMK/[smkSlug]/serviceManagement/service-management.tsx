@@ -52,7 +52,7 @@ export default function ServiceManagement({
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [showRevisiForm, setShowRevisiForm] = useState(false);
     const [revisiText, setRevisiText] = useState("");
-    // --- Deskripsi bisa dilebarkan/diciutkan ---
+
     const [deskripsiExpanded, setDeskripsiExpanded] = useState(false);
 
     const filtered = useMemo(() => {
@@ -126,9 +126,11 @@ export default function ServiceManagement({
                 Swal.close();
                 toast.success("Jasa berhasil dipublikasikan");
                 closeDetail();
-            } catch {
+            } catch (error) {
                 Swal.close();
-                toast.error("Gagal mempublikasikan jasa");
+                toast.error(
+                    error instanceof Error ? error.message : "Gagal mempublikasikan jasa"
+                );
             }
         });
     };

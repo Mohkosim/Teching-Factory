@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState, useMemo, useTransition } from "react";
+import { TriangleAlert } from "lucide-react";
+import { Alert, AlertTitle } from "@/components/alert";
 import {
     Search, Eye, Pencil, Trash2, Plus, Wrench, ImagePlus, X,
     ChevronLeft, ChevronRight, FileText, FilePlus,
@@ -96,11 +98,13 @@ export default function ServiceManagement({
     jurusanId,
     jurusanSmkId,
     jurusanSmkNama,
+    hasKurirAktif,
 }: {
     initialData: JasaItem[];
     jurusanId: string;
     jurusanSmkId: string;
     jurusanSmkNama: string;
+    hasKurirAktif: boolean;
 }) {
     const [services, setServices] = useState<JasaItem[]>(initialData);
     const [search, setSearch] = useState("");
@@ -710,6 +714,12 @@ export default function ServiceManagement({
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                        {formMode === "create" && !hasKurirAktif && (
+                            <Alert variant="warning">
+                                <TriangleAlert />
+                                <AlertTitle>Belum ada kurir pengiriman aktif</AlertTitle>
+                            </Alert>
+                        )}
                         <div className="space-y-1.5">
                             <Label className="text-sm text-gray-600">Nama Jasa</Label>
                             <Input

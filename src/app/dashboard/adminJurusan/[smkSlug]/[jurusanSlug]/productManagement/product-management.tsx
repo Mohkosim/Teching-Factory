@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useTransition } from "react";
-import { Search, Eye, Pencil, Trash2, Plus, Package, ImagePlus, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, Pencil, Trash2, Plus, Package, ImagePlus, X, ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 import Swal from "sweetalert2";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertTitle } from "@/components/alert";
 
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -82,7 +83,13 @@ function isKontenBerubah(
     );
 }
 
-export default function ProductManagement({ initialData }: { initialData: ProdukItem[] }) {
+export default function ProductManagement({
+    initialData,
+    hasKurirAktif,
+}: {
+    initialData: ProdukItem[];
+    hasKurirAktif: boolean;
+}) {
     const [products, setProducts] = useState<ProdukItem[]>(initialData);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("Semua");
@@ -921,6 +928,12 @@ export default function ProductManagement({ initialData }: { initialData: Produk
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                        {formMode === "create" && !hasKurirAktif && (
+                            <Alert variant="warning">
+                                <TriangleAlert />
+                                <AlertTitle>Belum ada kurir pengiriman aktif</AlertTitle>
+                            </Alert>
+                        )}
                         <div className="space-y-1.5">
                             <Label className="text-sm text-gray-600">Nama Produk</Label>
                             <Input

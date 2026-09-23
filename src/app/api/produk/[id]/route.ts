@@ -79,6 +79,19 @@ export async function PATCH(
                 return NextResponse.json({ message: "Data tidak valid" }, { status: 400 });
             }
 
+            const jumlahKurirAktif = await prisma.kurirAktif.count({
+                where: { jurusan_id: produk.jurusan_id, status: true },
+            });
+            if (jumlahKurirAktif === 0) {
+                return NextResponse.json(
+                    {
+                        message:
+                            "Produk tidak bisa divalidasi — jurusan belum mengaktifkan kurir pengiriman. Hubungi admin jurusan untuk mengatur kurir terlebih dahulu.",
+                    },
+                    { status: 400 }
+                );
+            }
+
             const updated = await prisma.produk.update({
                 where: { produk_id: id },
                 data: { status_publikasi: "Published", catatan_revisi: null },

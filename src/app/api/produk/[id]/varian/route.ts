@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -77,49 +78,83 @@ export async function POST(
     const { grup, kombinasi } = parsed.data;
 
     try {
-        await prisma.$transaction(async (tx) => {
-            await tx.varianKombinasi.deleteMany({ where: { produk_id: id } });
-            await tx.varianGrup.deleteMany({ where: { produk_id: id } });
+        await prisma.$transaction(
+            async (tx) => {
+                await tx.varianKombinasi.deleteMany({ where: { produk_id: id } });
+                await tx.varianGrup.deleteMany({ where: { produk_id: id } });
 
-            const opsiIdMap = new Map<string, string>();
-
-            for (let i = 0; i < grup.length; i++) {
-                const g = grup[i];
-                const grupBaru = await tx.varianGrup.create({
-                    data: { produk_id: id, nama: g.nama, urutan: i },
-                });
-
-                for (let j = 0; j < g.opsi.length; j++) {
-                    const o = g.opsi[j];
-                    const opsiBaru = await tx.varianOpsi.create({
-                        data: { grup_id: grupBaru.grup_id, nama: o.nama, gambar: o.gambar, urutan: j },
+                // ── Grup varian (mis. "Rasa") — 1 query untuk semua grup ──
+                const grupIds = grup.map(() => randomUUID());
+                if (grup.length > 0) {
+                    await tx.varianGrup.createMany({
+                        data: grup.map((g, i) => ({
+                            grup_id: grupIds[i],
+                            produk_id: id,
+                            nama: g.nama,
+                            urutan: i,
+                        })),
                     });
-                    opsiIdMap.set(`${g.nama}::${o.nama}`, opsiBaru.opsi_id);
                 }
-            }
 
-            for (const k of kombinasi) {
-                const opsiIds = k.opsi_nama.map((namaOpsi, idx) => {
-                    const namaGrup = grup[idx]?.nama;
-                    const opsiId = opsiIdMap.get(`${namaGrup}::${namaOpsi}`);
-                    if (!opsiId) {
-                        throw new Error(`Opsi "${namaOpsi}" pada grup "${namaGrup}" tidak ditemukan`);
-                    }
-                    return opsiId;
+                // ── Opsi tiap grup (mis. "Oreo Cream") — 1 query untuk semua opsi ──
+                const opsiIdMap = new Map<string, string>();
+                const opsiRows: {
+                    opsi_id: string;
+                    grup_id: string;
+                    nama: string;
+                    urutan: number;
+                }[] = [];
+
+                grup.forEach((g, i) => {
+                    g.opsi.forEach((o, j) => {
+                        const opsiId = randomUUID();
+                        opsiIdMap.set(`${g.nama}::${o.nama}`, opsiId);
+                        opsiRows.push({
+                            opsi_id: opsiId,
+                            grup_id: grupIds[i],
+                            nama: o.nama,
+                            urutan: j,
+                        });
+                    });
                 });
 
-                await tx.varianKombinasi.create({
-                    data: {
-                        produk_id: id,
-                        harga: k.harga,
-                        stok: k.stok,
-                        sku: k.sku,
-                        gambar: k.gambar,
-                        opsi: { create: opsiIds.map((opsi_id) => ({ opsi_id })) },
-                    },
+                if (opsiRows.length > 0) {
+                    await tx.varianOpsi.createMany({ data: opsiRows });
+                }
+
+                // ── Kombinasi (mis. "Oreo Cream" x harga x stok) — 1 query untuk semua kombinasi ──
+                const kombinasiIds = kombinasi.map(() => randomUUID());
+                const junctionRows: { kombinasi_id: string; opsi_id: string }[] = [];
+
+                kombinasi.forEach((k, idx) => {
+                    const kombinasiId = kombinasiIds[idx];
+                    k.opsi_nama.forEach((namaOpsi, i) => {
+                        const namaGrup = grup[i]?.nama;
+                        const opsiId = opsiIdMap.get(`${namaGrup}::${namaOpsi}`);
+                        if (!opsiId) {
+                            throw new Error(`Opsi "${namaOpsi}" pada grup "${namaGrup}" tidak ditemukan`);
+                        }
+                        junctionRows.push({ kombinasi_id: kombinasiId, opsi_id: opsiId });
+                    });
                 });
-            }
-        });
+
+                if (kombinasi.length > 0) {
+                    await tx.varianKombinasi.createMany({
+                        data: kombinasi.map((k, idx) => ({
+                            kombinasi_id: kombinasiIds[idx],
+                            produk_id: id,
+                            harga: k.harga,
+                            stok: k.stok,
+                            sku: k.sku,
+                            gambar: k.gambar,
+                        })),
+                    });
+
+                    await tx.varianKombinasiOpsi.createMany({ data: junctionRows });
+                }
+            },
+            { timeout: 15000, maxWait: 10000 }
+        );
 
         const totalStokVarian = await prisma.varianKombinasi.aggregate({
             where: { produk_id: id, aktif: true },

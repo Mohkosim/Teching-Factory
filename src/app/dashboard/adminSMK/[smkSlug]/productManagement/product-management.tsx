@@ -136,9 +136,11 @@ export default function ProductManagement({
                 );
                 toast.success("Produk berhasil dipublikasikan");
                 closeDetail();
-            } catch {
+            } catch (error) {
                 Swal.close();
-                toast.error("Gagal mempublikasikan produk");
+                toast.error(
+                    error instanceof Error ? error.message : "Gagal mempublikasikan produk"
+                );
             }
         });
     };
