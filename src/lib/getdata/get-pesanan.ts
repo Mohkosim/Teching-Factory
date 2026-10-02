@@ -50,7 +50,9 @@ export async function konfirmasiPesananDiterimaAction(order_id: string) {
 
     const order = await prisma.order.findUnique({
         where: { order_id },
-        select: { user_id: true, status_order: true },
+        include: {
+            orderDetail: { include: { produk: { include: { jasa: true } } } },
+        },
     });
 
     if (!order || order.user_id !== session.user.id) {
@@ -61,13 +63,18 @@ export async function konfirmasiPesananDiterimaAction(order_id: string) {
         throw new Error("Pesanan belum bisa dikonfirmasi diterima");
     }
 
+    const isJasa = order.orderDetail[0]?.produk.jasa.length ? true : false;
+    if (isJasa) {
+        throw new Error("Pesanan jasa diselesaikan oleh admin jurusan");
+    }
+
     await prisma.order.update({
         where: { order_id },
-        data: { status_order: "Diterima" }, 
+        data: { status_order: "Diterima" },
     });
-    await prisma.pengiriman.update({
+    await prisma.pengiriman.updateMany({
         where: { order_id },
-        data: { diterima_at: new Date() },  
+        data: { diterima_at: new Date() },
     });
 
     revalidatePath(PESANAN_PATH);

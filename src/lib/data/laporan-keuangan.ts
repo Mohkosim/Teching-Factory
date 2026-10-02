@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { getAkuntansiJurusan } from "@/lib/akuntansi/loader";
+import { tanggalWIB, totalPerAkun, saldoAkun, type Jurnal } from "@/lib/akuntansi/engine";
+import { KODE } from "@/lib/akuntansi/coa";
+import { parseTanggalToDate } from "@/lib/utils/tanggal";
 
 export interface TransaksiRow {
     id: string;
@@ -19,6 +23,7 @@ export interface TransaksiRow {
     biayaOngkir?: number;
     biayaMidtrans?: number;
     refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
+    asalPesanan?: boolean;
     pembeli?: { nama: string; nomor: string; email: string; alamat: string };
     pengiriman?: { kurir: string; nomorResi: string; estimasi: string };
     historyPengeluaran?: {
@@ -60,26 +65,30 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             od.order.user.alamat.find((a) => a.isUtama) ?? od.order.user.alamat[0];
 
         const refund = od.order.refundRequest;
-        const refundAktif = !!refund && refund.status !== "Ditolak";
+        const refundDiproses = !!refund && refund.status !== "Ditolak" && refund.status !== "Disetujui";
+        const refundDisetujui = refund?.status === "Disetujui";
 
-        const statusSettlement: TransaksiRow["statusSettlement"] = refundAktif
-            ? "Refund"
-            : od.order.status_pembayaran === "Lunas"
-                ? "Settled"
-                : "Pending";
+        const statusSettlement: TransaksiRow["statusSettlement"] =
+            refundDiproses || refundDisetujui
+                ? "Refund"
+                : od.order.status_pembayaran === "Lunas"
+                    ? "Settled"
+                    : "Pending";
 
         return {
             id: `masuk-${od.order_detail_id}`,
             transaksiId: null,
             noInvoice: od.order.kode_invoice ?? od.order_id,
-            tanggal: od.createdAt.toLocaleDateString("id-ID"),
+            tanggal: refundDisetujui && refund
+                ? refund.updatedAt.toLocaleDateString("id-ID")
+                : od.createdAt.toLocaleDateString("id-ID"),
             pembeliPemasok: od.order.user.name,
-            jenisTransaksi: "Pemasukan",
+            jenisTransaksi: refundDisetujui ? "Pengeluaran" : "Pemasukan",
             kategori: od.produk.jasa.length > 0 ? "Jasa" : "Produk",
             deskripsi: od.produk.nama_produk,
             qty: od.jumlah,
             hargaSatuan: od.harga_satuan,
-            total: od.order.transaksi[0]?.nominal ?? 0,
+            total: od.subtotal,
             metodePembayaran: pembayaran?.metode ?? "-",
             statusSettlement,
             gambarUrl: od.produk.foto[0]?.url,
@@ -91,6 +100,7 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             refund: refund
                 ? { status: refund.status, alasan: refund.alasan }
                 : undefined,
+            asalPesanan: true,
             pembeli: alamatUtama
                 ? {
                     nama: od.order.user.name,
@@ -134,67 +144,23 @@ export async function getLaporanKeuanganData(jurusanId: string) {
     }));
 
     const transaksi = [...pemasukanRows, ...pengeluaranRows].sort(
-        (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+        (a, b) => (parseTanggalToDate(b.tanggal)?.getTime() ?? 0) - (parseTanggalToDate(a.tanggal)?.getTime() ?? 0)
     );
 
-    const totalPemasukan = pemasukanRows
-        .filter((r) => r.statusSettlement === "Settled")
-        .reduce((s, r) => s + r.total, 0);
-    const totalBiayaMidtrans = pemasukanRows
-        .filter((r) => r.statusSettlement === "Settled")
-        .reduce((s, r) => s + (r.biayaMidtrans ?? 0), 0);
-    const hpp = pengeluaranRows
-        .filter((r) => r.kategori === "Bahan Baku")
-        .reduce((s, r) => s + r.total, 0);
-    const totalPengeluaran = pengeluaranRows.reduce((s, r) => s + r.total, 0);
+    return { transaksi };
+}
 
+export function hitungSaldoDariJurnal(jurnal: Jurnal[], hariIni: string) {
+    const total = totalPerAkun(jurnal, { sampai: hariIni });
     return {
-        transaksi,
-        ringkasan: { totalPemasukan, totalPengeluaran, hpp, totalBiayaMidtrans },
+        saldoTersedia: Math.max(0, saldoAkun(total, KODE.SALDO_PLATFORM)),
+        totalBiayaMidtrans: saldoAkun(total, KODE.BEBAN_MIDTRANS),
     };
 }
 
 export async function getSaldoJurusan(jurusanId: string) {
-    const [pemasukanAgg, pengeluaranAgg, penarikanAgg, biayaMidtransAgg] = await Promise.all([
-        prisma.order_Detail.aggregate({
-            _sum: { subtotal: true },
-            where: {
-                produk: { jurusan_id: jurusanId },
-                order: { status_pembayaran: "Lunas" },
-            },
-        }),
-        prisma.transaksi.aggregate({
-            _sum: { nominal: true },
-            where: { jurusan_id: jurusanId, jenis_transaksi: "Pengeluaran", order_id: null },
-        }),
-        prisma.penarikanSaldo.aggregate({
-            _sum: { nominal: true },
-            where: { jurusan_id: jurusanId, status: { in: ["Pending", "Diproses", "Selesai"] } },
-        }),
-        prisma.transaksi.aggregate({
-            _sum: { biaya_midtrans: true },
-            where: {
-                jenis_transaksi: "Pemasukan",
-                order: {
-                    status_pembayaran: "Lunas",
-                    orderDetail: { some: { produk: { jurusan_id: jurusanId } } },
-                },
-            },
-        }),
-    ]);
-
-    const totalPemasukan = pemasukanAgg._sum.subtotal ?? 0;
-    const totalPengeluaran = pengeluaranAgg._sum.nominal ?? 0;
-    const totalPenarikan = penarikanAgg._sum.nominal ?? 0;
-    const totalBiayaMidtrans = biayaMidtransAgg._sum.biaya_midtrans ?? 0;
-
-    return {
-        saldoTersedia: Math.max(0, totalPemasukan - totalBiayaMidtrans - totalPenarikan),
-        totalPemasukan,
-        totalPengeluaran,
-        totalPenarikan,
-        totalBiayaMidtrans,
-    };
+    const { jurnal } = await getAkuntansiJurusan(jurusanId);
+    return hitungSaldoDariJurnal(jurnal, tanggalWIB(new Date()));
 }
 
 export async function getPenarikanList(jurusan_id: string) {

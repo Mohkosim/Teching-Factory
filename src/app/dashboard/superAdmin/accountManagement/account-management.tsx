@@ -34,7 +34,8 @@ import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { confirmAksi, confirmHapus, tampilkanLoading } from "@/lib/utils/alert";
 
-import { SMKAccount } from "@/types/interfaces/accountAdmin"
+import { SMKAccount, PengajuanMitraItem } from "@/types/interfaces/accountAdmin"
+import PengajuanMitraSection from "./PengajuanMitraSection";
 
 const ROLE_LABELS: Record<SMKAccount["role"], string> = {
     User: "User",
@@ -47,8 +48,10 @@ const PAGE_SIZE_DEFAULT = 10;
 
 export default function AccountManagement({
     initialData,
+    initialPengajuanMitra,
 }: {
     initialData: SMKAccount[];
+    initialPengajuanMitra: PengajuanMitraItem[];
 }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -60,7 +63,6 @@ export default function AccountManagement({
 
     const [detailItem, setDetailItem] = useState<SMKAccount | null>(null);
 
-    // ── Ubah Email ──
     const [emailItem, setEmailItem] = useState<SMKAccount | null>(null);
     const [newEmail, setNewEmail] = useState("");
     const [emailCheckStatus, setEmailCheckStatus] = useState<
@@ -208,7 +210,6 @@ export default function AccountManagement({
         });
     };
 
-    // ── Ubah Email ──
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const emailCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -338,6 +339,8 @@ export default function AccountManagement({
                     </BreadcrumbList>
                 </Breadcrumb>
             </div>
+
+            <PengajuanMitraSection initialData={initialPengajuanMitra} />
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between gap-4 p-5 border-b border-gray-100">
@@ -496,7 +499,6 @@ export default function AccountManagement({
                 />
             </div>
 
-            {/* Popup detail hanya untuk akun User. Admin SMK memakai halaman detail sendiri. */}
             <Dialog open={!!detailItem} onOpenChange={() => setDetailItem(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -575,8 +577,6 @@ export default function AccountManagement({
                 </DialogContent>
             </Dialog>
 
-            {/* Ubah Email: dipakai saat pemilik akun kehilangan akses ke e-mail lamanya.
-                Identitas pemohon harus sudah diverifikasi SuperAdmin di luar sistem ini. */}
             <Dialog open={!!emailItem} onOpenChange={(open) => !open && closeEmailDialog()}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>

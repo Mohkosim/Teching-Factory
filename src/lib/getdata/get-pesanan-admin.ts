@@ -2,6 +2,38 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import {
+    PESAN_BELUM_ADA_DP,
+    PESAN_MENUNGGU_PELUNASAN,
+    adminBolehMengelola,
+    bolehDiselesaikan,
+    type DasarPembayaranOrder,
+} from "@/lib/utils/status-jasa";
+
+async function ambilDasarPembayaran(order_id: string): Promise<DasarPembayaranOrder> {
+    const order = await prisma.order.findUnique({
+        where: { order_id },
+        include: {
+            transaksi: { where: { jenis_transaksi: "Pemasukan", status_settlement: "Selesai" }, select: { nominal: true } },
+            orderDetail: { include: { produk: { include: { jasa: true } } } },
+        },
+    });
+    if (!order) throw new Error("Pesanan tidak ditemukan");
+    const jasa = order.orderDetail[0]?.produk.jasa.length ? true : false;
+    return {
+        kategori: jasa ? "Jasa" : "Produk",
+        statusPembayaran: order.status_pembayaran,
+        totalHarga: order.total_harga,
+        totalDibayar: order.transaksi.reduce((s, t) => s + t.nominal, 0),
+    };
+}
+
+async function pastikanBolehDikelola(order_id: string) {
+    const dasar = await ambilDasarPembayaran(order_id);
+    if (!adminBolehMengelola(dasar)) {
+        throw new Error(dasar.kategori === "Jasa" ? PESAN_BELUM_ADA_DP : "Pesanan belum dibayar lunas");
+    }
+}
 
 function pesananPath(smkSlug: string, jurusanSlug: string) {
     return `/dashboard/adminJurusan/${smkSlug}/${jurusanSlug}/orderManagement`;
@@ -12,6 +44,7 @@ export async function prosesPesananAction(
     order_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    await pastikanBolehDikelola(order_id);
     await prisma.order.update({
         where: { order_id },
         data: { status_order: "Diproses" },
@@ -53,8 +86,6 @@ export async function kirimPesananAction(
             { timeout: 20000, maxWait: 20000 }
         );
     } catch (err) {
-        // Pengaman kedua: kalau ada race condition dan dua request lolos pengecekan
-        // di atas bersamaan, constraint unik di database yang menahan duplikatnya.
         if (
             err instanceof Error &&
             "code" in err &&
@@ -72,6 +103,7 @@ export async function tandaiDikerjakanAction(
     order_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    await pastikanBolehDikelola(order_id);
     await prisma.order.update({
         where: { order_id },
         data: { status_order: "Dikirim" },
@@ -84,6 +116,9 @@ export async function selesaikanJasaAction(
     order_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    if (!bolehDiselesaikan(await ambilDasarPembayaran(order_id))) {
+        throw new Error(PESAN_MENUNGGU_PELUNASAN);
+    }
     await prisma.order.update({
         where: { order_id },
         data: { status_order: "Selesai" },

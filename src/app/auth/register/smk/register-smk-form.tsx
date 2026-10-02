@@ -9,27 +9,26 @@ import Swal from "sweetalert2";
 import { tampilkanLoading } from "@/lib/utils/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import AuthTabs from "@/components/auth/AuthTabs";
 import FormField from "@/components/auth/FormField";
 import PasswordInput from "@/components/auth/PasswordInput";
-import { registerSchema, type RegisterSchema } from "@/lib/validations/auth";
+import { registerSmkSchema, type RegisterSmkSchema } from "@/lib/validations/pengajuan-mitra";
 import Image from "next/image";
 
-export default function RegisterForm() {
+export default function RegisterSmkForm() {
     const router = useRouter();
 
     const {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
-    } = useForm<RegisterSchema>({
-        resolver: zodResolver(registerSchema),
+    } = useForm<RegisterSmkSchema>({
+        resolver: zodResolver(registerSmkSchema),
     });
 
-    const onSubmit = async (data: RegisterSchema) => {
-        tampilkanLoading("Membuat akun...");
+    const onSubmit = async (data: RegisterSmkSchema) => {
+        tampilkanLoading("Mengirim pengajuan...");
         try {
-            const res = await fetch("/api/auth/register", {
+            const res = await fetch("/api/auth/register/smk", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
@@ -48,13 +47,13 @@ export default function RegisterForm() {
             };
 
             if (emailBelumTerkirim) {
-                toast.warning("Akun dibuat, tapi email belum terkirim", {
+                toast.warning("Akun & pengajuan dibuat, tapi email belum terkirim", {
                     description: json.message,
                     duration: 2500,
                     onAutoClose: pergiKeVerifikasi,
                 });
             } else {
-                toast.success("Akun berhasil dibuat!", {
+                toast.success("Pengajuan berhasil dikirim!", {
                     description: "Silakan cek email Anda untuk kode verifikasi (cek juga folder Spam).",
                     duration: 1500,
                     onAutoClose: pergiKeVerifikasi,
@@ -63,7 +62,7 @@ export default function RegisterForm() {
         } catch (err) {
             Swal.close();
             const errormassage = err instanceof Error ? err.message : "Terjadi kesalahan";
-            toast.error("Gagal membuat akun", {
+            toast.error("Gagal mengirim pengajuan", {
                 description: errormassage,
             });
         }
@@ -84,7 +83,13 @@ export default function RegisterForm() {
                 </span>
             </div>
 
-            <AuthTabs />
+            <div className="text-center">
+                <h1 className="text-lg font-bold text-gray-900">Daftar sebagai SMK / Mitra</h1>
+                <p className="text-xs text-gray-500 mt-1">
+                    Lengkapi data di bawah ini. Pengajuan akan diteruskan ke SuperAdmin
+                    setelah e-mail Anda terverifikasi.
+                </p>
+            </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
 
@@ -118,22 +123,74 @@ export default function RegisterForm() {
                     />
                 </FormField>
 
+                <div className="border-t border-gray-100 pt-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                        Data Sekolah &amp; Penanggung Jawab
+                    </p>
+                </div>
+
+                <FormField label="Nama Sekolah" htmlFor="namaSekolah" error={errors.namaSekolah?.message}>
+                    <Input
+                        id="namaSekolah"
+                        type="text"
+                        placeholder="Contoh: SMK Negeri 1 Klaten"
+                        className={`bg-sky-50 border-0 rounded-xl h-12 text-sm placeholder:text-gray-400 focus-visible:ring-sky-400 ${errors.namaSekolah ? "ring-1 ring-red-400 focus-visible:ring-red-400" : ""
+                            }`}
+                        {...register("namaSekolah")}
+                    />
+                </FormField>
+
+                <FormField label="NPSN" htmlFor="npsn" error={errors.npsn?.message}>
+                    <Input
+                        id="npsn"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="8 digit NPSN sekolah"
+                        className={`bg-sky-50 border-0 rounded-xl h-12 text-sm placeholder:text-gray-400 focus-visible:ring-sky-400 ${errors.npsn ? "ring-1 ring-red-400 focus-visible:ring-red-400" : ""
+                            }`}
+                        {...register("npsn")}
+                    />
+                </FormField>
+
+                <FormField label="Nama Penanggung Jawab" htmlFor="namaPenanggungJawab" error={errors.namaPenanggungJawab?.message}>
+                    <Input
+                        id="namaPenanggungJawab"
+                        type="text"
+                        placeholder="Nama yang bertanggung jawab atas akun ini"
+                        className={`bg-sky-50 border-0 rounded-xl h-12 text-sm placeholder:text-gray-400 focus-visible:ring-sky-400 ${errors.namaPenanggungJawab ? "ring-1 ring-red-400 focus-visible:ring-red-400" : ""
+                            }`}
+                        {...register("namaPenanggungJawab")}
+                    />
+                </FormField>
+
+                <FormField label="No. HP Penanggung Jawab" htmlFor="noHpPenanggungJawab" error={errors.noHpPenanggungJawab?.message}>
+                    <Input
+                        id="noHpPenanggungJawab"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="Contoh: 081234567890"
+                        className={`bg-sky-50 border-0 rounded-xl h-12 text-sm placeholder:text-gray-400 focus-visible:ring-sky-400 ${errors.noHpPenanggungJawab ? "ring-1 ring-red-400 focus-visible:ring-red-400" : ""
+                            }`}
+                        {...register("noHpPenanggungJawab")}
+                    />
+                </FormField>
+
                 <Button
                     type="submit"
                     disabled={isSubmitting}
                     className="w-full h-12 rounded-xl bg-sky-400 hover:bg-sky-500 text-white font-bold text-sm shadow-sm transition-colors duration-200 mt-2 disabled:opacity-60"
                 >
-                    {isSubmitting ? "Membuat akun..." : "Buat Akun"}
+                    {isSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
                 </Button>
 
-            </form>
+                <p className="text-center text-xs text-gray-500">
+                    Daftar sebagai pengguna{" "}
+                    <Link href="/auth/register" className="font-semibold text-sky-500 hover:underline">
+                        Daftar User
+                    </Link>
+                </p>
 
-            <p className="text-center text-sm text-gray-500 mt-4">
-                Daftar sebagai SMK / Mitra{" "}
-                <Link href="/auth/register/smk" className="font-semibold text-sky-500 hover:underline">
-                    Daftar Admin
-                </Link>
-            </p>
+            </form>
         </>
     );
 }

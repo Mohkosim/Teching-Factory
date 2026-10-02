@@ -108,6 +108,19 @@ enum TipeBuktiRefund {
   Video
 }
 
+enum TipeJurnalManual {
+  ModalAwal
+  Penyesuaian
+  Umum
+}
+
+enum StatusPengajuanMitra {
+  MenungguVerifikasiEmail
+  Menunggu
+  Disetujui
+  Ditolak
+}
+
 // Model Database
 
 model User {
@@ -145,8 +158,36 @@ model User {
   penarikanSaldo PenarikanSaldo[]
   refundRequest RefundRequest[]
 
+  pengajuanMitra         PengajuanMitraSMK[] @relation("PemohonPengajuanMitra")
+  pengajuanMitraDiproses PengajuanMitraSMK[] @relation("DiprosesOlehPengajuanMitra")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model PengajuanMitraSMK {
+  pengajuan_id String @id @default(uuid())
+
+  user_id String
+  user    User   @relation("PemohonPengajuanMitra", fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  namaSekolah         String
+  npsn                String
+  namaPenanggungJawab String
+  noHpPenanggungJawab String
+
+  status       StatusPengajuanMitra @default(MenungguVerifikasiEmail)
+  catatanAdmin String?
+
+  diprosesOlehId String?
+  diprosesOleh   User?     @relation("DiprosesOlehPengajuanMitra", fields: [diprosesOlehId], references: [user_id], onDelete: SetNull)
+  diprosesAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([status])
 }
 
 model AuditLog {
@@ -172,6 +213,10 @@ model SMK {
 
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [user_id])
+
+  npsn                    String? @unique
+  nama_penanggung_jawab   String?
+  no_hp_penanggung_jawab  String?
 
   kepala_sekolah    String?
   deskripsi         String?
@@ -209,6 +254,7 @@ model Jurusan {
   kurirAktif KurirAktif[]
   transaksi Transaksi[]
   penarikan PenarikanSaldo[]
+  jurnal_manuals JurnalManual[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -643,4 +689,19 @@ model VarianKombinasiOpsi {
   opsi    VarianOpsi @relation(fields: [opsi_id], references: [opsi_id], onDelete: Cascade)
 
   @@unique([kombinasi_id, opsi_id])
+}
+
+model JurnalManual {
+  jurnal_id String @id @default(uuid())
+  jurusan_id String
+  jurusan    Jurusan @relation(fields: [jurusan_id], references: [jurusan_id])
+  user_id String
+  tanggal     DateTime
+  tipe        TipeJurnalManual
+  template_id String?
+  keterangan  String
+  baris       Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([jurusan_id, tanggal])
 }

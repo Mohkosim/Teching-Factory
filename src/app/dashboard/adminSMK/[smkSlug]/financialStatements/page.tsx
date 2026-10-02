@@ -1,19 +1,18 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import {
-    getSmkIdByUser,
-    getTransaksiSmk,
-    getRingkasanSmk,
-    getPengeluaranBreakdownSmk,
-    getPemasukanBreakdownSmk,
-} from "@/lib/data/laporan-keuangan-smk";
+import { prisma } from "@/lib/prisma";
+import { getSmkIdByUser, getTransaksiSmk } from "@/lib/data/laporan-keuangan-smk";
+import { getAkuntansiJurusan } from "@/lib/akuntansi/loader";
+import { tanggalWIB } from "@/lib/akuntansi/engine";
 import LaporanKeuanganClient from "./LaporanKeuanganClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Laporan Keuangan SMK",
 };
+
+export const dynamic = "force-dynamic";
 
 export default async function LaporanKeuanganPage() {
     const session = await getServerSession(authOptions);
@@ -26,19 +25,30 @@ export default async function LaporanKeuanganPage() {
         redirect("/auth/login");
     }
 
-    const [transaksi, ringkasan, pengeluaranBreakdown, pemasukanBreakdown] = await Promise.all([
+    const smk = await prisma.sMK.findUnique({
+        where: { smk_id },
+        select: {
+            user: { select: { name: true } },
+            jurusans: { select: { jurusan_id: true, nama_jurusan: true }, orderBy: { nama_jurusan: "asc" } },
+        },
+    });
+
+    const [transaksi, jurusanList] = await Promise.all([
         getTransaksiSmk(smk_id),
-        getRingkasanSmk(smk_id),
-        getPengeluaranBreakdownSmk(smk_id),
-        getPemasukanBreakdownSmk(smk_id),
+        Promise.all(
+            (smk?.jurusans ?? []).map(async (j) => {
+                const { jurnal, peringatan } = await getAkuntansiJurusan(j.jurusan_id);
+                return { id: j.jurusan_id, nama: j.nama_jurusan, jurnal, peringatan };
+            }),
+        ),
     ]);
 
     return (
         <LaporanKeuanganClient
             initialTransaksi={transaksi}
-            ringkasan={ringkasan}
-            pengeluaranBreakdown={pengeluaranBreakdown}
-            pemasukanBreakdown={pemasukanBreakdown}
+            namaSmk={smk?.user.name ?? "SMK"}
+            jurusanList={jurusanList}
+            hariIni={tanggalWIB(new Date())}
         />
     );
 }

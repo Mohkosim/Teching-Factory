@@ -1,8 +1,6 @@
 "use client";
 
 import { useRef, useState, useMemo, useTransition } from "react";
-import { TriangleAlert } from "lucide-react";
-import { Alert, AlertTitle } from "@/components/alert";
 import {
     Search, Eye, Pencil, Trash2, Plus, Wrench, ImagePlus, X,
     ChevronLeft, ChevronRight, FileText, FilePlus,
@@ -70,7 +68,6 @@ function namaFileDariUrl(url: string) {
     }
 }
 
-// Item baru (belum diupload) yang dipasangkan dengan deskripsi per-file
 interface NewPortofolioEntry {
     file: File;
     deskripsi: string;
@@ -99,13 +96,11 @@ export default function ServiceManagement({
     jurusanId,
     jurusanSmkId,
     jurusanSmkNama,
-    hasKurirAktif,
 }: {
     initialData: JasaItem[];
     jurusanId: string;
     jurusanSmkId: string;
     jurusanSmkNama: string;
-    hasKurirAktif: boolean;
 }) {
     const [services, setServices] = useState<JasaItem[]>(initialData);
     const [search, setSearch] = useState("");
@@ -128,7 +123,6 @@ export default function ServiceManagement({
     const [newPreviews, setNewPreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // --- State untuk portofolio PDF ---
     const [existingPortofolio, setExistingPortofolio] = useState<PortofolioItem[]>([]);
     const [newPortofolio, setNewPortofolio] = useState<NewPortofolioEntry[]>([]);
     const portofolioInputRef = useRef<HTMLInputElement>(null);
@@ -231,7 +225,6 @@ export default function ServiceManagement({
         setNewPreviews((prev) => prev.filter((_, i) => i !== idx));
     };
 
-    // --- Handler untuk portofolio PDF ---
     const handlePortofolioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
         if (files.length === 0) return;
@@ -717,12 +710,6 @@ export default function ServiceManagement({
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                        {formMode === "create" && !hasKurirAktif && (
-                            <Alert variant="warning">
-                                <TriangleAlert />
-                                <AlertTitle>Belum ada kurir pengiriman aktif</AlertTitle>
-                            </Alert>
-                        )}
                         <div className="space-y-1.5">
                             <Label className="text-sm text-gray-600">Nama Jasa</Label>
                             <Input

@@ -13,6 +13,10 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
         include: {
             user: true,
             pengiriman: true,
+            transaksi: {
+                where: { jenis_transaksi: "Pemasukan", status_settlement: "Selesai" },
+                select: { nominal: true },
+            },
             refundRequest: { include: { bukti: true } },
             orderDetail: {
                 include: {
@@ -32,6 +36,7 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
 
     return orders.map((order) => {
         const items = order.orderDetail.map((detail) => ({
+            order_detail_id: detail.order_detail_id,
             produk_id: detail.produk_id,
             nama_produk: detail.produk.nama_produk,
             foto: detail.produk.foto[0]?.url ?? null,
@@ -59,6 +64,7 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
             buyerAddress: order.pengiriman?.alamat ?? "-",
             totalHarga: order.total_harga,
             ongkir: order.pengiriman?.ongkir ?? 0,
+            totalDibayar: order.transaksi.reduce((sum, t) => sum + t.nominal, 0),
             statusPembayaran: order.status_pembayaran,
             statusPengiriman: order.status_order,
             kurir: order.pengiriman?.kurir ?? "-",

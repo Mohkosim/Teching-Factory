@@ -2,8 +2,12 @@ import { prisma } from "@/lib/prisma";
 import type { StatusOrder, StatusPembayaran } from "@/generated/prisma/enums";
 import type { ProdukItem, JasaItem, RefundInfo } from "@/types/interfaces/pesanan";
 
-function mapStatusKeStep(statusPembayaran: StatusPembayaran, statusOrder: StatusOrder): 0 | 1 | 2 | 3 {
-    if (statusPembayaran !== "Lunas") return 0;
+function mapStatusKeStep(
+    statusPembayaran: StatusPembayaran,
+    statusOrder: StatusOrder,
+    sudahAdaDp = false
+): 0 | 1 | 2 | 3 {
+    if (statusPembayaran !== "Lunas" && !sudahAdaDp) return 0;
     switch (statusOrder) {
         case "Menunggu": return 0;
         case "Diproses": return 1;
@@ -57,7 +61,11 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
 
     for (const order of orders) {
         const kodeInvoice = order.kode_invoice ?? "";
-        const timelineStep = mapStatusKeStep(order.status_pembayaran, order.status_order);
+        const isOrderJasa = order.orderDetail.some((d) => d.produk.jasa.length > 0);
+        const totalMasukOrder = order.transaksi
+            .filter((t) => t.jenis_transaksi === "Pemasukan")
+            .reduce((sum, t) => sum + t.nominal, 0);
+        const timelineStep = mapStatusKeStep(order.status_pembayaran, order.status_order, isOrderJasa && totalMasukOrder > 0);
 
         const refund: RefundInfo | null = order.refundRequest
             ? {

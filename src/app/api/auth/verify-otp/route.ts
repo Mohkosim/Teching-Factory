@@ -106,6 +106,12 @@ export async function POST(req: NextRequest) {
       },
     });
 
+
+    await prisma.pengajuanMitraSMK.updateMany({
+      where: { user_id: user.user_id, status: "MenungguVerifikasiEmail" },
+      data: { status: "Menunggu" },
+    });
+
     const loginTicket = await createOtpLoginTicket(user.user_id);
 
     const res = NextResponse.json(

@@ -19,6 +19,7 @@ export interface TransaksiItem {
     metodePembayaran: string;
     statusSettlement: StatusSettlementUI;
     varianLabel?: string;
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
 }
 
 function formatTanggal(date: Date): string {
@@ -29,8 +30,7 @@ function formatTanggal(date: Date): string {
     }).format(date);
 }
 
-function mapStatusSettlement(status: string, isRefunded: boolean): StatusSettlementUI {
-    if (isRefunded) return "Refund";
+function mapStatusSettlement(status: string): StatusSettlementUI {
     return status === "Selesai" ? "Settled" : "Pending";
 }
 
@@ -47,7 +47,6 @@ export async function getSmkIdByUser(userId: string) {
     return smk?.smk_id ?? null;
 }
 
-// Semua transaksi (Pemasukan & Pengeluaran) milik seluruh jurusan dalam 1 SMK
 export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> {
     const transaksiList = await prisma.transaksi.findMany({
         where: {
@@ -62,21 +61,23 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
             order: {
                 select: {
                     kode_invoice: true,
-                    refundRequest: { select: { status: true } },
+                    refundRequest: { select: { status: true, alasan: true, updatedAt: true } },
                     orderDetail: {
                         select: {
+                            order_detail_id: true,
                             jumlah: true,
                             harga_satuan: true,
-                            produk: {
-                                select: {
-                                    nama_produk: true,
-                                    jurusan: { select: { nama_jurusan: true } },
-                                    jasa: { select: { jasa_id: true } },
-                                },
-                            },
+                            subtotal: true,
                             kombinasi: {
                                 select: {
                                     opsi: { select: { opsi: { select: { nama: true } } } },
+                                },
+                            },
+                            produk: {
+                                select: {
+                                    nama_produk: true,
+                                    jurusan: { select: { nama_jurusan: true, smk_id: true } },
+                                    jasa: { select: { jasa_id: true } },
                                 },
                             },
                         },
@@ -87,47 +88,67 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
         orderBy: { tanggal_transaksi: "desc" },
     });
 
-    return transaksiList.map((t) => {
-        const items = t.order?.orderDetail ?? [];
-        const totalQty = items.reduce((s, i) => s + i.jumlah, 0);
-        const isJasa = items.some((i) => i.produk.jasa.length > 0);
+        const hasil: TransaksiItem[] = [];
 
-        const isRefunded = t.order?.refundRequest?.status === "Disetujui";
+    for (const t of transaksiList) {
+        const items = (t.order?.orderDetail ?? []).filter(
+            (i) => !i.produk.jurusan?.smk_id || i.produk.jurusan.smk_id === smk_id
+        );
 
-        const deskripsiOtomatis = items.length > 0
-            ? items.map((i) => i.produk.nama_produk).join(", ")
-            : null;
+        const refund = t.order?.refundRequest;
+        const refundDiproses = !!refund && refund.status !== "Ditolak" && refund.status !== "Disetujui";
 
-        const jurusanNama =
-            t.jurusan?.nama_jurusan ??
-            items[0]?.produk.jurusan?.nama_jurusan ??
-            "-";
+        const refundDisetujui = t.jenis_transaksi === "Pemasukan" && refund?.status === "Disetujui";
 
-        const varianLabel = items.length === 1 && items[0].kombinasi
-            ? items[0].kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
-            : undefined;
-
-        return {
-            id: t.transaksi_id,
+        const base = {
             noInvoice: t.order?.kode_invoice ?? t.kode_pembayaran ?? "-",
-            tanggal: formatTanggal(t.tanggal_transaksi),
+            tanggal: refundDisetujui && refund
+                ? formatTanggal(refund.updatedAt)
+                : formatTanggal(t.tanggal_transaksi),
             kodeTransaksi: t.transaksi_id.slice(0, 8).toUpperCase(),
             pembeliPemasok: t.nama ?? t.user.name,
-            jurusan: jurusanNama,
-            jenisTransaksi: t.jenis_transaksi as JenisTransaksiUI,
-            kategori: t.kategori ?? (isJasa ? "Jasa" : "Produk"),
-            deskripsi: deskripsiOtomatis ?? t.deskripsi ?? "-",
-            qty: items.length > 0 ? totalQty : "-",
-            hargaSatuan: items.length === 1 ? items[0].harga_satuan : 0,
-            total: t.nominal,
+            jenisTransaksi: (refundDisetujui ? "Pengeluaran" : t.jenis_transaksi) as JenisTransaksiUI,
             metodePembayaran: mapMetode(t.metode),
-            statusSettlement: mapStatusSettlement(t.status_settlement, isRefunded),
-            varianLabel,
+            statusSettlement: (refundDiproses || refundDisetujui
+                ? "Refund"
+                : mapStatusSettlement(t.status_settlement)) as StatusSettlementUI,
+            refund: refund ? { status: refund.status, alasan: refund.alasan } : undefined,
         };
-    });
+
+        if (items.length === 0) {
+            hasil.push({
+                ...base,
+                id: t.transaksi_id,
+                jurusan: t.jurusan?.nama_jurusan ?? "-",
+                kategori: t.kategori ?? "Produk",
+                deskripsi: t.deskripsi ?? "-",
+                qty: "-",
+                hargaSatuan: 0,
+                total: t.nominal,
+            });
+            continue;
+        }
+
+        for (const i of items) {
+            hasil.push({
+                ...base,
+                id: `${t.transaksi_id}-${i.order_detail_id}`,
+                jurusan: t.jurusan?.nama_jurusan ?? i.produk.jurusan?.nama_jurusan ?? "-",
+                kategori: t.kategori ?? (i.produk.jasa.length > 0 ? "Jasa" : "Produk"),
+                deskripsi: i.produk.nama_produk,
+                varianLabel: i.kombinasi
+                    ? i.kombinasi.opsi.map((ko) => ko.opsi.nama).join(", ")
+                    : undefined,
+                qty: i.jumlah,
+                hargaSatuan: i.harga_satuan,
+                total: i.subtotal,
+            });
+        }
+    }
+
+    return hasil;
 }
 
-// Ringkasan total pemasukan/pengeluaran seluruh SMK
 export async function getRingkasanSmk(smk_id: string) {
     const transaksi = await getTransaksiSmk(smk_id);
 
@@ -136,7 +157,7 @@ export async function getRingkasanSmk(smk_id: string) {
         .reduce((s, t) => s + t.total, 0);
 
     const totalRefund = transaksi
-        .filter((t) => t.jenisTransaksi === "Pemasukan" && t.statusSettlement === "Refund")
+        .filter((t) => t.jenisTransaksi === "Pengeluaran" && t.statusSettlement === "Refund")
         .reduce((s, t) => s + t.total, 0);
 
     const totalPengeluaran = transaksi
@@ -184,7 +205,6 @@ export async function getRingkasanSmk(smk_id: string) {
     };
 }
 
-// Breakdown pengeluaran: Bahan Baku vs Operasional vs Lainnya (Gaji Karyawan + kategori lain)
 export async function getPengeluaranBreakdownSmk(smk_id: string) {
     const pengeluaranList = await prisma.transaksi.findMany({
         where: {
@@ -230,7 +250,6 @@ export async function getPengeluaranBreakdownSmk(smk_id: string) {
     };
 }
 
-// Breakdown pemasukan: Produk vs Jasa
 export async function getPemasukanBreakdownSmk(smk_id: string) {
     const orderDetails = await prisma.order_Detail.findMany({
         where: {

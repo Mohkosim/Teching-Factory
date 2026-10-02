@@ -196,7 +196,11 @@ export default function SMKAccountDetailView({ data }: { data: SMKAccountDetail 
 
                     {smk ? (
                         <>
-                            <InfoItem label="Penanggung Jawab">{smk.kepala_sekolah || "-"}</InfoItem>
+                            <InfoItem label="Penanggung Jawab">{smk.nama_penanggung_jawab || "-"}</InfoItem>
+                            <InfoItem label="NPSN">
+                                <span className="font-mono">{smk.npsn || "-"}</span>
+                            </InfoItem>
+                            <InfoItem label="Kepala Sekolah">{smk.kepala_sekolah || "-"}</InfoItem>
                             <InfoItem label="Tahun Berdiri">{smk.tahun_berdiri ?? "-"}</InfoItem>
                             <InfoItem label="ID SMK">
                                 <span className="font-mono text-xs">{smk.smk_id}</span>

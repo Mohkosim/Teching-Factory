@@ -13,6 +13,7 @@ export type StatusOrderPengiriman =
     | "Dibatalkan";
 
 export interface OrderItemLine {
+    order_detail_id: string;
     produk_id: string;
     nama_produk: string;
     foto: string | null;
@@ -34,6 +35,7 @@ export interface OrderRow {
     buyerAddress: string;
     totalHarga: number;
     ongkir: number;
+    totalDibayar: number;
     statusPembayaran: StatusPembayaranOrder;
     statusPengiriman: StatusOrderPengiriman;
     kurir: string;

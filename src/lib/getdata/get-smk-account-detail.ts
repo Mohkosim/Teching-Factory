@@ -70,6 +70,9 @@ export async function getSMKAccountDetail(userId: string): Promise<SMKAccountDet
             ? {
                   smk_id: smk.smk_id,
                   kepala_sekolah: smk.kepala_sekolah ?? null,
+                  nama_penanggung_jawab: smk.nama_penanggung_jawab ?? null,
+                  no_hp_penanggung_jawab: smk.no_hp_penanggung_jawab ?? null,
+                  npsn: smk.npsn ?? null,
                   deskripsi: smk.deskripsi ?? null,
                   alamat: smk.alamat,
                   kecamatan: smk.kecamatan ?? null,

@@ -14,6 +14,21 @@ export interface SMKAccount {
   provinsi?: string | null;
 }
 
+export interface PengajuanMitraItem {
+  pengajuan_id: string;
+  namaSekolah: string;
+  npsn: string;
+  namaPenanggungJawab: string;
+  noHpPenanggungJawab: string;
+  status: "Menunggu" | "Disetujui" | "Ditolak";
+  catatanAdmin: string | null;
+  createdAt: string;
+  pendaftar: {
+    name: string;
+    email: string;
+  };
+}
+
 export interface JurusanAccount {
   jurusan_id: string;
   user_id: string;
@@ -43,6 +58,9 @@ export interface SMKAccountDetail {
   smk: {
     smk_id: string;
     kepala_sekolah: string | null;
+    nama_penanggung_jawab: string | null;
+    no_hp_penanggung_jawab: string | null;
+    npsn: string | null;
     deskripsi: string | null;
     alamat: string;
     kecamatan: string | null;

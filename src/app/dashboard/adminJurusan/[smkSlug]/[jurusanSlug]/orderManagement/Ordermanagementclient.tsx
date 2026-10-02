@@ -54,6 +54,7 @@ import {
 import { formatRupiah } from "@/lib/utils/format";
 import { formatDateRangeLabel } from "@/lib/utils/tanggal";
 import type { OrderRow, StatusPembayaranOrder, StatusOrderPengiriman, StatusRefund } from "@/types/interfaces/pesananAdmin";
+import { adminBolehMengelola, bolehDiselesaikan, dpSudahMasuk, sisaTagihan, PESAN_BELUM_ADA_DP } from "@/lib/utils/status-jasa";
 const kategoriOptions = ["Semua", "Produk", "Jasa"];
 
 const timelineStepsProduk: string[] = ["Belum Membayar", "Diproses", "Dikirim", "Diterima"];
@@ -82,6 +83,20 @@ function paymentBadgeClass(status: StatusPembayaranOrder) {
         default:
             return "bg-red-50 text-red-500";
     }
+}
+
+function paymentLabelOrder(order: OrderRow) {
+    if (order.kategori === "Jasa" && order.statusPembayaran !== "Lunas") {
+        if (dpSudahMasuk(order)) return "DP Dibayar";
+        if (order.totalDibayar === 0) return "Belum Bayar";
+    }
+    return paymentLabel(order.statusPembayaran);
+}
+
+function paymentBadgeClassOrder(order: OrderRow) {
+    if (order.kategori === "Jasa" && dpSudahMasuk(order)) return "bg-sky-50 text-sky-600";
+    if (order.kategori === "Jasa" && order.statusPembayaran !== "Lunas" && order.totalDibayar === 0) return "bg-red-50 text-red-500";
+    return paymentBadgeClass(order.statusPembayaran);
 }
 
 function shippingLabel(status: StatusOrderPengiriman, kategori: "Produk" | "Jasa") {
@@ -122,7 +137,7 @@ function shippingBadgeClass(status: StatusOrderPengiriman) {
     if (status === "Dikirim") return "bg-sky-50 text-sky-600";
     if (status === "Diproses") return "bg-amber-50 text-amber-600";
     if (status === "Dibatalkan") return "bg-gray-100 text-gray-500";
-    return "bg-red-50 text-red-500"; // Menunggu
+    return "bg-red-50 text-red-500";
 }
 
 function refundBadgeClass(status: StatusRefund) {
@@ -142,9 +157,8 @@ function refundLabel(status: StatusRefund) {
     }
 }
 
-// Menentukan index step aktif di timeline berdasarkan status asli dari database
 function getActiveStepIndex(order: OrderRow) {
-    if (order.statusPembayaran !== "Lunas") return 0;
+    if (!adminBolehMengelola(order)) return 0;
     if (order.statusPengiriman === "Menunggu" || order.statusPengiriman === "Diproses") return 1;
     if (order.statusPengiriman === "Dikirim") return 2;
     if (order.statusPengiriman === "Diterima" || order.statusPengiriman === "Selesai") return 3;
@@ -227,7 +241,6 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
         setDetailItem((prev) => (prev && prev.order_id === order_id ? { ...prev, ...updates } : prev));
     };
 
-    // AdminJurusan menandai pesanan yang sudah dibayar sebagai "Diproses"
     const handleProsesPesanan = () => {
         if (!detailItem) return;
         const order_id = detailItem.order_id;
@@ -250,7 +263,6 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
         });
     };
 
-    // Jasa tidak lewat form kurir/resi — cukup ditandai langsung per tahap
     const handleTandaiDikerjakan = () => {
         if (!detailItem) return;
         const order_id = detailItem.order_id;
@@ -594,11 +606,11 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
                                         <span
-                                            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${paymentBadgeClass(
-                                                item.statusPembayaran
+                                            className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-medium ${paymentBadgeClassOrder(
+                                                item
                                             )}`}
                                         >
-                                            {paymentLabel(item.statusPembayaran)}
+                                            {paymentLabelOrder(item)}
                                         </span>
                                     </TableCell>
                                     <TableCell className="py-4 px-6">
@@ -695,7 +707,7 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                     <div className="space-y-2">
                                         {detailItem.items.map((line) => (
                                             <div
-                                                key={line.produk_id}
+                                                key={line.order_detail_id}
                                                 className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100"
                                             >
                                                 <div className="h-14 w-14 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
@@ -721,6 +733,29 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Ringkasan pembayaran jasa (DP / pelunasan) */}
+                                    {detailItem.kategori === "Jasa" && (
+                                        <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-3 text-sm space-y-1">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500">Total Jasa</span>
+                                                <span className="text-gray-800 font-medium">{formatRupiah(detailItem.totalHarga)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500">Sudah Dibayar</span>
+                                                <span className="text-gray-800 font-medium">{formatRupiah(detailItem.totalDibayar)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-700 font-semibold">Sisa Pembayaran</span>
+                                                <span className="text-gray-900 font-bold">
+                                                    {sisaTagihan(detailItem) > 0 ? formatRupiah(sisaTagihan(detailItem)) : "Lunas"}
+                                                </span>
+                                            </div>
+                                            {detailItem.totalDibayar === 0 && (
+                                                <p className="text-xs text-red-500 pt-1">{PESAN_BELUM_ADA_DP}</p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Timeline Pesanan */}
                                     <div className="bg-sky-50/60 rounded-xl p-4">
@@ -918,7 +953,7 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                 ) : null}
 
                                 {/* ── Aksi AdminJurusan: ubah status pesanan ── */}
-                                {detailItem.statusPembayaran === "Lunas" &&
+                                {adminBolehMengelola(detailItem) &&
                                     detailItem.statusPengiriman !== "Selesai" &&
                                     detailItem.statusPengiriman !== "Dibatalkan" && (
                                         <div className="pt-3 border-t border-gray-100 space-y-3">
@@ -1024,13 +1059,20 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                             {/* Untuk Jasa: tombol selesaikan pengerjaan */}
                                             {detailItem.kategori === "Jasa" &&
                                                 detailItem.statusPengiriman === "Dikirim" && (
-                                                    <Button
-                                                        onClick={handleSelesaikanJasa}
-                                                        disabled={isPending}
-                                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-9 text-sm"
-                                                    >
-                                                        Tandai Selesai
-                                                    </Button>
+                                                    <>
+                                                        <Button
+                                                            onClick={handleSelesaikanJasa}
+                                                            disabled={isPending || !bolehDiselesaikan(detailItem)}
+                                                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-9 text-sm disabled:opacity-50"
+                                                        >
+                                                            Tandai Selesai
+                                                        </Button>
+                                                        {!bolehDiselesaikan(detailItem) && (
+                                                            <p className="text-xs text-amber-600">
+                                                                Menunggu pelunasan pembeli — sisa {formatRupiah(sisaTagihan(detailItem))}. Pesanan bisa diselesaikan setelah lunas.
+                                                            </p>
+                                                        )}
+                                                    </>
                                                 )}
                                         </div>
                                     )}

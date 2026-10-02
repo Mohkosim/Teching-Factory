@@ -6,7 +6,10 @@ export type AuditAction =
     | "reset-password"
     | "toggle-status"
     | "delete-account"
-    | "upgrade-role";
+    | "upgrade-role"
+    | "ajukan-mitra-smk"
+    | "approve-mitra-smk"
+    | "reject-mitra-smk";
 
 export async function recordAuditLog(params: {
     actorId: string;

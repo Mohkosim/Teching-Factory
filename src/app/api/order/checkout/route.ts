@@ -102,7 +102,6 @@ export async function POST(req: Request) {
                         data: { sold_count: { increment: p.jumlah } },
                     });
 
-                    // Sinkronkan status produk kalau stok tersisa jadi 0 setelah checkout ini
                     const barangSisa = await tx.barang.findFirst({ where: { produk_id: p.produkId } });
                     const produkSaatIni = await tx.produk.findUnique({
                         where: { produk_id: p.produkId },
@@ -158,9 +157,8 @@ export async function POST(req: Request) {
             }
 
             return { orderIds: ids, totalKeseluruhan: grandTotal };
-        });
+        }, { maxWait: 10_000, timeout: 30_000 });
 
-        // ==== Buat transaksi Snap ke Midtrans ====
         const midtransResponse = await snap.createTransaction({
             transaction_details: {
                 order_id: kodeInvoice,

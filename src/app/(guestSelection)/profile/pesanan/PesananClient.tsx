@@ -49,6 +49,7 @@ interface RatingQueueItem {
     produkId: string;
     nama: string;
     thumbnail?: string;
+    varianLabel?: string;
     initialRating?: number;
     initialUlasan?: string;
     initialFotoUlasan?: FotoUlasan[];
@@ -152,10 +153,10 @@ export default function PesananClient({
             const results = await Promise.all(
                 items.map((r) => simpanRating(r.produkId, r.itemStateId, r.rating, r.komentar, r.fotoBaru, r.keepFotoIds))
             );
-            const fotoUlasanPerProduk = new Map<string, FotoUlasan[]>();
+            const fotoUlasanPerItem = new Map<string, FotoUlasan[]>();
             items.forEach((r, idx) => {
-                fotoUlasanPerProduk.set(
-                    r.produkId,
+                fotoUlasanPerItem.set(
+                    r.itemStateId,
                     results[idx]?.foto?.map((f) => ({ id: f.foto_id, url: f.url })) ?? []
                 );
             });
@@ -165,7 +166,7 @@ export default function PesananClient({
                     prev.map((j) => {
                         const found = items.find((r) => r.itemStateId === j.id);
                         return found
-                            ? { ...j, rating: found.rating, ulasan: found.komentar, fotoUlasan: fotoUlasanPerProduk.get(found.produkId) ?? j.fotoUlasan }
+                            ? { ...j, rating: found.rating, ulasan: found.komentar, fotoUlasan: fotoUlasanPerItem.get(found.itemStateId) ?? j.fotoUlasan }
                             : j;
                     })
                 );
@@ -174,7 +175,7 @@ export default function PesananClient({
                     prev.map((p) => {
                         const found = items.find((r) => r.itemStateId === p.id);
                         return found
-                            ? { ...p, rating: found.rating, ulasan: found.komentar, fotoUlasan: fotoUlasanPerProduk.get(found.produkId) ?? p.fotoUlasan }
+                            ? { ...p, rating: found.rating, ulasan: found.komentar, fotoUlasan: fotoUlasanPerItem.get(found.itemStateId) ?? p.fotoUlasan }
                             : p;
                     })
                 );
@@ -197,6 +198,7 @@ export default function PesananClient({
                 produkId: item.produkId,
                 nama: item.nama,
                 thumbnail: item.thumbnail,
+                varianLabel: item.varianLabel,
                 initialRating: item.rating,
                 initialUlasan: item.ulasan,
                 initialFotoUlasan: item.fotoUlasan,
@@ -265,6 +267,7 @@ export default function PesananClient({
                         produkId: i.produkId,
                         nama: i.nama,
                         thumbnail: i.thumbnail,
+                        varianLabel: i.varianLabel,
                         initialRating: i.rating,
                         initialUlasan: i.ulasan,
                         initialFotoUlasan: i.fotoUlasan,
@@ -273,36 +276,6 @@ export default function PesananClient({
             } catch (err) {
                 Swal.close();
                 toast.error(err instanceof Error ? err.message : "Gagal mengonfirmasi pesanan selesai");
-            }
-        });
-    };
-
-    const handleKonfirmasiSelesaiJasa = (item: JasaItem) => {
-        setJasaData((prev) => prev.map((j) => (j.id === item.id ? { ...j, timelineStep: 3 } : j)));
-        setSelectedJasaDetail((prev) => (prev && prev.id === item.id ? { ...prev, timelineStep: 3 } : prev));
-        startConfirmTransition(async () => {
-            tampilkanLoading("Mengonfirmasi pesanan selesai...");
-            try {
-                await konfirmasiPesananDiterimaAction(item.orderId);
-                router.refresh();
-                Swal.close();
-                toast.success("Pesanan jasa ditandai selesai");
-                setSelectedJasaDetail(null);
-                setRatingQueue({
-                    kind: "jasa",
-                    items: [{
-                        itemStateId: item.id,
-                        produkId: item.produkId,
-                        nama: item.nama,
-                        thumbnail: item.thumbnail,
-                        initialRating: item.rating,
-                        initialUlasan: item.ulasan,
-                        initialFotoUlasan: item.fotoUlasan,
-                    }],
-                });
-            } catch {
-                Swal.close();
-                toast.error("Gagal mengonfirmasi pesanan selesai");
             }
         });
     };
@@ -541,8 +514,6 @@ export default function PesananClient({
                             onLihatDetail={(item) => setSelectedJasaDetail(item)}
                             onBeriNilai={handleBeriNilaiJasa}
                             onTambahPembayaran={(item) => setPembayaranTarget(item)}
-                            onKonfirmasiSelesai={handleKonfirmasiSelesaiJasa}
-                            isConfirmPending={isConfirmPending}
                         />
                     )}
                 </section>
@@ -564,8 +535,6 @@ export default function PesananClient({
                     item={selectedJasaDetail}
                     onClose={() => setSelectedJasaDetail(null)}
                     onTambahPembayaran={(item) => { setSelectedJasaDetail(null); setPembayaranTarget(item); }}
-                    onKonfirmasiSelesai={handleKonfirmasiSelesaiJasa}
-                    isConfirmPending={isConfirmPending}
                     onUnduhInvoice={handleUnduhInvoiceJasa}
                 />
             )}
@@ -774,14 +743,12 @@ function TokoSection({
 }
 
 function JasaList({
-    items, onLihatDetail, onBeriNilai, onTambahPembayaran, onKonfirmasiSelesai, isConfirmPending,
+    items, onLihatDetail, onBeriNilai, onTambahPembayaran,
 }: {
     items: JasaItem[];
     onLihatDetail: (item: JasaItem) => void;
     onBeriNilai: (item: JasaItem) => void;
     onTambahPembayaran: (item: JasaItem) => void;
-    onKonfirmasiSelesai: (item: JasaItem) => void;
-    isConfirmPending: boolean;
 }) {
     if (items.length === 0) return <EmptyState text="Belum ada pesanan jasa" />;
 
@@ -822,14 +789,9 @@ function JasaList({
                         </div>
                         <div className="flex flex-col items-end gap-2">
                             {sedangDikerjakan && (
-                                <Button
-                                    size="sm"
-                                    onClick={() => onKonfirmasiSelesai(item)}
-                                    disabled={isConfirmPending}
-                                    className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-4 gap-1.5"
-                                >
-                                    <PackageCheck className="w-3.5 h-3.5" /> Pesanan Selesai
-                                </Button>
+                                <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-600">
+                                    Sedang dikerjakan
+                                </span>
                             )}
                             {item.status === "berjalan" && (
                                 <Button size="sm" onClick={() => onTambahPembayaran(item)} className="rounded-full bg-yellow-400 hover:bg-yellow-500 text-white text-xs px-4 gap-1.5">
@@ -1075,13 +1037,11 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, onKonfirmasiSe
     );
 }
 
-function DetailJasaModal({ item, onClose, onTambahPembayaran, onKonfirmasiSelesai, onUnduhInvoice, isConfirmPending }: {
+function DetailJasaModal({ item, onClose, onTambahPembayaran, onUnduhInvoice }: {
     item: JasaItem;
     onClose: () => void;
     onTambahPembayaran: (item: JasaItem) => void;
-    onKonfirmasiSelesai: (item: JasaItem) => void;
     onUnduhInvoice: (item: JasaItem) => void;
-    isConfirmPending: boolean;
 }) {
     const timelineLabels: [string, string, string, string] = ["Belum Bayar", "Diproses", "Dikerjakan", "Selesai"];
     const sudahDibayar = item.dp ?? item.total;
@@ -1160,13 +1120,11 @@ function DetailJasaModal({ item, onClose, onTambahPembayaran, onKonfirmasiSelesa
             )}
 
             {sedangDikerjakan && (
-                <Button
-                    onClick={() => onKonfirmasiSelesai(item)}
-                    disabled={isConfirmPending}
-                    className="w-full mb-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
-                >
-                    <PackageCheck className="w-4 h-4" /> Pesanan Selesai
-                </Button>
+                <p className="mb-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-700">
+                    {item.status === "berjalan"
+                        ? "Pesanan sedang dikerjakan. Lunasi sisa pembayaran agar admin dapat menyelesaikan pesanan."
+                        : "Pesanan sedang dikerjakan. Admin akan menandai pesanan selesai setelah pengerjaan rampung."}
+                </p>
             )}
 
             {item.status === "berjalan" && (
@@ -1235,7 +1193,7 @@ function RatingModal({ items, onClose, onSave }: {
     onSave: (items: RatingSubmitItem[]) => void;
 }) {
     const [ratings, setRatings] = useState<Record<string, number>>(() =>
-        Object.fromEntries(items.map((i) => [i.produkId, i.initialRating ?? 0]))
+        Object.fromEntries(items.map((i) => [i.itemStateId, i.initialRating ?? 0]))
     );
     const [hoverMap, setHoverMap] = useState<Record<string, number>>({});
     const [isPending, setIsPending] = useState(false);
@@ -1246,7 +1204,7 @@ function RatingModal({ items, onClose, onSave }: {
         fotoBaru: File[];
         previewBaru: string[];
     }>>(() =>
-        Object.fromEntries(items.map((i) => [i.produkId, {
+        Object.fromEntries(items.map((i) => [i.itemStateId, {
             deskripsi: i.initialUlasan ?? "",
             fotoLamaKept: i.initialFotoUlasan ?? [],
             fotoBaru: [],
@@ -1256,16 +1214,16 @@ function RatingModal({ items, onClose, onSave }: {
 
     const fotoInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-    const setReview = (produkId: string, patch: Partial<{
+    const setReview = (itemStateId: string, patch: Partial<{
         deskripsi: string; fotoLamaKept: FotoUlasan[]; fotoBaru: File[]; previewBaru: string[];
     }>) => {
-        setReviews((prev) => ({ ...prev, [produkId]: { ...prev[produkId], ...patch } }));
+        setReviews((prev) => ({ ...prev, [itemStateId]: { ...prev[itemStateId], ...patch } }));
     };
 
-    const handlePilihFoto = (produkId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePilihFoto = (itemStateId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
         if (files.length === 0) return;
-        const r = reviews[produkId];
+        const r = reviews[itemStateId];
         const totalFoto = r.fotoLamaKept.length + r.fotoBaru.length;
         const sisaSlot = MAX_FOTO_ULASAN - totalFoto;
         if (sisaSlot <= 0) {
@@ -1278,28 +1236,28 @@ function RatingModal({ items, onClose, onSave }: {
             if (f.size > MAX_FOTO_SIZE) { toast.error(`${f.name} melebihi 5MB`); return false; }
             return true;
         });
-        setReview(produkId, {
+        setReview(itemStateId, {
             fotoBaru: [...r.fotoBaru, ...valid],
             previewBaru: [...r.previewBaru, ...valid.map((f) => URL.createObjectURL(f))],
         });
         e.target.value = "";
     };
 
-    const handleHapusFotoLama = (produkId: string, id: string) => {
-        const r = reviews[produkId];
-        setReview(produkId, { fotoLamaKept: r.fotoLamaKept.filter((f) => f.id !== id) });
+    const handleHapusFotoLama = (itemStateId: string, id: string) => {
+        const r = reviews[itemStateId];
+        setReview(itemStateId, { fotoLamaKept: r.fotoLamaKept.filter((f) => f.id !== id) });
     };
 
-    const handleHapusFotoBaru = (produkId: string, index: number) => {
-        const r = reviews[produkId];
+    const handleHapusFotoBaru = (itemStateId: string, index: number) => {
+        const r = reviews[itemStateId];
         URL.revokeObjectURL(r.previewBaru[index]);
-        setReview(produkId, {
+        setReview(itemStateId, {
             fotoBaru: r.fotoBaru.filter((_, i) => i !== index),
             previewBaru: r.previewBaru.filter((_, i) => i !== index),
         });
     };
 
-    const semuaSudahDinilai = items.every((i) => (ratings[i.produkId] ?? 0) > 0);
+    const semuaSudahDinilai = items.every((i) => (ratings[i.itemStateId] ?? 0) > 0);
 
     const handleSimpan = async () => {
         if (!semuaSudahDinilai) return;
@@ -1307,11 +1265,11 @@ function RatingModal({ items, onClose, onSave }: {
         try {
             onSave(
                 items.map((i) => {
-                    const r = reviews[i.produkId];
+                    const r = reviews[i.itemStateId];
                     return {
                         produkId: i.produkId,
                         itemStateId: i.itemStateId,
-                        rating: ratings[i.produkId] ?? 0,
+                        rating: ratings[i.itemStateId] ?? 0,
                         komentar: r.deskripsi,
                         fotoBaru: r.fotoBaru,
                         keepFotoIds: r.fotoLamaKept.map((f) => f.id),
@@ -1331,10 +1289,10 @@ function RatingModal({ items, onClose, onSave }: {
 
             <div className="space-y-6 mb-5">
                 {items.map((item) => {
-                    const r = reviews[item.produkId];
+                    const r = reviews[item.itemStateId];
                     const totalFoto = r.fotoLamaKept.length + r.fotoBaru.length;
                     return (
-                        <div key={item.produkId} className={items.length > 1 ? "border border-gray-100 rounded-xl p-3" : ""}>
+                        <div key={item.itemStateId} className={items.length > 1 ? "border border-gray-100 rounded-xl p-3" : ""}>
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-11 h-11 rounded-lg bg-gray-200 overflow-hidden shrink-0">
                                     {item.thumbnail && (
@@ -1344,18 +1302,19 @@ function RatingModal({ items, onClose, onSave }: {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-800 truncate mb-1">{item.nama}</p>
+                                    {item.varianLabel && <p className="text-xs text-gray-500 mb-1">Varian: {item.varianLabel}</p>}
                                     <div className="flex items-center gap-1">
                                         {Array.from({ length: 5 }).map((_, i) => {
                                             const starValue = i + 1;
-                                            const current = hoverMap[item.produkId] || ratings[item.produkId] || 0;
+                                            const current = hoverMap[item.itemStateId] || ratings[item.itemStateId] || 0;
                                             const active = starValue <= current;
                                             return (
                                                 <button
                                                     key={i}
                                                     type="button"
-                                                    onClick={() => setRatings((prev) => ({ ...prev, [item.produkId]: starValue }))}
-                                                    onMouseEnter={() => setHoverMap((prev) => ({ ...prev, [item.produkId]: starValue }))}
-                                                    onMouseLeave={() => setHoverMap((prev) => ({ ...prev, [item.produkId]: 0 }))}
+                                                    onClick={() => setRatings((prev) => ({ ...prev, [item.itemStateId]: starValue }))}
+                                                    onMouseEnter={() => setHoverMap((prev) => ({ ...prev, [item.itemStateId]: starValue }))}
+                                                    onMouseLeave={() => setHoverMap((prev) => ({ ...prev, [item.itemStateId]: 0 }))}
                                                     className="p-0.5"
                                                 >
                                                     <Star className={`w-5 h-5 transition-colors ${active ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
@@ -1369,7 +1328,7 @@ function RatingModal({ items, onClose, onSave }: {
                             <label className="text-xs font-medium text-gray-600 block mb-1.5">Deskripsi</label>
                             <Textarea
                                 value={r.deskripsi}
-                                onChange={(e) => setReview(item.produkId, { deskripsi: e.target.value })}
+                                onChange={(e) => setReview(item.itemStateId, { deskripsi: e.target.value })}
                                 placeholder="Ceritakan pengalamanmu (opsional)"
                                 className="min-h-20 resize-none rounded-xl mb-3"
                             />
@@ -1384,7 +1343,7 @@ function RatingModal({ items, onClose, onSave }: {
                                         <img src={foto.url} alt="Foto ulasan" className="w-full h-full object-cover" />
                                         <button
                                             type="button"
-                                            onClick={() => handleHapusFotoLama(item.produkId, foto.id)}
+                                            onClick={() => handleHapusFotoLama(item.itemStateId, foto.id)}
                                             className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
                                         >✕</button>
                                     </div>
@@ -1395,7 +1354,7 @@ function RatingModal({ items, onClose, onSave }: {
                                         <img src={src} alt="Foto baru" className="w-full h-full object-cover" />
                                         <button
                                             type="button"
-                                            onClick={() => handleHapusFotoBaru(item.produkId, i)}
+                                            onClick={() => handleHapusFotoBaru(item.itemStateId, i)}
                                             className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
                                         >✕</button>
                                     </div>
@@ -1403,7 +1362,7 @@ function RatingModal({ items, onClose, onSave }: {
                                 {totalFoto < MAX_FOTO_ULASAN && (
                                     <button
                                         type="button"
-                                        onClick={() => fotoInputRefs.current[item.produkId]?.click()}
+                                        onClick={() => fotoInputRefs.current[item.itemStateId]?.click()}
                                         className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-blue-300 hover:text-blue-400"
                                     >
                                         <Camera className="w-5 h-5" />
@@ -1411,12 +1370,12 @@ function RatingModal({ items, onClose, onSave }: {
                                 )}
                             </div>
                             <input
-                                ref={(el) => { fotoInputRefs.current[item.produkId] = el; }}
+                                ref={(el) => { fotoInputRefs.current[item.itemStateId] = el; }}
                                 type="file"
                                 accept="image/*"
                                 multiple
                                 className="hidden"
-                                onChange={(e) => handlePilihFoto(item.produkId, e)}
+                                onChange={(e) => handlePilihFoto(item.itemStateId, e)}
                             />
                         </div>
                     );
