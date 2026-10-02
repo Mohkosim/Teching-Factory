@@ -57,6 +57,13 @@ export default function AccountManagement({
     const [isPending, startTransition] = useTransition();
 
     const [accounts, setAccounts] = useState<SMKAccount[]>(initialData);
+    // Sinkronkan state dengan data terbaru dari server setelah router.refresh()
+    // (tanpa useEffect, supaya tidak kena aturan react-hooks/set-state-in-effect).
+    const [prevInitialData, setPrevInitialData] = useState(initialData);
+    if (initialData !== prevInitialData) {
+        setPrevInitialData(initialData);
+        setAccounts(initialData);
+    }
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
@@ -340,7 +347,24 @@ export default function AccountManagement({
                 </Breadcrumb>
             </div>
 
-            <PengajuanMitraSection initialData={initialPengajuanMitra} />
+            <PengajuanMitraSection
+                initialData={initialPengajuanMitra}
+                onApproved={(item) =>
+                    // Langsung tampilkan sebagai Admin SMK tanpa menunggu refresh dari server
+                    setAccounts((prev) =>
+                        prev.map((acc) =>
+                            acc.email === item.pendaftar.email
+                                ? {
+                                    ...acc,
+                                    role: "AdminSMK",
+                                    name: item.namaSekolah,
+                                    phone: item.noHpPenanggungJawab,
+                                }
+                                : acc
+                        )
+                    )
+                }
+            />
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between gap-4 p-5 border-b border-gray-100">

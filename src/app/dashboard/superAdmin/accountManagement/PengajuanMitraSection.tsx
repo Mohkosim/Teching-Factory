@@ -27,12 +27,20 @@ function formatTanggal(iso: string) {
 
 export default function PengajuanMitraSection({
     initialData,
+    onApproved,
 }: {
     initialData: PengajuanMitraItem[];
+    onApproved?: (item: PengajuanMitraItem) => void;
 }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [items, setItems] = useState<PengajuanMitraItem[]>(initialData);
+    // Ikuti data terbaru dari server setelah router.refresh() (tanpa useEffect)
+    const [prevInitialData, setPrevInitialData] = useState(initialData);
+    if (initialData !== prevInitialData) {
+        setPrevInitialData(initialData);
+        setItems(initialData);
+    }
     const [collapsed, setCollapsed] = useState(false);
 
     const proses = async (item: PengajuanMitraItem, action: "approve" | "reject") => {
@@ -80,6 +88,7 @@ export default function PengajuanMitraSection({
                 }
 
                 setItems((prev) => prev.filter((p) => p.pengajuan_id !== item.pengajuan_id));
+                if (action === "approve") onApproved?.(item);
                 toast.success(
                     action === "approve"
                         ? `"${item.namaSekolah}" sekarang jadi Admin SMK`
