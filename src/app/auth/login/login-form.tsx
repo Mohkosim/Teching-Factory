@@ -67,15 +67,20 @@ export default function Login() {
       return;
     }
 
-    // Ambil session untuk baca role
     const sessionRes = await fetch("/api/auth/session");
     const session = await sessionRes.json();
     const role: string = session?.user?.role ?? "User";
 
+    const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+    const tujuanAwal =
+      callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+        ? callbackUrl
+        : null;
+
     toast.success("Berhasil masuk!", {
       duration: 1200,
       onAutoClose: () => {
-        router.push(ROLE_REDIRECT[role] ?? "/dashboard");
+        router.push(tujuanAwal ?? ROLE_REDIRECT[role] ?? "/dashboard");
       },
     });
   };

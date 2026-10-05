@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordAuditLog } from "@/lib/utils/audit-log";
 import { prosesPengajuanMitraSchema } from "@/lib/validations/pengajuan-mitra";
+import { sendPengajuanMitraDitolakEmail } from "@/lib/mail";
 
 export async function PATCH(
     req: NextRequest,
@@ -54,7 +55,31 @@ export async function PATCH(
             detail: { pengajuan_id: id, catatanAdmin },
         });
 
-        return NextResponse.json({ message: "Pengajuan ditolak", data: updated });
+        let emailTerkirim = true;
+        try {
+            const pemohon = await prisma.user.findUnique({
+                where: { user_id: pengajuan.user_id },
+                select: { email: true },
+            });
+            if (pemohon?.email) {
+                await sendPengajuanMitraDitolakEmail(
+                    pemohon.email,
+                    pengajuan.namaSekolah,
+                    catatanAdmin,
+                    `${process.env.NEXTAUTH_URL}/profile/pengajuan-mitra`
+                );
+            }
+        } catch (error) {
+            emailTerkirim = false;
+            console.error("Gagal mengirim e-mail penolakan pengajuan mitra:", error);
+        }
+
+        return NextResponse.json({
+            message: emailTerkirim
+                ? "Pengajuan ditolak, alasan sudah dikirim ke e-mail pemohon"
+                : "Pengajuan ditolak, tetapi e-mail ke pemohon gagal terkirim",
+            data: updated,
+        });
     }
 
     const npsnDipakai = await prisma.sMK.findFirst({

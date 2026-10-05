@@ -17,15 +17,32 @@ function setMarker() {
   }
 }
 
+const PATH_TANPA_FORCE_LOGOUT = ["/profile/pengajuan-mitra"];
+
+function isPathTanpaForceLogout() {
+  if (typeof window === "undefined") return false;
+  const { pathname } = window.location;
+  return PATH_TANPA_FORCE_LOGOUT.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
+
 export default function SessionGuard({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
-  const isNewBrowserSession = status === "authenticated" && !hasMarker();
+  const isNewBrowserSession =
+    status === "authenticated" && !hasMarker() && !isPathTanpaForceLogout();
 
   useEffect(() => {
     if (status === "loading") return;
 
     if (isNewBrowserSession) {
-      signOut({ redirect: true, callbackUrl: "/auth/login" });
+      const { pathname, search } = window.location;
+      const tujuan = pathname.startsWith("/auth") ? "" : pathname + search;
+      const loginUrl = tujuan
+        ? `/auth/login?callbackUrl=${encodeURIComponent(tujuan)}`
+        : "/auth/login";
+      setMarker();
+      signOut({ redirect: true, callbackUrl: loginUrl });
       return;
     }
 

@@ -36,5 +36,3 @@ export const prosesPengajuanMitraSchema = z.object({
 });
 
 export type ProsesPengajuanMitraSchema = z.infer<typeof prosesPengajuanMitraSchema>;
-
-export const COOLDOWN_HARI_SETELAH_DITOLAK = 7;

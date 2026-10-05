@@ -4,10 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordAuditLog } from "@/lib/utils/audit-log";
 import { bersihkanPendaftaranSmkKedaluwarsa } from "@/lib/utils/pengajuan-mitra-cleanup";
-import {
-    pengajuanMitraSchema,
-    COOLDOWN_HARI_SETELAH_DITOLAK,
-} from "@/lib/validations/pengajuan-mitra";
+import { pengajuanMitraSchema } from "@/lib/validations/pengajuan-mitra";
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -40,27 +37,6 @@ export async function POST(req: NextRequest) {
             { message: "Kamu masih punya pengajuan yang sedang diproses. Tunggu sampai diproses SuperAdmin." },
             { status: 400 }
         );
-    }
-
-    const pengajuanTerakhirDitolak = await prisma.pengajuanMitraSMK.findFirst({
-        where: { user_id: userId, status: "Ditolak" },
-        orderBy: { diprosesAt: "desc" },
-    });
-    if (pengajuanTerakhirDitolak?.diprosesAt) {
-        const bolehAjukanLagiPada = new Date(pengajuanTerakhirDitolak.diprosesAt);
-        bolehAjukanLagiPada.setDate(bolehAjukanLagiPada.getDate() + COOLDOWN_HARI_SETELAH_DITOLAK);
-
-        if (bolehAjukanLagiPada > new Date()) {
-            const sisaHari = Math.ceil(
-                (bolehAjukanLagiPada.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-            );
-            return NextResponse.json(
-                {
-                    message: `Pengajuan sebelumnya ditolak. Kamu bisa mengajukan lagi dalam ${sisaHari} hari.`,
-                },
-                { status: 400 }
-            );
-        }
     }
 
     const npsnDipakai = await prisma.sMK.findUnique({ where: { npsn: data.npsn } });

@@ -169,3 +169,51 @@ export async function sendOtpEmail(to: string, otp: string) {
     `,
   });
 }
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export async function sendPengajuanMitraDitolakEmail(
+  to: string,
+  namaSekolah: string,
+  catatanAdmin: string | null | undefined,
+  perbaikiUrl: string
+) {
+  const alasan = catatanAdmin?.trim() || "Tidak ada catatan dari admin.";
+
+  await sendMail({
+    to,
+    subject: "Pengajuan Mitra Ditolak - Teaching Factory",
+    text: [
+      "Pengajuan Mitra Ditolak",
+      "",
+      `Pengajuan mitra untuk "${namaSekolah}" belum dapat disetujui.`,
+      "",
+      "Alasan penolakan:",
+      alasan,
+      "",
+      "Anda dapat memperbaiki data pengajuan dan mengajukan ulang kapan saja lewat link berikut (login dengan akun yang sama):",
+      perbaikiUrl,
+    ].join("\n"),
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #0ea5e9;">Pengajuan Mitra Ditolak</h2>
+        <p>Pengajuan mitra untuk <b>${escapeHtml(namaSekolah)}</b> belum dapat disetujui.</p>
+        <div style="background:#fef2f2; border-radius:12px; padding:12px 16px; margin:16px 0;">
+          <p style="margin:0 0 4px; font-weight:bold; color:#b91c1c;">Alasan penolakan</p>
+          <p style="margin:0; white-space:pre-line;">${escapeHtml(alasan)}</p>
+        </div>
+        <p>Silakan perbaiki data pengajuan, lalu ajukan ulang. Tidak perlu mendaftar atau verifikasi OTP lagi, cukup login dengan akun yang sama.</p>
+        <a href="${perbaikiUrl}" style="display:inline-block; background:#38bdf8; color:#fff; padding:12px 24px; border-radius:12px; text-decoration:none; font-weight:bold; margin:16px 0;">
+          Perbaiki &amp; Ajukan Ulang
+        </a>
+        <p style="color:#888; font-size:12px;">Atau salin link berikut ke browser Anda:<br/>${perbaikiUrl}</p>
+      </div>
+    `,
+  });
+}

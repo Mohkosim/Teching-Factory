@@ -52,7 +52,10 @@ export async function proxy(req: NextRequest) {
     if (isGuestPath(pathname)) {
       return NextResponse.next();
     }
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+    // Simpan tujuan awal supaya setelah login kembali ke halaman ini
+    const loginUrl = new URL("/auth/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", pathname + req.nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (token && isAuthPage) {
