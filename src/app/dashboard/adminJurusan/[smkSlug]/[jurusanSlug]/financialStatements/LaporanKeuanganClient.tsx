@@ -1063,7 +1063,7 @@ function TabJurnalUmum({ jurnal, mulai, sampai, hariIni }: { jurnal: Jurnal[]; m
                                             <Sel kanan mono>{rp(d)}</Sel>
                                             <Sel kanan mono>{rp(k)}</Sel>
                                             <Sel>
-                                                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${j.otomatis ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{j.otomatis ? "Otomatis" : "Manual"}</span>
+                                                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${j.otomatis ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{j.otomatis ? (j.jenis === "Pengeluaran" ? "Input Pengeluaran" : "Otomatis") : "Manual"}</span>
                                             </Sel>
                                         </tr>
                                         {buka && (
@@ -1288,7 +1288,7 @@ function TabPenyesuaian({ jurnal, hariIni }: { jurnal: Jurnal[]; hariIni: string
                                         </Sel>
                                         <Sel kanan mono>{rp(j.baris.reduce((s, b) => s + b.debit, 0))}</Sel>
                                         <Sel>
-                                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${j.otomatis ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{j.otomatis ? "Otomatis" : "Manual"}</span>
+                                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${j.otomatis ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-blue-700"}`}>{j.otomatis ? (j.jenis === "Pengeluaran" ? "Input Pengeluaran" : "Otomatis") : "Manual"}</span>
                                         </Sel>
                                     </tr>
                                 ))}
