@@ -9,6 +9,24 @@ import {
     bolehDiselesaikan,
     type DasarPembayaranOrder,
 } from "@/lib/utils/status-jasa";
+import { requireRoleAction, getJurusanSession, pastikanOrderMilikJurusan, AuthzError } from "@/lib/authz";
+
+async function otorisasiOrder(order_id: string) {
+    const session = await requireRoleAction(["AdminJurusan"]);
+    const jurusan = await getJurusanSession(session.user.id);
+    await pastikanOrderMilikJurusan(order_id, jurusan.jurusan_id);
+    return { session, jurusan };
+}
+
+async function otorisasiRefund(refund_id: string) {
+    const refund = await prisma.refundRequest.findUnique({
+        where: { refund_id },
+        select: { refund_id: true, order_id: true, status: true, alasan: true },
+    });
+    if (!refund) throw new AuthzError("Refund tidak ditemukan", 404);
+    const ctx = await otorisasiOrder(refund.order_id);
+    return { refund, ...ctx };
+}
 
 async function ambilDasarPembayaran(order_id: string): Promise<DasarPembayaranOrder> {
     const order = await prisma.order.findUnique({
@@ -36,15 +54,23 @@ async function pastikanBolehDikelola(order_id: string) {
 }
 
 function pesananPath(smkSlug: string, jurusanSlug: string) {
-    return `/dashboard/adminJurusan/${smkSlug}/${jurusanSlug}/orderManagement`;
+
+    const aman = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, "");
+    return `/dashboard/adminJurusan/${aman(smkSlug)}/${aman(jurusanSlug)}/orderManagement`;
 }
 
+async function pastikanStatusOrder(order_id: string, boleh: string[], pesan: string) {
+    const o = await prisma.order.findUnique({ where: { order_id }, select: { status_order: true } });
+    if (!o || !boleh.includes(o.status_order)) throw new Error(pesan);
+}
 
 export async function prosesPesananAction(
     order_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    await otorisasiOrder(order_id);
     await pastikanBolehDikelola(order_id);
+    await pastikanStatusOrder(order_id, ["Menunggu", "Diproses"], "Status pesanan tidak dapat diproses");
     await prisma.order.update({
         where: { order_id },
         data: { status_order: "Diproses" },
@@ -58,14 +84,23 @@ export async function kirimPesananAction(
     data: { nomor_resi: string; estimasi_tiba?: string },
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    await otorisasiOrder(order_id);
+    await pastikanBolehDikelola(order_id);
+    await pastikanStatusOrder(order_id, ["Diproses", "Dikirim"], "Pesanan harus diproses dulu sebelum dikirim");
+
+    const resi = String(data.nomor_resi ?? "").trim();
+    if (!resi || resi.length > 64) {
+        throw new Error("Nomor resi tidak valid");
+    }
+
     const resiDipakai = await prisma.pengiriman.findFirst({
         where: {
-            nomor_resi: data.nomor_resi,
+            nomor_resi: resi,
             order_id: { not: order_id },
         },
     });
     if (resiDipakai) {
-        throw new Error(`RESI_DUPLIKAT:Nomor resi "${data.nomor_resi}" sudah dipakai di pesanan lain, silakan periksa kembali`);
+        throw new Error(`RESI_DUPLIKAT:Nomor resi "${resi}" sudah dipakai di pesanan lain, silakan periksa kembali`);
     }
 
     try {
@@ -74,7 +109,7 @@ export async function kirimPesananAction(
                 prisma.pengiriman.update({
                     where: { order_id },
                     data: {
-                        nomor_resi: data.nomor_resi,
+                        nomor_resi: resi,
                         estimasi_tiba: data.estimasi_tiba,
                     },
                 }),
@@ -91,7 +126,7 @@ export async function kirimPesananAction(
             "code" in err &&
             (err as { code?: string }).code === "P2002"
         ) {
-            throw new Error(`RESI_DUPLIKAT:Nomor resi "${data.nomor_resi}" sudah dipakai di pesanan lain, silakan periksa kembali`);
+            throw new Error(`RESI_DUPLIKAT:Nomor resi "${resi}" sudah dipakai di pesanan lain, silakan periksa kembali`);
         }
         throw err;
     }
@@ -103,7 +138,9 @@ export async function tandaiDikerjakanAction(
     order_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    await otorisasiOrder(order_id);
     await pastikanBolehDikelola(order_id);
+    await pastikanStatusOrder(order_id, ["Menunggu", "Diproses", "Dikirim"], "Status pesanan tidak dapat diubah");
     await prisma.order.update({
         where: { order_id },
         data: { status_order: "Dikirim" },
@@ -116,29 +153,43 @@ export async function selesaikanJasaAction(
     order_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    await otorisasiOrder(order_id);
     if (!bolehDiselesaikan(await ambilDasarPembayaran(order_id))) {
         throw new Error(PESAN_MENUNGGU_PELUNASAN);
     }
-    await prisma.order.update({
-        where: { order_id },
+    await pastikanStatusOrder(order_id, ["Menunggu", "Diproses", "Dikirim", "Diterima"], "Status pesanan tidak dapat diselesaikan");
+    const klaim = await prisma.order.updateMany({
+        where: { order_id, status_order: { not: "Selesai" } },
         data: { status_order: "Selesai" },
     });
+    if (klaim.count === 1) {
+        const detail = await prisma.order_Detail.findMany({ where: { order_id }, select: { produk_id: true } });
+        await prisma.jasa.updateMany({
+            where: { produk_id: { in: detail.map((d) => d.produk_id) } },
+            data: { total_project: { increment: 1 } },
+        });
+    }
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
 }
+
 
 export async function setujuiRefundAction(
     refund_id: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
-    const refund = await prisma.refundRequest.update({
-        where: { refund_id },
-        data: { status: "Disetujui" },
-        select: { order_id: true },
-    });
+    const { refund } = await otorisasiRefund(refund_id);
 
-    await prisma.order.update({
-        where: { order_id: refund.order_id },
-        data: { status_order: "Dibatalkan" },
+    if (refund.status === "Disetujui" || refund.status === "Ditolak") {
+        throw new Error("Refund ini sudah diputuskan sebelumnya");
+    }
+
+    await prisma.$transaction(async (tx) => {
+        const klaim = await tx.refundRequest.updateMany({
+            where: { refund_id, status: { in: ["Diajukan", "Diproses"] } },
+            data: { status: "Disetujui" },
+        });
+        if (klaim.count === 0) throw new Error("Refund ini sudah diputuskan sebelumnya");
+        await tx.order.update({ where: { order_id: refund.order_id }, data: { status_order: "Dibatalkan" } });
     });
 
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
@@ -149,9 +200,16 @@ export async function tolakRefundAction(
     catatanAdmin: string,
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
+    const { refund } = await otorisasiRefund(refund_id);
+    if (refund.status === "Disetujui" || refund.status === "Ditolak") {
+        throw new Error("Refund ini sudah diputuskan sebelumnya");
+    }
+    const catatan = String(catatanAdmin ?? "").trim().slice(0, 1000);
+    if (!catatan) throw new Error("Catatan penolakan wajib diisi");
+
     await prisma.refundRequest.update({
         where: { refund_id },
-        data: { status: "Ditolak", catatanAdmin },
+        data: { status: "Ditolak", catatanAdmin: catatan },
     });
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
 }

@@ -40,6 +40,7 @@ const emptyForm: ProdukForm = {
     status: "Tersedia",
     stok: 0,
     kondisi: "Baru",
+    berat_gram: 1000,
     fotos: [],
 };
 
@@ -174,6 +175,7 @@ export default function ProductManagement({
             status: item.status,
             stok: item.stok,
             kondisi: item.kondisi ?? "Baru",
+            berat_gram: item.berat_gram ?? 1000,
             fotos: item.fotos,
         });
         setExistingFotos(item.fotos);
@@ -1185,6 +1187,19 @@ export default function ProductManagement({
                                     className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${varianAktif ? "translate-x-5" : "translate-x-0"}`}
                                 />
                             </button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm text-gray-600">Berat per Item (gram)</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                value={formData.berat_gram ?? ""}
+                                onChange={(e) => handleFormChange("berat_gram", e.target.value === "" ? 0 : Number(e.target.value))}
+                                placeholder="contoh: 500"
+                                className="bg-gray-50 border-gray-200 rounded-lg"
+                            />
+                            <p className="text-[11px] text-gray-400">Dipakai untuk menghitung ongkos kirim</p>
                         </div>
 
                         {!varianAktif ? (

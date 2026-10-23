@@ -1,31 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import path from "path";
 import { uploadMultipleFilesToCloudinary } from "@/lib/upload/cloudinary";
+import { requireRoleApi } from "@/lib/authz";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "portofolio");
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILES = 5;
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireRoleApi(["AdminJurusan"]);
+    if ("error" in auth) return auth.error;
 
     try {
         const formData = await req.formData();
-        const files = formData.getAll("files") as File[];
+        const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
 
-        if (!files || files.length === 0) {
+        if (files.length === 0) {
             return NextResponse.json({ message: "Tidak ada file yang dikirim" }, { status: 400 });
         }
+        if (files.length > MAX_FILES) {
+            return NextResponse.json({ message: `Maksimal ${MAX_FILES} file per unggahan` }, { status: 400 });
+        }
 
-        // Validasi tipe & ukuran sebelum menyentuh disk
         for (const file of files) {
-            if (file.type !== "application/pdf") {
+            if (file.type !== "application/pdf" || !(await cekMagicBytes(file, ["pdf"]))) {
                 return NextResponse.json(
-                    { message: `${file.name} harus berformat PDF` },
+                    { message: `${file.name} harus berformat PDF yang valid` },
                     { status: 415 }
                 );
             }

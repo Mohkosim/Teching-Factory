@@ -228,7 +228,7 @@ function jurnalOrder(o: SumberOrder, out: Jurnal[], peringatan: string[]) {
     const ongkirJ = rp(o.ongkirOrder * share);
     const sumber = `Pesanan ${o.kode}`;
 
-    const diterima = o.statusOrder === "Diterima" || o.statusOrder === "Selesai";
+    const diterima = o.diterimaAt !== null || o.statusOrder === "Diterima" || o.statusOrder === "Selesai";
     const recTime = diterima ? (o.diterimaAt ?? o.updatedAt).getTime() : null;
     const refundTime = o.refund?.status === "Disetujui" ? o.refund.tanggal.getTime() : null;
 

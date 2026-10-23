@@ -56,6 +56,7 @@ declare module "midtrans-client" {
         transaction: {
             status(orderId: string): Promise<TransactionStatusResponse>;
             notification(payload: unknown): Promise<TransactionStatusResponse>;
+            cancel(orderId: string): Promise<TransactionStatusResponse>;
         };
     }
 

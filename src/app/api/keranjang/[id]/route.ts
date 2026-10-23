@@ -8,7 +8,19 @@ async function getOwnedDetail(detailId: string, userId: string) {
         where: { order_detail_id: detailId },
         include: { order: true },
     });
-    if (!detail || detail.order.user_id !== userId || detail.order.status_order !== "Menunggu") return null;
+
+    const o = detail?.order;
+    if (
+        !detail || !o ||
+        o.user_id !== userId ||
+        o.status_order !== "Menunggu" ||
+        o.status_pembayaran !== "Belum_Bayar" ||
+        o.kode_invoice !== null
+    ) {
+        return null;
+    }
+    const pengiriman = await prisma.pengiriman.findUnique({ where: { order_id: o.order_id }, select: { pengiriman_id: true } });
+    if (pengiriman) return null;
     return detail;
 }
 
@@ -30,8 +42,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         return NextResponse.json({ message: "Item tidak ditemukan" }, { status: 404 });
     }
 
-    const { delta, jumlah } = await req.json();
+    const { delta, jumlah } = await req.json().catch(() => ({}));
     const jumlahBaru = jumlah !== undefined ? Number(jumlah) : detail.jumlah + Number(delta ?? 0);
+
+    if (!Number.isInteger(jumlahBaru)) {
+        return NextResponse.json({ message: "Jumlah tidak valid" }, { status: 400 });
+    }
+    if (jumlahBaru > 999) {
+        return NextResponse.json({ message: "Jumlah melebihi batas" }, { status: 400 });
+    }
 
     if (jumlahBaru <= 0) {
         await prisma.order_Detail.delete({ where: { order_detail_id: detail.order_detail_id } });

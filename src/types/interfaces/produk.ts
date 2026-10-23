@@ -10,6 +10,7 @@ export interface ProdukItem {
     sold_count: number;
     stok: number;
     kondisi: string | null;
+    berat_gram?: number;
 
     nama_jurusan?: string;
     status_publikasi?: "Pending" | "Published" | "Revisi";

@@ -1,13 +1,9 @@
-// Dijalankan otomatis sekali oleh Next.js saat server (proses Node) mulai hidup.
-// Dipakai untuk menjadwalkan job pembersihan akun yang belum verifikasi,
-// supaya di deployment Docker tidak perlu setup cron job terpisah di luar aplikasi.
-
 const CLEANUP_INTERVAL_MS =
   (Number(process.env.CLEANUP_INTERVAL_MINUTES) > 0
     ? Number(process.env.CLEANUP_INTERVAL_MINUTES)
     : 60) *
   60 *
-  1000; // default: tiap 60 menit
+  1000;
 
 export async function register() {
 
@@ -28,7 +24,14 @@ export async function register() {
     }
   };
 
-  // Jalankan sekali saat startup, lalu ulangi tiap interval.
+  try {
+    const { pecahOrderCampuranLama } = await import("@/lib/jobs/pecah-order-lama");
+    const { dipecah } = await pecahOrderCampuranLama();
+    if (dipecah > 0) console.log(`[pecah-order-lama] ${dipecah} order campuran dipecah per jurusan`);
+  } catch (error) {
+    console.error("[pecah-order-lama] gagal:", error);
+  }
+
   void tick();
   setInterval(tick, CLEANUP_INTERVAL_MS);
 }

@@ -6,6 +6,8 @@ import {
     getLaporanKeuanganData,
     hitungSaldoDariJurnal,
     getPenarikanList,
+    getDanaDicadangkan,
+    kurangiDenganDanaDicadangkan,
 } from "@/lib/data/laporan-keuangan";
 import { getAkuntansiJurusan } from "@/lib/akuntansi/loader";
 import { tanggalWIB } from "@/lib/akuntansi/engine";
@@ -25,13 +27,14 @@ export default async function LaporanKeuanganPage() {
     const jurusan = await prisma.jurusan.findUnique({ where: { user_id: session.user.id } });
     if (!jurusan) redirect("/");
 
-    const [{ transaksi }, { jurnal, peringatan }, penarikanList] = await Promise.all([
+    const [{ transaksi }, { jurnal, peringatan }, penarikanList, danaDicadangkan] = await Promise.all([
         getLaporanKeuanganData(jurusan.jurusan_id),
         getAkuntansiJurusan(jurusan.jurusan_id),
         getPenarikanList(jurusan.jurusan_id),
+        getDanaDicadangkan(jurusan.jurusan_id),
     ]);
     const hariIni = tanggalWIB(new Date());
-    const saldo = hitungSaldoDariJurnal(jurnal, hariIni);
+    const saldo = kurangiDenganDanaDicadangkan(hitungSaldoDariJurnal(jurnal, hariIni), danaDicadangkan);
 
     return (
         <LaporanKeuanganClient

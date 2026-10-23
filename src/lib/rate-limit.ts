@@ -1,25 +1,30 @@
-const buckets = new Map<string, { count: number; resetAt: number }>();
+import { prisma } from "@/lib/prisma";
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, bucket] of buckets) {
-    if (bucket.resetAt < now) buckets.delete(key);
-  }
-}, 1000 * 60 * 10);
+export async function rateLimit(key: string, limit: number, windowMs: number) {
+  const resetAt = new Date(Date.now() + windowMs);
+  try {
+    const rows = await prisma.$queryRaw<{ count: number; reset_at: Date }[]>`
+      INSERT INTO "RateLimit" ("key", "count", "reset_at")
+      VALUES (${key}, 1, ${resetAt})
+      ON CONFLICT ("key") DO UPDATE SET
+        "count"    = CASE WHEN "RateLimit"."reset_at" < NOW() THEN 1 ELSE "RateLimit"."count" + 1 END,
+        "reset_at" = CASE WHEN "RateLimit"."reset_at" < NOW() THEN ${resetAt} ELSE "RateLimit"."reset_at" END
+      RETURNING "count", "reset_at"`;
 
-export function rateLimit(key: string, limit: number, windowMs: number) {
-  const now = Date.now();
-  const bucket = buckets.get(key);
+    if (Math.random() < 0.01) {
+      prisma.$executeRaw`DELETE FROM "RateLimit" WHERE "reset_at" < NOW()`.catch(() => undefined);
+    }
 
-  if (!bucket || bucket.resetAt < now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return { success: true, remaining: limit - 1, retryAfterMs: 0 };
+    const { count, reset_at } = rows[0];
+    if (count > limit) {
+      return { success: false, remaining: 0, retryAfterMs: Math.max(0, new Date(reset_at).getTime() - Date.now()) };
+    }
+    return { success: true, remaining: limit - count, retryAfterMs: 0 };
+  } catch (err) {
+
+    console.error("[rate-limit] gagal dicek, permintaan ditolak:", err);
+    return { success: false, remaining: 0, retryAfterMs: 60_000 };
   }
-  if (bucket.count >= limit) {
-    return { success: false, remaining: 0, retryAfterMs: bucket.resetAt - now };
-  }
-  bucket.count += 1;
-  return { success: true, remaining: limit - bucket.count, retryAfterMs: 0 };
 }
 
 export function getClientIp(req: Request): string {

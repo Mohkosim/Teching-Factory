@@ -1,17 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { kontakSchema } from "@/lib/validations/kontak";
+import { requireRoleApi } from "@/lib/authz";
+
+const MAX_LIMIT = 100;
 
 export async function GET(req: NextRequest) {
+  const auth = await requireRoleApi(["SuperAdmin"]);
+  if ("error" in auth) return auth.error;
+
   try {
     const { searchParams } = new URL(req.url);
-    const limit = searchParams.get("limit");
+    const limitParam = searchParams.get("limit");
     const excludeDeleted = searchParams.get("excludeDeleted") === "true";
+
+    let take: number | undefined;
+    if (limitParam !== null) {
+      const n = Number(limitParam);
+      if (!Number.isInteger(n) || n < 1) {
+        return NextResponse.json({ message: "Parameter limit tidak valid" }, { status: 400 });
+      }
+      take = Math.min(n, MAX_LIMIT);
+    }
 
     const pesanList = await prisma.pesan.findMany({
       where: excludeDeleted ? { isDeleted: false } : undefined,
       orderBy: { createdAt: "desc" },
-      take: limit ? Number(limit) : undefined,
+      take,
     });
 
     return NextResponse.json({ data: pesanList }, { status: 200 });

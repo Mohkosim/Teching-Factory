@@ -167,6 +167,7 @@ export default function ServiceManagement({
             estimasi_pengerjaan: item.estimasi_pengerjaan ?? "",
             total_project: item.total_project,
             minimal_dp_persen: item.minimal_dp_persen,
+            kapasitas_harian: item.kapasitas_harian ?? null,
         });
         setExistingFotos(item.fotos);
         setNewFiles([]);
@@ -890,11 +891,12 @@ export default function ServiceManagement({
                                 <Label className="text-sm text-gray-600">Total Project</Label>
                                 <Input
                                     type="number"
-                                    value={formData.total_project === 0 ? "" : formData.total_project}
-                                    onChange={(e) => handleFormChange("total_project", e.target.value === "" ? 0 : Number(e.target.value))}
-                                    placeholder="0"
-                                    className="bg-gray-50 border-gray-200 rounded-lg"
+                                    value={formData.total_project}
+                                    disabled
+                                    readOnly
+                                    className="bg-gray-100 border-gray-200 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
                                 />
+                                <p className="text-[11px] text-gray-400">Dihitung otomatis dari pesanan yang selesai</p>
                             </div>
                         </div>
 
@@ -945,6 +947,18 @@ export default function ServiceManagement({
                                     </span>
                                 </div>
                                 <p className="text-[11px] text-gray-400">0 = pelanggan bebas isi DP berapapun, seperti sebelumnya</p>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-sm text-gray-600">Kapasitas per Hari</Label>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    value={formData.kapasitas_harian ?? ""}
+                                    onChange={(e) => handleFormChange("kapasitas_harian", e.target.value === "" ? null : Number(e.target.value))}
+                                    placeholder="Kosong = tanpa batas"
+                                    className="bg-gray-50 border-gray-200 rounded-lg"
+                                />
+                                <p className="text-[11px] text-gray-400">Jumlah pesanan maksimal pada tanggal yang sama</p>
                             </div>
                         </div>
                     </div>

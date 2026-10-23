@@ -6,9 +6,16 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
     const orders = await prisma.order.findMany({
         where: {
             kode_invoice: { not: null },
-            orderDetail: {
-                some: { produk: { jurusan_id } },
-            },
+            OR: [
+                { seller_jurusan_id: jurusan_id },
+                {
+                    seller_jurusan_id: null,
+                    orderDetail: {
+                        some: { produk: { jurusan_id } },
+                        none: { produk: { jurusan_id: { not: jurusan_id } } },
+                    },
+                },
+            ],
         },
         include: {
             user: true,
@@ -19,6 +26,7 @@ export async function getPesananByJurusan(jurusan_id: string): Promise<OrderRow[
             },
             refundRequest: { include: { bukti: true } },
             orderDetail: {
+                where: { produk: { jurusan_id } },
                 include: {
                     produk: {
                         include: {

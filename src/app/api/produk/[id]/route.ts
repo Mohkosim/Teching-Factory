@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hapusAtauArsipkanProduk } from "@/lib/order/arsip-produk";
 import { produkSchema } from "@/lib/validations/produk";
 import { computeStatusProduk } from "@/lib/utils/status-produk";
 import { z } from "zod";
@@ -133,13 +134,13 @@ export async function PATCH(
         return NextResponse.json({ message: "Produk tidak ditemukan" }, { status: 404 });
     }
 
-    const { nama_produk, deskripsi, harga, status, fotos, stok, kondisi } = parsed.data;
+    const { nama_produk, deskripsi, harga, status, fotos, stok, kondisi, berat_gram } = parsed.data;
 
     try {
         const updated = await prisma.produk.update({
             where: { produk_id: id },
             data: {
-                nama_produk, deskripsi, harga, status: computeStatusProduk(stok, status),
+                nama_produk, deskripsi, harga, ...(berat_gram ? { berat_gram } : {}), status: computeStatusProduk(stok, status),
                 ...(produk.status_publikasi === "Revisi"
                     ? { status_publikasi: "Pending" }
                     : {}),
@@ -185,6 +186,12 @@ export async function DELETE(
     }
 
     try {
+        if ((await hapusAtauArsipkanProduk(id)) === "diarsipkan") {
+            return NextResponse.json({
+                message: "Produk sudah pernah dipesan sehingga dinonaktifkan (bukan dihapus) agar riwayat transaksi tetap utuh",
+                archived: true,
+            });
+        }
         await prisma.fotoProduk.deleteMany({ where: { produk_id: id } });
         await prisma.barang.deleteMany({ where: { produk_id: id } });
         await prisma.produk.delete({ where: { produk_id: id } });

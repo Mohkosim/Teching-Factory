@@ -58,6 +58,7 @@ export async function getKeranjangItems(): Promise<KeranjangItem[]> {
             jurusanId: p.jurusan_id,
             nama: p.nama_produk,
             stok: p.barang[0]?.stok ?? 0,
+            beratGram: p.berat_gram,
             harga: d.harga_satuan,
             thumbnail: p.foto[0]?.url ?? "",
             kuantitas: d.jumlah,

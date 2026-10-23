@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { coreApi } from "@/lib/midtrans";
-import type { MetodePembayaran, StatusPembayaran } from "@/generated/prisma/enums";
+import type { MetodePembayaran } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 import { decodeCicilanOrderId } from "@/lib/utils/invoice";
 import { hitungBiayaMidtrans } from "@/lib/midtrans/hitungBiaya";
+import { kurangiStokAtomic, kembalikanStok } from "@/lib/order/stok";
 
 interface MidtransNotification {
     order_id: string;
@@ -16,35 +18,69 @@ interface MidtransNotification {
     payment_type: string;
 }
 
+type Tx = Prisma.TransactionClient;
+
 function verifikasiSignature(body: MidtransNotification): boolean {
     const expected = crypto
         .createHash("sha512")
         .update(body.order_id + body.status_code + body.gross_amount + process.env.MIDTRANS_SERVER_KEY)
         .digest("hex");
-    return expected === body.signature_key;
+    const a = Buffer.from(expected);
+    const b = Buffer.from(String(body.signature_key));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function mapPaymentTypeKeEnum(paymentType: string): MetodePembayaran {
     if (paymentType === "qris") return "QRIS";
     if (paymentType.includes("gopay") || paymentType.includes("shopeepay")) return "E_Wallet";
-    if (paymentType === "cstore") return "COD";
     return "Transfer";
 }
 
 const SUKSES = ["capture", "settlement"];
 const GAGAL = ["deny", "cancel", "expire", "failure"];
 
+async function catatPembayaranYatim(midtransOrderId: string, nominal: number) {
+    console.error("[WEBHOOK_ORPHAN_PAYMENT] perlu dikembalikan manual", { midtransOrderId, nominal });
+    try {
+        await prisma.auditLog.create({
+            data: {
+                actorId: "system",
+                actorName: "Webhook Midtrans",
+                action: "PEMBAYARAN_TANPA_ORDER",
+                targetUserId: "system",
+                targetName: midtransOrderId,
+                detail: { midtransOrderId, nominal, tindakan: "Kembalikan dana ke pelanggan secara manual" },
+            },
+        });
+    } catch (err) {
+        console.error("Gagal mencatat AuditLog pembayaran yatim:", err);
+    }
+}
+
+function isUniqueViolation(err: unknown) {
+    return typeof err === "object" && err !== null && (err as { code?: string }).code === "P2002";
+}
+
+function alokasiBiaya(totalBiaya: number, totalHargaPerOrder: number[]): number[] {
+    const jumlah = totalHargaPerOrder.reduce((s, v) => s + v, 0);
+    let sisa = totalBiaya;
+    return totalHargaPerOrder.map((h, i) => {
+        if (i === totalHargaPerOrder.length - 1) return sisa;
+        const bagian = jumlah > 0 ? Math.round(totalBiaya * (h / jumlah)) : 0;
+        sisa -= bagian;
+        return bagian;
+    });
+}
+
 export async function POST(req: Request) {
     let body: MidtransNotification;
     try {
         body = await req.json();
-        console.log("BODY DARI MIDTRANS:", JSON.stringify(body, null, 2));
     } catch {
         return NextResponse.json({ message: "Body tidak valid" }, { status: 400 });
     }
 
-    if (!body.order_id || !body.signature_key) {
-        console.log("VALIDASI GAGAL — order_id:", body.order_id, "signature_key:", body.signature_key)
+    if (!body?.order_id || !body?.signature_key || !body?.status_code || body?.gross_amount === undefined) {
         return NextResponse.json({ message: "Payload tidak lengkap" }, { status: 400 });
     }
 
@@ -74,15 +110,14 @@ export async function POST(req: Request) {
     const nominal = Math.round(Number(statusResponse.gross_amount));
     const paymentType = (statusResponse.payment_type as string) ?? body.payment_type;
     const metodeEnum = mapPaymentTypeKeEnum(paymentType);
-    const biayaMidtrans = berhasil ? hitungBiayaMidtrans(paymentType, nominal) : 0;
 
     try {
         if (midtransOrderId.startsWith("CICIL-")) {
-            await prosesCicilan(midtransOrderId, nominal, metodeEnum, berhasil, biayaMidtrans);
+            await prosesCicilan(midtransOrderId, nominal, metodeEnum, berhasil, paymentType);
         } else if (midtransOrderId.startsWith("JASA-")) {
-            await prosesJasaBooking(midtransOrderId, nominal, metodeEnum, berhasil, biayaMidtrans);
+            await prosesJasaBooking(midtransOrderId, nominal, metodeEnum, berhasil, paymentType);
         } else {
-            await prosesCheckoutProduk(midtransOrderId, metodeEnum, berhasil, paymentType);
+            await prosesCheckoutProduk(midtransOrderId, nominal, metodeEnum, berhasil, paymentType);
         }
     } catch (err) {
         console.error("Webhook error:", err);
@@ -92,144 +127,227 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "OK" });
 }
 
+async function totalMasuk(tx: Tx, orderId: string) {
+    const agg = await tx.transaksi.aggregate({
+        where: { order_id: orderId, jenis_transaksi: "Pemasukan", status_settlement: "Selesai" },
+        _sum: { nominal: true },
+    });
+    return agg._sum.nominal ?? 0;
+}
+
 // ==== Cicilan/pelunasan jasa: order_id format CICIL-<orderId>-<timestamp> ====
 async function prosesCicilan(
     midtransOrderId: string,
     nominal: number,
     metode: MetodePembayaran,
     berhasil: boolean,
-    biayaMidtrans: number
+    paymentType: string
 ) {
     if (!berhasil) return;
 
     const orderId = decodeCicilanOrderId(midtransOrderId);
+    const order = await prisma.order.findUnique({ where: { order_id: orderId } });
+    if (!order) {
+        await catatPembayaranYatim(midtransOrderId, nominal);
+        return;
+    }
 
-    const order = await prisma.order.findUnique({ where: { order_id: orderId }, include: { transaksi: true } });
-    if (!order) return;
+    try {
+        await prisma.$transaction(async (tx) => {
+            const sudah = await tx.transaksi.findFirst({
+                where: { order_id: order.order_id, midtrans_order_id: midtransOrderId },
+                select: { transaksi_id: true },
+            });
+            if (sudah) return;
 
-    const kodePembayaran = order.kode_invoice ?? midtransOrderId;
+            const sudahMasuk = await totalMasuk(tx, order.order_id);
+            if (nominal > order.total_harga - sudahMasuk) {
+                console.error("[WEBHOOK_AMOUNT_MISMATCH] cicilan melebihi sisa tagihan", {
+                    midtransOrderId, nominal, total: order.total_harga, sudahMasuk,
+                });
+                return;
+            }
 
-    await prisma.$transaction(async (tx) => {
-        await tx.transaksi.create({
-            data: {
-                order_id: order.order_id,
-                user_id: order.user_id,
-                jenis_transaksi: "Pemasukan",
-                nominal,
-                metode,
-                kode_pembayaran: kodePembayaran,
-                biaya_midtrans: biayaMidtrans,
-            },
+            await tx.transaksi.create({
+                data: {
+                    order_id: order.order_id,
+                    user_id: order.user_id,
+                    jenis_transaksi: "Pemasukan",
+                    nominal,
+                    metode,
+                    kode_pembayaran: order.kode_invoice ?? midtransOrderId,
+                    midtrans_order_id: midtransOrderId,
+                    biaya_midtrans: hitungBiayaMidtrans(paymentType, nominal),
+                },
+            });
+
+            const lunas = sudahMasuk + nominal >= order.total_harga;
+            await tx.order.update({
+                where: { order_id: order.order_id },
+                data: { status_pembayaran: lunas ? "Lunas" : "Menunggu_Konfirmasi" },
+            });
         });
-
-        const totalMasuk =
-            order.transaksi
-                .filter((t) => t.jenis_transaksi === "Pemasukan")
-                .reduce((sum, t) => sum + t.nominal, 0) + nominal;
-
-        const lunas = totalMasuk >= order.total_harga;
-
-        await tx.order.update({
-            where: { order_id: order.order_id },
-            data: {
-                status_pembayaran: (lunas ? "Lunas" : "Menunggu_Konfirmasi") as StatusPembayaran,
-            },
-        });
-    });
+    } catch (err) {
+        if (isUniqueViolation(err)) return;
+        throw err;
+    }
 }
 
-// ==== Booking jasa awal: order_id format JASA-<orderId> ====
 async function prosesJasaBooking(
     midtransOrderId: string,
     nominal: number,
     metode: MetodePembayaran,
     berhasil: boolean,
-    biayaMidtrans: number
+    paymentType: string
 ) {
     const orderId = midtransOrderId.replace("JASA-", "");
-    const order = await prisma.order.findUnique({
-        where: { order_id: orderId },
-        include: { transaksi: true },
-    });
-    if (!order) return;
-
-    if (!berhasil) {
-        await prisma.order.update({ where: { order_id: orderId }, data: { status_pembayaran: "Gagal" } });
+    const order = await prisma.order.findUnique({ where: { order_id: orderId } });
+    if (!order) {
+        if (berhasil) await catatPembayaranYatim(midtransOrderId, nominal);
         return;
     }
 
-    const kodePembayaran = order.kode_invoice ?? midtransOrderId;
-
-    await prisma.$transaction(async (tx) => {
-        await tx.transaksi.create({
-            data: {
-                order_id: orderId,
-                user_id: order.user_id,
-                jenis_transaksi: "Pemasukan",
-                nominal,
-                metode,
-                kode_pembayaran: kodePembayaran,
-                biaya_midtrans: biayaMidtrans,
-            },
-        });
-
-        const totalMasuk =
-            order.transaksi
-                .filter((t) => t.jenis_transaksi === "Pemasukan")
-                .reduce((sum, t) => sum + t.nominal, 0) + nominal;
-
-        const lunas = totalMasuk >= order.total_harga;
-
-        await tx.order.update({
-            where: { order_id: orderId },
-            data: {
-                status_pembayaran: (lunas ? "Lunas" : "Menunggu_Konfirmasi") as StatusPembayaran,
-                status_order: lunas ? "Diproses" : order.status_order,
-            },
-        });
-    });
-}
-
-// ==== Checkout produk: order_id Midtrans = kodeInvoice, bisa mencakup beberapa Order (per toko) ====
-async function prosesCheckoutProduk(
-    kodeInvoice: string,
-    metode: MetodePembayaran,
-    berhasil: boolean,
-    paymentType: string
-) {
-    const orders = await prisma.order.findMany({ where: { kode_invoice: kodeInvoice } });
-    if (orders.length === 0) return;
-
     if (!berhasil) {
         await prisma.order.updateMany({
-            where: { kode_invoice: kodeInvoice },
+            where: { order_id: orderId, status_pembayaran: { not: "Lunas" }, transaksi: { none: { jenis_transaksi: "Pemasukan" } } },
             data: { status_pembayaran: "Gagal" },
         });
         return;
     }
 
-    // Biaya Midtrans dihitung per-toko, proporsional terhadap total_harga masing2 Order
-    // (karena satu invoice bisa terdiri dari beberapa Order/toko dgn 1 gross_amount gabungan)
-    await prisma.$transaction(
-        orders.flatMap((order) => {
-            const biayaPerToko = hitungBiayaMidtrans(paymentType, order.total_harga);
-            return [
-                prisma.transaksi.create({
+    try {
+        await prisma.$transaction(async (tx) => {
+            const sudah = await tx.transaksi.findFirst({
+                where: { order_id: orderId, midtrans_order_id: midtransOrderId },
+                select: { transaksi_id: true },
+            });
+            if (sudah) return;
+
+            const sudahMasuk = await totalMasuk(tx, orderId);
+            if (nominal > order.total_harga - sudahMasuk) {
+                console.error("[WEBHOOK_AMOUNT_MISMATCH] DP jasa melebihi total", {
+                    midtransOrderId, nominal, total: order.total_harga, sudahMasuk,
+                });
+                return;
+            }
+
+            await tx.transaksi.create({
+                data: {
+                    order_id: orderId,
+                    user_id: order.user_id,
+                    jenis_transaksi: "Pemasukan",
+                    nominal,
+                    metode,
+                    kode_pembayaran: order.kode_invoice ?? midtransOrderId,
+                    midtrans_order_id: midtransOrderId,
+                    biaya_midtrans: hitungBiayaMidtrans(paymentType, nominal),
+                },
+            });
+
+            const lunas = sudahMasuk + nominal >= order.total_harga;
+            await tx.order.update({
+                where: { order_id: orderId },
+                data: {
+                    status_pembayaran: lunas ? "Lunas" : "Menunggu_Konfirmasi",
+                    status_order: lunas ? "Diproses" : order.status_order,
+                },
+            });
+        });
+    } catch (err) {
+        if (isUniqueViolation(err)) return;
+        throw err;
+    }
+}
+
+async function prosesCheckoutProduk(
+    kodeInvoice: string,
+    nominal: number,
+    metode: MetodePembayaran,
+    berhasil: boolean,
+    paymentType: string
+) {
+    const orders = await prisma.order.findMany({
+        where: { kode_invoice: kodeInvoice },
+        include: { orderDetail: true },
+        orderBy: { createdAt: "asc" },
+    });
+
+    if (orders.length === 0) {
+        if (berhasil) {
+            await catatPembayaranYatim(kodeInvoice, nominal);
+        }
+        return;
+    }
+
+    if (!berhasil) {
+        await prisma.$transaction(async (tx) => {
+            for (const order of orders) {
+                const klaim = await tx.order.updateMany({
+                    where: { order_id: order.order_id, status_pembayaran: { notIn: ["Lunas", "Gagal"] } },
+                    data: { status_pembayaran: "Gagal", status_order: "Dibatalkan" },
+                });
+                if (klaim.count !== 1) continue;
+                for (const d of order.orderDetail) {
+                    await kembalikanStok(tx, { produkId: d.produk_id, jumlah: d.jumlah, kombinasiId: d.kombinasi_id });
+                }
+            }
+        });
+        return;
+    }
+
+
+    const totalTagihan = orders.reduce((s, o) => s + o.total_harga, 0);
+    if (nominal !== totalTagihan) {
+        console.error("[WEBHOOK_AMOUNT_MISMATCH] checkout produk", { kodeInvoice, nominal, totalTagihan });
+        return;
+    }
+
+    const biayaPerOrder = alokasiBiaya(hitungBiayaMidtrans(paymentType, nominal), orders.map((o) => o.total_harga));
+
+    try {
+        await prisma.$transaction(async (tx) => {
+            for (const [i, order] of orders.entries()) {
+                const sudah = await tx.transaksi.findFirst({
+                    where: { order_id: order.order_id, midtrans_order_id: kodeInvoice },
+                    select: { transaksi_id: true },
+                });
+                if (sudah) continue; // webhook ulang
+
+                if (order.status_pembayaran === "Gagal") {
+                    for (const d of order.orderDetail) {
+                        await kurangiStokAtomic(tx, { produkId: d.produk_id, jumlah: d.jumlah, kombinasiId: d.kombinasi_id });
+                    }
+                }
+
+                await tx.transaksi.create({
                     data: {
                         order_id: order.order_id,
                         user_id: order.user_id,
                         jenis_transaksi: "Pemasukan",
                         nominal: order.total_harga,
                         metode,
-                        kode_pembayaran: order.kode_invoice ?? kodeInvoice,
-                        biaya_midtrans: biayaPerToko,
+                        kode_pembayaran: kodeInvoice,
+                        midtrans_order_id: kodeInvoice,
+                        biaya_midtrans: biayaPerOrder[i],
                     },
-                }),
-                prisma.order.update({
+                });
+
+                await tx.order.update({
                     where: { order_id: order.order_id },
                     data: { status_pembayaran: "Lunas", status_order: "Diproses" },
-                }),
-            ];
-        })
-    );
+                });
+
+
+                for (const d of order.orderDetail) {
+                    await tx.produk.update({
+                        where: { produk_id: d.produk_id },
+                        data: { sold_count: { increment: d.jumlah } },
+                    });
+                }
+            }
+        });
+    } catch (err) {
+        if (isUniqueViolation(err)) return;
+        throw err;
+    }
 }

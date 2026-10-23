@@ -292,6 +292,7 @@ model Produk {
   status      StatusProduk @default(Tersedia)
   view_count  Int          @default(0)
   sold_count  Int          @default(0)
+  berat_gram  Int          @default(1000)
 
   status_publikasi StatusPublikasi @default(Pending)
   catatan_revisi   String?  
@@ -343,6 +344,7 @@ model Jasa {
   estimasi_pengerjaan String?
   total_project       Int     @default(0)
   minimal_dp_persen   Int     @default(0)
+  kapasitas_harian    Int?
 
   portofolio Portofolio[]
   favorites Favorite[]
@@ -460,6 +462,8 @@ model Order {
   kode_invoice String?
 
   total_harga       Int
+  tanggal_pengerjaan DateTime?
+  seller_jurusan_id  String?
   status_order      StatusOrder      @default(Menunggu)
   status_pembayaran StatusPembayaran @default(Belum_Bayar)
 
@@ -470,6 +474,8 @@ model Order {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([seller_jurusan_id])
 }
 
 model Order_Detail {
@@ -516,11 +522,15 @@ model Transaksi {
   bukti             String?            
   metode            MetodePembayaran?
   kode_pembayaran   String?
+
+  midtrans_order_id String?
   biaya_midtrans Int? @default(0)
   status_settlement StatusSettlementTransaksi @default(Selesai)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([order_id, midtrans_order_id])
 }
 
 model PenarikanSaldo {
@@ -669,6 +679,7 @@ model VarianKombinasi {
 
   harga  Int
   stok   Int     @default(0)
+  sku    String?
   gambar String?
   aktif  Boolean @default(true)
 
@@ -704,4 +715,12 @@ model JurnalManual {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([jurusan_id, tanggal])
+}
+
+model RateLimit {
+  key       String   @id
+  count     Int      @default(0)
+  reset_at  DateTime
+
+  @@index([reset_at])
 }

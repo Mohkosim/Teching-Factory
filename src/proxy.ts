@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { checkProfileCompleteness } from "@/lib/utils/profile-completeness";
+import { getStatusUser } from "@/lib/utils/user-status";
 
 const guestPaths = ["/", "/produk", "/jasa", "/galeri", "/smk", "/tentang", "/kontak"];
 
@@ -11,8 +12,6 @@ function isGuestPath(pathname: string) {
   );
 }
 
-// Segmen path pertama setelah base role yang tetap boleh diakses walau
-// profil belum lengkap (halaman dashboard utama & halaman Profile sendiri).
 function isAllowedWhileIncomplete(restSegments: string[]) {
   return restSegments.length === 0 || restSegments[0] === "profile";
 }
@@ -39,6 +38,17 @@ export async function proxy(req: NextRequest) {
   const userId = token?.id as string | undefined;
   const smkSlug = token?.smkSlug as string | undefined;
   const jurusanSlug = token?.jurusanSlug as string | undefined;
+
+  // Akun dinonaktifkan/dihapus atau role berubah sejak login -> sesi dicabut sekarang juga.
+  if (token && userId) {
+    const status = await getStatusUser(userId);
+    if (!status.aktif || status.role !== role) {
+      const res = NextResponse.redirect(new URL("/auth/login", req.url));
+      res.cookies.delete("next-auth.session-token");
+      res.cookies.delete("__Secure-next-auth.session-token");
+      return res;
+    }
+  }
 
   const roleRedirectMap: Record<string, string> = {
     SuperAdmin: "/dashboard/superAdmin",

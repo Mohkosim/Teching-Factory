@@ -59,13 +59,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { produkId, jumlah, kombinasiId } = await req.json();
-    if (!produkId) {
+    const { produkId, jumlah, kombinasiId } = await req.json().catch(() => ({}));
+    if (!produkId || typeof produkId !== "string") {
         return NextResponse.json({ message: "produkId wajib diisi" }, { status: 400 });
     }
 
+    const tambahan = jumlah === undefined || jumlah === null ? 1 : Number(jumlah);
+    if (!Number.isInteger(tambahan) || tambahan < 1 || tambahan > 999) {
+        return NextResponse.json({ message: "Jumlah tidak valid" }, { status: 400 });
+    }
+
     const produk = await prisma.produk.findUnique({ where: { produk_id: produkId } });
-    if (!produk) {
+    if (!produk || produk.status_publikasi !== "Published" || produk.status === "Nonaktif") {
         return NextResponse.json({ message: "Produk tidak ditemukan" }, { status: 404 });
     }
 
@@ -87,10 +92,9 @@ export async function POST(req: Request) {
     const existing = cartOrder?.orderDetail.find(
         (d) => d.produk_id === produkId && d.kombinasi_id === (kombinasiId ?? null)
     );
-    const tambahan = jumlah ?? 1;
 
     if (existing) {
-        const jumlahBaru = existing.jumlah + tambahan;
+        const jumlahBaru = Math.min(existing.jumlah + tambahan, 999);
         await prisma.order_Detail.update({
             where: { order_detail_id: existing.order_detail_id },
             data: { jumlah: jumlahBaru, subtotal: jumlahBaru * existing.harga_satuan },

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const BASE_URL = "https://rajaongkir.komerce.id/api/v1";
 const API_KEY = process.env.RAJAONGKIR_API_KEY!;
 
 export async function GET(req: NextRequest) {
+  const limit = await rateLimit(`destination:${getClientIp(req)}`, 60, 60 * 1000);
+  if (!limit.success) {
+    return NextResponse.json({ error: "Terlalu banyak permintaan" }, { status: 429 });
+  }
+
   const search = req.nextUrl.searchParams.get("search");
 
-  if (!search) {
+  if (!search || search.length > 100) {
     return NextResponse.json(
       { error: "Parameter search wajib diisi" },
       { status: 400 }

@@ -10,7 +10,7 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit";
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
-    const limitResult = rateLimit(`resend-otp:${ip}`, 10, 15 * 60 * 1000);
+    const limitResult = await rateLimit(`resend-otp:${ip}`, 10, 15 * 60 * 1000);
     if (!limitResult.success) {
       return NextResponse.json(
         { message: "Terlalu banyak percobaan. Coba lagi beberapa menit lagi." },

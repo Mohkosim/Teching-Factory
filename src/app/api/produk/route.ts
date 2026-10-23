@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: "Data jurusan tidak ditemukan" }, { status: 404 });
     }
 
-    const { nama_produk, deskripsi, harga, status, fotos, stok, kondisi } = parsed.data;
+    const { nama_produk, deskripsi, harga, status, fotos, stok, kondisi, berat_gram } = parsed.data;
 
     try {
         const produk = await prisma.produk.create({
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
                 nama_produk,
                 deskripsi,
                 harga,
+                berat_gram: berat_gram ?? 1000,
                 status: computeStatusProduk(stok, status),
                 foto: {
                     create: fotos.map((url) => ({ url })),

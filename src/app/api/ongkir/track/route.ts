@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 const BASE_URL = "https://rajaongkir.komerce.id/api/v1";
 const API_KEY = process.env.RAJAONGKIR_API_KEY!;
 
 export async function POST(req: NextRequest) {
-  const { awb, courier, lastPhoneNumber } = await req.json();
-  if (!awb || !courier) {
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const limit = await rateLimit(`track:${session.user.id}`, 30, 60 * 1000);
+  if (!limit.success) {
+    return NextResponse.json({ error: "Terlalu banyak permintaan" }, { status: 429 });
+  }
+
+  const { awb, courier, lastPhoneNumber } = await req.json().catch(() => ({}));
+  if (typeof awb !== "string" || typeof courier !== "string" || !awb || !courier || awb.length > 64 || courier.length > 32) {
     return NextResponse.json({ error: "awb dan courier wajib diisi" }, { status: 400 });
   }
   try {

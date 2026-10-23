@@ -16,7 +16,7 @@ const INVALID_SESSION_MESSAGE =
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req);
-    const limitResult = rateLimit(`verify-otp:${ip}`, 20, 15 * 60 * 1000);
+    const limitResult = await rateLimit(`verify-otp:${ip}`, 20, 15 * 60 * 1000);
     if (!limitResult.success) {
       return NextResponse.json(
         { message: "Terlalu banyak percobaan. Coba lagi beberapa menit lagi." },

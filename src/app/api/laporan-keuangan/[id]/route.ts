@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { MetodePembayaran, StatusSettlementTransaksi } from "@/generated/prisma/enums";
 import { uploadFileToCloudinary } from "@/lib/upload/cloudinary";
+import { requireRoleApi } from "@/lib/authz";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 
 function parseMetode(value: string | null): MetodePembayaran | undefined {
     if (value && (Object.values(MetodePembayaran) as string[]).includes(value)) {
@@ -27,17 +25,14 @@ export async function PUT(
 ) {
     const { id } = await params;
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireRoleApi(["AdminJurusan"]);
+    if ("error" in auth) return auth.error;
 
+    const jurusan = await prisma.jurusan.findUnique({ where: { user_id: auth.session.user.id } });
     const existing = await prisma.transaksi.findUnique({ where: { transaksi_id: id } });
-    if (!existing || existing.order_id) {
-        return NextResponse.json(
-            { message: "Transaksi ini tidak bisa diedit dari sini" },
-            { status: 403 }
-        );
+
+    if (!jurusan || !existing || existing.order_id || existing.jurusan_id !== jurusan.jurusan_id || existing.jenis_transaksi !== "Pengeluaran") {
+        return NextResponse.json({ message: "Transaksi tidak ditemukan" }, { status: 404 });
     }
 
     let formData: FormData;
@@ -61,6 +56,9 @@ export async function PUT(
 
     let buktiUrl = existing.bukti ?? undefined;
     if (file && file.size > 0) {
+        if (file.size > 5 * 1024 * 1024 || !(await cekMagicBytes(file, ["jpeg", "png", "webp"]))) {
+            return NextResponse.json({ message: "Bukti harus berupa gambar JPG/PNG/WEBP maksimal 5MB" }, { status: 400 });
+        }
         try {
             buktiUrl = await uploadFileToCloudinary(file, "pengeluaran");
         } catch (err) {
@@ -81,7 +79,7 @@ export async function PUT(
                 nama,
                 kategori,
                 deskripsi,
-                nominal: nominalRaw > 0 ? nominalRaw : existing.nominal,
+                nominal: Number.isInteger(nominalRaw) && nominalRaw > 0 ? nominalRaw : existing.nominal,
                 tanggal_transaksi: tanggal ? new Date(tanggal) : existing.tanggal_transaksi,
                 metode: metode ?? existing.metode,
                 status_settlement: statusSettlement ?? existing.status_settlement,
@@ -106,17 +104,13 @@ export async function DELETE(
 ) {
     const { id } = await params;
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireRoleApi(["AdminJurusan"]);
+    if ("error" in auth) return auth.error;
 
+    const jurusan = await prisma.jurusan.findUnique({ where: { user_id: auth.session.user.id } });
     const existing = await prisma.transaksi.findUnique({ where: { transaksi_id: id } });
-    if (!existing || existing.order_id) {
-        return NextResponse.json(
-            { message: "Transaksi ini tidak bisa dihapus dari sini" },
-            { status: 403 }
-        );
+    if (!jurusan || !existing || existing.order_id || existing.jurusan_id !== jurusan.jurusan_id || existing.jenis_transaksi !== "Pengeluaran") {
+        return NextResponse.json({ message: "Transaksi tidak ditemukan" }, { status: 404 });
     }
 
     try {

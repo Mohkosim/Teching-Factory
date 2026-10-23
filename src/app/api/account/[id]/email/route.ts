@@ -22,7 +22,7 @@ export async function PATCH(
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const limitResult = rateLimit(`change-email:${session.user.id}`, 20, 15 * 60 * 1000);
+    const limitResult = await rateLimit(`change-email:${session.user.id}`, 20, 15 * 60 * 1000);
     if (!limitResult.success) {
         return NextResponse.json(
             { message: "Terlalu banyak percobaan. Coba lagi beberapa menit lagi." },

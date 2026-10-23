@@ -8,6 +8,12 @@ export const jasaSchema = z.object({
     estimasi_pengerjaan: z.string().optional(),
     total_project: z.coerce.number().min(0).default(0),
     minimal_dp_persen: z.coerce.number().min(0, "Minimal DP tidak boleh negatif").max(100, "Minimal DP maksimal 100%").default(0),
+    kapasitas_harian: z
+        .preprocess(
+            (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+            z.number().int("Kapasitas harus bilangan bulat").min(1, "Kapasitas minimal 1").max(1000).nullable()
+        )
+        .optional(),
     fotos: z.array(z.string()).min(1, "Minimal 1 foto jasa"),
     status_publikasi: z.enum(["Pending", "Published", "Revisi"]).optional(),
     portofolio: z

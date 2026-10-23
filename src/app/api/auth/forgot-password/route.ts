@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { forgotPasswordSchema } from "@/lib/validations/auth";
 import crypto from "crypto";
 import { sendResetPasswordEmail } from "@/lib/mail";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +18,16 @@ export async function POST(req: NextRequest) {
     }
 
     const { email } = parsed.data;
+
+    const ipLimit = await rateLimit(`forgot-ip:${getClientIp(req)}`, 10, 15 * 60 * 1000);
+    const emailLimit = await rateLimit(`forgot-email:${email.toLowerCase()}`, 3, 15 * 60 * 1000);
+    if (!ipLimit.success || !emailLimit.success) {
+      return NextResponse.json(
+        { message: "Terlalu banyak permintaan, coba lagi beberapa menit lagi." },
+        { status: 429 }
+      );
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
@@ -29,9 +40,12 @@ export async function POST(req: NextRequest) {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 30);
 
+    // Yang disimpan di database hanya hash-nya; token asli hanya ada di email.
+    const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+
     await prisma.user.update({
       where: { email },
-      data: { resetToken, resetTokenExpiry },
+      data: { resetToken: resetTokenHash, resetTokenExpiry },
     });
 
     const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${resetToken}`;

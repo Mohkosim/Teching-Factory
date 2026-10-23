@@ -51,6 +51,10 @@ export default function Login() {
         toast.error("Akun dinonaktifkan", {
           description: "Akun Anda sedang dinonaktifkan. Hubungi admin untuk informasi lebih lanjut.",
         });
+      } else if (result.error === "TooManyAttempts") {
+        toast.error("Terlalu banyak percobaan", {
+          description: "Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.",
+        });
       } else if (result.error === "EmailNotVerified") {
         toast.error("Akun belum diverifikasi", {
           description: "Silakan verifikasi e-mail Anda terlebih dahulu.",

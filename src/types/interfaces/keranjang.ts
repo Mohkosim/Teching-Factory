@@ -7,6 +7,7 @@ export interface KeranjangItem {
     jurusanId: string;
     nama: string;
     stok: number;
+    beratGram?: number;
     harga: number;
     thumbnail: string;
     kuantitas: number;

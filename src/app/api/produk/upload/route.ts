@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { uploadMultipleFilesToCloudinary } from "@/lib/upload/cloudinary";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB per gambar
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const MAX_FILES = 5;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData();
-    const files = formData.getAll("files") as File[];
+    const files = formData.getAll("files").filter((f): f is File => f instanceof File);
 
     if (files.length === 0) {
         return NextResponse.json({ message: "Tidak ada file yang diunggah" }, { status: 400 });
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
         }
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json({ message: "FileTooLarge" }, { status: 400 });
+        }
+        if (!(await cekMagicBytes(file, ["jpeg", "png", "webp"]))) {
+            return NextResponse.json({ message: "FileTipeSalah" }, { status: 400 });
         }
     }
 

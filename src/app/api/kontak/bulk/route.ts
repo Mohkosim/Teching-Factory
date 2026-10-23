@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRoleApi } from "@/lib/authz";
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireRoleApi(["SuperAdmin"]);
+  if ("error" in auth) return auth.error;
+
   try {
     const { ids, action } = await req.json();
 
-    if (!Array.isArray(ids) || ids.length === 0) {
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 500 || ids.some((i) => typeof i !== "string")) {
       return NextResponse.json({ message: "ids tidak valid" }, { status: 400 });
     }
 

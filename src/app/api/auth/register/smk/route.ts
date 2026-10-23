@@ -18,7 +18,7 @@ import { validateEmailForRegistration } from "@/lib/utils/email-validation";
 export async function POST(req: NextRequest) {
     try {
         const ip = getClientIp(req);
-        const limitResult = rateLimit(`register-smk:${ip}`, 5, 15 * 60 * 1000);
+        const limitResult = await rateLimit(`register-smk:${ip}`, 5, 15 * 60 * 1000);
         if (!limitResult.success) {
             return NextResponse.json(
                 { message: "Terlalu banyak percobaan daftar. Coba lagi beberapa menit lagi." },

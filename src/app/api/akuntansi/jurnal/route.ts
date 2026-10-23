@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PESAN_GUNAKAN_PENGELUARAN, TEMPLATE_MAP, adalahPengeluaranKas } from "@/lib/akuntansi/coa";
 import { validasiBarisManual } from "@/lib/akuntansi/engine";
+import { requireRoleApi } from "@/lib/authz";
 
 const TIPE_VALID = ["ModalAwal", "Penyesuaian", "Umum"] as const;
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const auth = await requireRoleApi(["AdminJurusan"]);
+    if ("error" in auth) return auth.error;
+    const session = auth.session;
 
     const jurusan = await prisma.jurusan.findUnique({ where: { user_id: session.user.id } });
     if (!jurusan) return NextResponse.json({ message: "Jurusan tidak ditemukan" }, { status: 404 });

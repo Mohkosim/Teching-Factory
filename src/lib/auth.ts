@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { slugify } from "@/lib/utils/slug";
@@ -15,10 +16,20 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
 
         const email = credentials.email.trim().toLowerCase();
+
+        const rawIp = req?.headers?.["x-forwarded-for"] ?? req?.headers?.["x-real-ip"] ?? "unknown";
+        const ip = String(Array.isArray(rawIp) ? rawIp[0] : rawIp).split(",").pop()?.trim() || "unknown";
+        const [byEmail, byIp] = await Promise.all([
+          rateLimit(`login-email:${email}`, 10, 15 * 60 * 1000),
+          rateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000),
+        ]);
+        if (!byEmail.success || !byIp.success) {
+          throw new Error("TooManyAttempts");
+        }
 
         const user = await prisma.user.findUnique({
           where: { email },
@@ -177,6 +188,7 @@ export const authOptions: NextAuthOptions = {
 
     async jwt({ token, user, trigger, session }) {
       if (user) {
+        (token as Record<string, unknown>).checkedAt = Date.now();
         token.id = user.id;
         token.role = user.role;
         token.image = user.image;
@@ -220,6 +232,24 @@ export const authOptions: NextAuthOptions = {
           if (jurusan) {
             token.smkSlug = slugify(jurusan.smk.user.name);
             token.jurusanSlug = slugify(jurusan.nama_jurusan);
+          }
+        }
+      }
+
+      const t = token as Record<string, unknown>;
+      if (token.id && !user) {
+        const checkedAt = typeof t.checkedAt === "number" ? t.checkedAt : 0;
+        if (Date.now() - checkedAt > 60_000) {
+          const db = await prisma.user.findUnique({
+            where: { user_id: token.id },
+            select: { isActive: true, role: true },
+          });
+          if (!db || !db.isActive) {
+            token.id = undefined as unknown as string;
+            token.role = undefined as unknown as typeof token.role;
+          } else {
+            token.role = db.role;
+            t.checkedAt = Date.now();
           }
         }
       }

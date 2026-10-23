@@ -8,6 +8,7 @@ export interface JasaItem {
     estimasi_pengerjaan: string | null;
     total_project: number;
     minimal_dp_persen: number;
+    kapasitas_harian?: number | null;
     view_count: number;
     fotos: string[];
 

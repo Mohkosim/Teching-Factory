@@ -4,15 +4,20 @@ import * as bcrypt from "bcryptjs";
 async function main() {
   console.log("Seeding users menggunakan Prisma Client Custom...");
   
-  const hashedPassword = await bcrypt.hash("password123", 10);
+  const seedPassword = process.env.SEED_SUPERADMIN_PASSWORD ?? "password123";
+  if (process.env.NODE_ENV === "production" && !process.env.SEED_SUPERADMIN_PASSWORD) {
+    throw new Error("Di produksi, isi SEED_SUPERADMIN_PASSWORD dulu. Password bawaan tidak boleh dipakai.");
+  }
+  const seedEmail = (process.env.SEED_SUPERADMIN_EMAIL ?? "superadmin@gmail.com").trim().toLowerCase();
+  const hashedPassword = await bcrypt.hash(seedPassword, 10);
 
   // 1. Super Admin
   await prisma.user.upsert({
-    where: { email: "superadmin@gmail.com" },
+    where: { email: seedEmail },
     update: {}, 
     create: {
       name: "Super Admin",
-      email: "superadmin@gmail.com",
+      email: seedEmail,
       password: hashedPassword,
       phone: "081234567890",
       role: "SuperAdmin",

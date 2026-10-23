@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { tentangSchema } from "@/lib/validations/tentang";
 import { uploadMultipleFilesToCloudinary } from "@/lib/upload/cloudinary";
+import { requireRoleApi } from "@/lib/authz";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB per gambar
+const MAX_FILE_SIZE = 2 * 1024 * 1024; 
 const MAX_FILES = 8;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -25,6 +27,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireRoleApi(["SuperAdmin"]);
+  if ("error" in auth) return auth.error;
+
   try {
     const formData = await req.formData();
 
@@ -43,7 +48,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validasi file: jumlah, tipe, dan ukuran — sebelum apapun ditulis ke disk
     const validFiles = files.filter((f) => f instanceof File && f.size > 0);
 
     if (validFiles.length > MAX_FILES) {
@@ -66,15 +70,18 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+      if (!(await cekMagicBytes(file, ["jpeg", "png", "webp"]))) {
+        return NextResponse.json({ message: "Isi file bukan gambar yang valid" }, { status: 400 });
+      }
     }
 
-    // Upload ke Cloudinary (menggantikan writeFile ke disk lokal — tidak bisa dipakai di Netlify)
+
     const uploadedUrls: string[] =
       validFiles.length > 0
         ? await uploadMultipleFilesToCloudinary(validFiles, "tentang")
         : [];
 
-    // Cari record existing (singleton) atau buat baru
+ 
     const existing = await prisma.tentangTefa.findFirst();
 
     const tentang = existing

@@ -3,9 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadFileToCloudinary, deleteFileFromCloudinary } from "@/lib/upload/cloudinary";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 
 const MAX_FOTO = 5;
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(req: Request) {
@@ -22,18 +23,47 @@ export async function POST(req: Request) {
     const fotoFiles = formData.getAll("foto").filter((f): f is File => f instanceof File && f.size > 0);
 
     const keepFotoIdsRaw = formData.get("keepFotoIds");
-    const keepFotoIds: string[] | null = keepFotoIdsRaw ? JSON.parse(keepFotoIdsRaw.toString()) : null;
+    let keepFotoIds: string[] | null = null;
+    if (keepFotoIdsRaw) {
+        try {
+            const parsed = JSON.parse(keepFotoIdsRaw.toString());
+            if (!Array.isArray(parsed) || parsed.some((v) => typeof v !== "string")) throw new Error();
+            keepFotoIds = parsed;
+        } catch {
+            return NextResponse.json({ message: "keepFotoIds tidak valid" }, { status: 400 });
+        }
+    }
 
-    if (!produkId || !orderDetailId || !rating) {
+    if (!produkId || !orderDetailId) {
         return NextResponse.json({ message: "Data tidak lengkap" }, { status: 400 });
+    }
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return NextResponse.json({ message: "Rating harus bilangan bulat 1 sampai 5" }, { status: 400 });
+    }
+    if (komentar.length > 2000) {
+        return NextResponse.json({ message: "Komentar terlalu panjang" }, { status: 400 });
     }
 
     const orderDetail = await prisma.order_Detail.findUnique({
         where: { order_detail_id: orderDetailId },
-        include: { order: { select: { user_id: true } } },
+        include: { order: { select: { user_id: true, status_pembayaran: true, status_order: true } } },
     });
     if (!orderDetail || orderDetail.order.user_id !== session.user.id) {
         return NextResponse.json({ message: "Pesanan tidak ditemukan" }, { status: 404 });
+    }
+
+    if (orderDetail.produk_id !== produkId) {
+        return NextResponse.json({ message: "Produk tidak sesuai dengan pesanan" }, { status: 400 });
+    }
+
+    if (
+        orderDetail.order.status_pembayaran !== "Lunas" ||
+        !["Diterima", "Selesai"].includes(orderDetail.order.status_order)
+    ) {
+        return NextResponse.json(
+            { message: "Ulasan hanya bisa diberikan setelah pesanan dibayar dan diterima" },
+            { status: 403 }
+        );
     }
 
     const existing = await prisma.review.findUnique({
@@ -41,7 +71,6 @@ export async function POST(req: Request) {
         include: { foto: true },
     });
 
-    // Validasi total foto: (foto lama yang dipertahankan) + (foto baru) <= MAX_FOTO
     const jumlahLamaDipertahankan = existing
         ? keepFotoIds === null
             ? existing.foto.length
@@ -57,6 +86,9 @@ export async function POST(req: Request) {
         if (file.size > MAX_SIZE) {
             return NextResponse.json({ message: "Ukuran tiap foto maksimal 5MB" }, { status: 400 });
         }
+        if (!(await cekMagicBytes(file, ["jpeg", "png", "webp"]))) {
+            return NextResponse.json({ message: "Isi file bukan gambar yang valid" }, { status: 400 });
+        }
     }
 
     const review = existing
@@ -68,7 +100,6 @@ export async function POST(req: Request) {
             data: { produk_id: produkId, order_detail_id: orderDetailId, user_id: session.user.id, rating, komentar },
         });
 
-    // ==== Hapus foto lama yang TIDAK ada di keepFotoIds ====
     if (existing && keepFotoIds !== null) {
         const fotoDihapus = existing.foto.filter((f) => !keepFotoIds.includes(f.foto_id));
         if (fotoDihapus.length > 0) {
@@ -86,7 +117,6 @@ export async function POST(req: Request) {
         }
     }
 
-    // ==== Tambah foto baru ====
     if (fotoFiles.length > 0) {
         const fotoUrls = await Promise.all(
             fotoFiles.map((file) => uploadFileToCloudinary(file, "reviews"))

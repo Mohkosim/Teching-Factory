@@ -3,13 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { writeFile, mkdir } from "fs/promises";
-import { randomUUID } from "crypto";
-import path from "path";
 import { uploadFileToCloudinary } from "@/lib/upload/cloudinary";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 
 const PESANAN_PATH = "/profile/pesanan";
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB, video butuh lebih besar dari foto
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const ALLOWED_TYPES = [
     "image/jpeg", "image/png", "image/webp",
     "video/mp4", "video/quicktime", "video/webm",
@@ -44,6 +42,9 @@ export async function POST(req: NextRequest) {
     if (!deskripsi) {
         return NextResponse.json({ message: "Deskripsi wajib diisi" }, { status: 400 });
     }
+    if (files.length > 6) {
+        return NextResponse.json({ message: "Maksimal 6 file bukti" }, { status: 400 });
+    }
     if (files.length === 0) {
         return NextResponse.json({ message: "Minimal 1 bukti foto/video wajib diunggah" }, { status: 400 });
     }
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
         }
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json({ message: `Ukuran file ${file.name} maksimal 20MB` }, { status: 400 });
+        }
+        if (!(await cekMagicBytes(file, ["jpeg", "png", "webp", "mp4", "mov", "webm"]))) {
+            return NextResponse.json({ message: `Isi file ${file.name} tidak valid` }, { status: 400 });
         }
     }
 
@@ -68,6 +72,13 @@ export async function POST(req: NextRequest) {
     if (order.status_pembayaran !== "Lunas") {
         return NextResponse.json(
             { message: "Refund hanya bisa diajukan untuk pesanan yang sudah dibayar" },
+            { status: 400 }
+        );
+    }
+
+    if (!["Dikirim", "Diterima"].includes(order.status_order)) {
+        return NextResponse.json(
+            { message: "Refund baru bisa diajukan setelah pesanan dikirim atau diterima" },
             { status: 400 }
         );
     }

@@ -34,6 +34,7 @@ interface JasaPengiriman {
     layanan: string;
     estimasi: string;
     harga: number;
+    perJurusan: Record<string, number>;
 }
 
 const initialForm = {
@@ -87,20 +88,14 @@ export default function CheckoutClient({
     const [searchingDestination, setSearchingDestination] = useState({ kota: false, kecamatan: false });
 
 
-    const groupedByToko = useMemo(() => {
+    const groupedByJurusan = useMemo(() => {
         const map = new Map<string, KeranjangItem[]>();
         for (const item of produk) {
-            const list = map.get(item.tokoId) ?? [];
+            const list = map.get(item.jurusanId) ?? [];
             list.push(item);
-            map.set(item.tokoId, list);
+            map.set(item.jurusanId, list);
         }
-        return Array.from(map.entries()).map(([tokoId, items]) => ({
-            tokoId,
-            tokoNama: items[0].toko,
-            jurusanId: items[0].jurusanId,
-            items,
-            subtotal: items.reduce((s, p) => s + p.harga * p.kuantitas, 0),
-        }));
+        return Array.from(map.entries()).map(([jurusanId, items]) => ({ jurusanId, items }));
     }, [produk]);
 
     const subTotal = produk.reduce((sum, p) => sum + p.harga * p.kuantitas, 0);
@@ -277,15 +272,12 @@ export default function CheckoutClient({
             return;
         }
 
-        const originId = produk[0]?.tokoKotaId ?? null;
-        const jurusanId = produk[0]?.jurusanId ?? null;
-
-        if (!originId) {
-            toast.error("Toko ini belum punya data kota asal RajaOngkir");
+        if (groupedByJurusan.some((g) => !g.jurusanId)) {
+            toast.error("Data jurusan produk tidak ditemukan");
             return;
         }
-        if (!jurusanId) {
-            toast.error("Data jurusan produk tidak ditemukan");
+        if (groupedByJurusan.some((g) => !g.items[0].tokoKotaId)) {
+            toast.error("Salah satu toko belum punya data kota asal RajaOngkir");
             return;
         }
 
@@ -294,18 +286,38 @@ export default function CheckoutClient({
         setJasaList([]);
 
         try {
-            const totalBerat = produk.reduce((sum, p) => sum + 1000 * p.kuantitas, 0);
-            const rates = await getOngkosKirim(originId, selectedAlamat.kota_id, totalBerat, jurusanId);
+            const perToko = await Promise.all(
+                groupedByJurusan.map(async (g) => {
+                    const berat = g.items.reduce((sum, p) => sum + (p.beratGram ?? 1000) * p.kuantitas, 0);
+                    const rates = await getOngkosKirim(g.items[0].tokoKotaId as number, selectedAlamat.kota_id as number, berat, g.jurusanId);
+                    return { jurusanId: g.jurusanId, rates };
+                })
+            );
 
-            setJasaList(
-                rates.map((r) => ({
+            const [pertama, ...lain] = perToko;
+            const gabungan: JasaPengiriman[] = [];
+            for (const r of pertama.rates) {
+                const cocok = lain.map((t) => t.rates.find((x) => x.name === r.name && x.service === r.service));
+                if (cocok.some((x) => !x)) continue;
+
+                const perJurusan: Record<string, number> = { [pertama.jurusanId]: r.cost };
+                lain.forEach((t, i) => { perJurusan[t.jurusanId] = cocok[i]!.cost; });
+                const etds = [r.etd, ...cocok.map((x) => x!.etd)].filter(Boolean);
+
+                gabungan.push({
                     id: `${r.code}-${r.service}`,
                     kurir: r.name,
                     layanan: r.service,
-                    estimasi: r.etd || "-",
-                    harga: r.cost,
-                }))
-            );
+                    estimasi: [...new Set(etds)].join(" / ") || "-",
+                    harga: Object.values(perJurusan).reduce((s, v) => s + v, 0),
+                    perJurusan,
+                });
+            }
+
+            if (gabungan.length === 0) {
+                toast.error("Tidak ada layanan pengiriman yang tersedia untuk semua toko di keranjang ini");
+            }
+            setJasaList(gabungan);
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Gagal memuat jasa pengiriman");
         } finally {
@@ -316,27 +328,6 @@ export default function CheckoutClient({
     const handlePilihJasa = (jasa: JasaPengiriman) => {
         setSelectedJasa(jasa);
         setIsJasaDialogOpen(false);
-    };
-
-    // Bagi 1 ongkir yang dipilih secara proporsional ke tiap toko berdasarkan subtotal produknya
-    const bagiOngkirPerToko = () => {
-        if (!selectedJasa || groupedByToko.length === 0) return new Map<string, number>();
-
-        const hasil = new Map<string, number>();
-        let sisaOngkir = selectedJasa.harga;
-
-        groupedByToko.forEach((g, idx) => {
-            const isTerakhir = idx === groupedByToko.length - 1;
-            if (isTerakhir) {
-                hasil.set(g.tokoId, sisaOngkir);
-            } else {
-                const porsi = Math.round(selectedJasa.harga * (g.subtotal / subTotal));
-                hasil.set(g.tokoId, porsi);
-                sisaOngkir -= porsi;
-            }
-        });
-
-        return hasil;
     };
 
     const bukaSnapPay = (snapToken: string, kodeInvoice: string) => {
@@ -380,23 +371,21 @@ export default function CheckoutClient({
         setCreating(true);
         tampilkanLoading("Membuat pesanan...");
         try {
-            const ongkirPerToko = bagiOngkirPerToko();
-
             const result = await buatPesanan({
                 alamatId: selectedAlamat.alamat_id,
-                toko: groupedByToko.map((g) => ({
+                toko: groupedByJurusan.map((g) => ({
                     jurusanId: g.jurusanId,
                     produk: g.items.map((p) => ({
                         produkId: p.produkId,
                         jumlah: p.kuantitas,
-                        hargaSatuan: p.harga,
                         keranjangDetailId: p.id,
                         kombinasiId: p.kombinasiId ?? null,
                     })),
+
                     jasa: {
                         kurir: selectedJasa.kurir,
                         layanan: selectedJasa.layanan,
-                        ongkir: ongkirPerToko.get(g.tokoId) ?? 0,
+                        ongkir: selectedJasa.perJurusan[g.jurusanId] ?? 0,
                         estimasi: selectedJasa.estimasi,
                     },
                 })),

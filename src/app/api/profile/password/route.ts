@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { passwordKuat } from "@/lib/validations/password";
 
 export async function PATCH(req: Request) {
     const session = await getServerSession(authOptions);
@@ -16,9 +17,10 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ message: "Data tidak lengkap" }, { status: 400 });
     }
 
-    if (passwordBaru.length < 6) {
+    const kekuatan = passwordKuat.safeParse(passwordBaru);
+    if (!kekuatan.success) {
         return NextResponse.json(
-            { message: "Password baru minimal 6 karakter" },
+            { message: kekuatan.error.issues[0].message },
             { status: 400 }
         );
     }

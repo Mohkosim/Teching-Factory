@@ -50,6 +50,7 @@ export async function getProdukList(): Promise<ProdukItem[]> {
         sold_count: p.sold_count,
         stok: p.barang.reduce((sum, b) => sum + b.stok, 0),
         kondisi: p.barang[0]?.kondisi ?? null,
+        berat_gram: p.berat_gram,
 
         nama_jurusan: p.jurusan.nama_jurusan,
         status_publikasi: p.status_publikasi,

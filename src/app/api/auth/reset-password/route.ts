@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resetPasswordSchema } from "@/lib/validations/auth";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findFirst({
       where: {
-        resetToken: token,
+        resetToken: crypto.createHash("sha256").update(token).digest("hex"),
         resetTokenExpiry: { gt: new Date() },
       },
     });

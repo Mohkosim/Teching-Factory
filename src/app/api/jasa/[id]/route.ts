@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hapusAtauArsipkanProduk } from "@/lib/order/arsip-produk";
 import { jasaSchema } from "@/lib/validations/jasa";
 
 async function assertOwnedByAdminJurusan(jasaId: string, userId: string) {
@@ -97,7 +98,7 @@ export async function PATCH(
 
     const {
         nama_jasa, deskripsi, harga, status,
-        estimasi_pengerjaan, total_project, minimal_dp_persen, fotos,
+        estimasi_pengerjaan, minimal_dp_persen, kapasitas_harian, fotos,
     } = parsed.data;
 
     try {
@@ -113,7 +114,10 @@ export async function PATCH(
 
         const updated = await prisma.jasa.update({
             where: { jasa_id: id },
-            data: { nama_jasa, estimasi_pengerjaan, total_project, minimal_dp_persen },
+            data: {
+                nama_jasa, estimasi_pengerjaan, minimal_dp_persen,
+                ...(kapasitas_harian !== undefined ? { kapasitas_harian } : {}),
+            },
         });
 
         await prisma.fotoProduk.deleteMany({ where: { produk_id: jasa.produk_id } });
@@ -144,6 +148,13 @@ export async function DELETE(
     }
 
     try {
+        if ((await hapusAtauArsipkanProduk(jasa.produk_id)) === "diarsipkan") {
+            return NextResponse.json({
+                message: "Jasa sudah pernah dipesan sehingga dinonaktifkan (bukan dihapus) agar riwayat transaksi tetap utuh",
+                archived: true,
+            });
+        }
+        await prisma.portofolio.deleteMany({ where: { jasa_id: id } });
         await prisma.fotoProduk.deleteMany({ where: { produk_id: jasa.produk_id } });
         await prisma.jasa.delete({ where: { jasa_id: id } });
         await prisma.produk.delete({ where: { produk_id: jasa.produk_id } });

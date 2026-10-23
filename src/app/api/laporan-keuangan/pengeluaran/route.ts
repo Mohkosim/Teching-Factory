@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireRoleApi } from "@/lib/authz";
+import { cekMagicBytes } from "@/lib/upload/validate-file";
 import { prisma } from "@/lib/prisma";
 import { MetodePembayaran, StatusSettlementTransaksi } from "@/generated/prisma/enums";
 import { uploadFileToCloudinary } from "@/lib/upload/cloudinary";
@@ -22,9 +20,9 @@ function parseStatusSettlement(value: string | null): StatusSettlementTransaksi 
 }
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user)
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const auth = await requireRoleApi(["AdminJurusan"]);
+    if ("error" in auth) return auth.error;
+    const session = auth.session;
 
     const jurusan = await prisma.jurusan.findUnique({ where: { user_id: session.user.id } });
     if (!jurusan)
@@ -40,12 +38,15 @@ export async function POST(req: NextRequest) {
     const statusSettlement = parseStatusSettlement(formData.get("status_settlement") as string | null);
     const file = formData.get("gambar") as File | null;
 
-    if (!nominal || nominal <= 0) {
+    if (!Number.isInteger(nominal) || nominal <= 0) {
         return NextResponse.json({ message: "Nominal tidak valid" }, { status: 400 });
     }
 
     let buktiUrl: string | undefined;
     if (file && file.size > 0) {
+        if (file.size > 5 * 1024 * 1024 || !(await cekMagicBytes(file, ["jpeg", "png", "webp"]))) {
+            return NextResponse.json({ message: "Bukti harus berupa gambar JPG/PNG/WEBP maksimal 5MB" }, { status: 400 });
+        }
         buktiUrl = await uploadFileToCloudinary(file, "pengeluaran");
     }
 

@@ -158,9 +158,24 @@ export function hitungSaldoDariJurnal(jurnal: Jurnal[], hariIni: string) {
     };
 }
 
+/** Dana yang sudah diajukan untuk ditarik tapi belum Selesai/Ditolak (Pending + Diproses) = saldo yang DICADANGKAN. */
+export async function getDanaDicadangkan(jurusanId: string): Promise<number> {
+    const agg = await prisma.penarikanSaldo.aggregate({
+        where: { jurusan_id: jurusanId, status: { in: ["Pending", "Diproses"] } },
+        _sum: { nominal: true },
+    });
+    return agg._sum.nominal ?? 0;
+}
+
+/** Terapkan pencadangan ke hasil hitungSaldoDariJurnal: saldoTersedia = saldo jurnal - dana yang sedang diajukan. */
+export function kurangiDenganDanaDicadangkan<T extends { saldoTersedia: number }>(saldo: T, dicadangkan: number) {
+    return { ...saldo, saldoTersedia: Math.max(0, saldo.saldoTersedia - dicadangkan), saldoDicadangkan: dicadangkan };
+}
+
 export async function getSaldoJurusan(jurusanId: string) {
     const { jurnal } = await getAkuntansiJurusan(jurusanId);
-    return hitungSaldoDariJurnal(jurnal, tanggalWIB(new Date()));
+    const saldo = hitungSaldoDariJurnal(jurnal, tanggalWIB(new Date()));
+    return kurangiDenganDanaDicadangkan(saldo, await getDanaDicadangkan(jurusanId));
 }
 
 export async function getPenarikanList(jurusan_id: string) {

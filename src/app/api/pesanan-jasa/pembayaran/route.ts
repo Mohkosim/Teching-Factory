@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     const body: TambahPembayaranPayload = await req.json();
-    if (!body.orderId || !body.nominal || body.nominal <= 0) {
+    if (!body.orderId || !Number.isInteger(body.nominal) || body.nominal <= 0) {
         return NextResponse.json({ message: "Data pembayaran tidak lengkap" }, { status: 400 });
     }
 

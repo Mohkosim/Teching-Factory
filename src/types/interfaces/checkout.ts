@@ -1,7 +1,7 @@
 export interface ProdukCheckoutItem {
     produkId: string;
     jumlah: number;
-    hargaSatuan: number;
+    hargaSatuan?: number;
     keranjangDetailId?: string;
     kombinasiId?: string | null;
 }
@@ -14,7 +14,7 @@ export interface CheckoutPayload {
         jasa: {
             kurir: string;
             layanan: string;
-            ongkir: number;
+            ongkir?: number;
             estimasi: string;
         };
     }[];
