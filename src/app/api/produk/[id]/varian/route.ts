@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { simpanVarianSchema } from "@/lib/validations/varian";
+import { simpanVarian, VarianError } from "@/lib/varian/simpan-varian";
+import { GRUP_VARIAN_TERLIHAT, OPSI_VARIAN_TERLIHAT } from "@/lib/varian/terlihat";
 
 async function assertOwnedByAdmin(produkId: string, userId: string, role: string) {
     const produk = await prisma.produk.findUnique({
@@ -36,14 +37,15 @@ export async function GET(
         return NextResponse.json({ message: "Produk tidak ditemukan" }, { status: 404 });
     }
 
+    // Kombinasi yang sudah diarsipkan (pernah dipesan lalu dibuang admin) tidak ditampilkan lagi.
     const grup = await prisma.varianGrup.findMany({
-        where: { produk_id: id },
-        include: { opsi: { orderBy: { urutan: "asc" } } },
+        where: { produk_id: id, ...GRUP_VARIAN_TERLIHAT },
+        include: { opsi: { where: OPSI_VARIAN_TERLIHAT, orderBy: { urutan: "asc" } } },
         orderBy: { urutan: "asc" },
     });
 
     const kombinasi = await prisma.varianKombinasi.findMany({
-        where: { produk_id: id },
+        where: { produk_id: id, aktif: true },
         include: { opsi: { include: { opsi: true } } },
         orderBy: { createdAt: "asc" },
     });
@@ -75,101 +77,23 @@ export async function POST(
         );
     }
 
-    const { grup, kombinasi } = parsed.data;
-
     try {
-        await prisma.$transaction(
-            async (tx) => {
-                await tx.varianKombinasi.deleteMany({ where: { produk_id: id } });
-                await tx.varianGrup.deleteMany({ where: { produk_id: id } });
-
-                // ── Grup varian (mis. "Rasa") — 1 query untuk semua grup ──
-                const grupIds = grup.map(() => randomUUID());
-                if (grup.length > 0) {
-                    await tx.varianGrup.createMany({
-                        data: grup.map((g, i) => ({
-                            grup_id: grupIds[i],
-                            produk_id: id,
-                            nama: g.nama,
-                            urutan: i,
-                        })),
-                    });
-                }
-
-                // ── Opsi tiap grup (mis. "Oreo Cream") — 1 query untuk semua opsi ──
-                const opsiIdMap = new Map<string, string>();
-                const opsiRows: {
-                    opsi_id: string;
-                    grup_id: string;
-                    nama: string;
-                    urutan: number;
-                }[] = [];
-
-                grup.forEach((g, i) => {
-                    g.opsi.forEach((o, j) => {
-                        const opsiId = randomUUID();
-                        opsiIdMap.set(`${g.nama}::${o.nama}`, opsiId);
-                        opsiRows.push({
-                            opsi_id: opsiId,
-                            grup_id: grupIds[i],
-                            nama: o.nama,
-                            urutan: j,
-                        });
-                    });
-                });
-
-                if (opsiRows.length > 0) {
-                    await tx.varianOpsi.createMany({ data: opsiRows });
-                }
-
-                // ── Kombinasi (mis. "Oreo Cream" x harga x stok) — 1 query untuk semua kombinasi ──
-                const kombinasiIds = kombinasi.map(() => randomUUID());
-                const junctionRows: { kombinasi_id: string; opsi_id: string }[] = [];
-
-                kombinasi.forEach((k, idx) => {
-                    const kombinasiId = kombinasiIds[idx];
-                    k.opsi_nama.forEach((namaOpsi, i) => {
-                        const namaGrup = grup[i]?.nama;
-                        const opsiId = opsiIdMap.get(`${namaGrup}::${namaOpsi}`);
-                        if (!opsiId) {
-                            throw new Error(`Opsi "${namaOpsi}" pada grup "${namaGrup}" tidak ditemukan`);
-                        }
-                        junctionRows.push({ kombinasi_id: kombinasiId, opsi_id: opsiId });
-                    });
-                });
-
-                if (kombinasi.length > 0) {
-                    await tx.varianKombinasi.createMany({
-                        data: kombinasi.map((k, idx) => ({
-                            kombinasi_id: kombinasiIds[idx],
-                            produk_id: id,
-                            harga: k.harga,
-                            stok: k.stok,
-                            sku: k.sku,
-                            gambar: k.gambar,
-                        })),
-                    });
-
-                    await tx.varianKombinasiOpsi.createMany({ data: junctionRows });
-                }
-            },
-            { timeout: 15000, maxWait: 10000 }
-        );
-
-        const totalStokVarian = await prisma.varianKombinasi.aggregate({
-            where: { produk_id: id, aktif: true },
-            _sum: { stok: true },
+        const hasil = await simpanVarian(id, parsed.data, {
+            // Admin SMK adalah pihak yang memvalidasi, jadi hanya perubahan oleh Admin Jurusan yang memicu validasi ulang.
+            validasiUlangJikaBerubah: session.user.role === "AdminJurusan",
         });
 
-        if (kombinasi.length > 0) {
-            await prisma.barang.updateMany({
-                where: { produk_id: id },
-                data: { stok: totalStokVarian._sum.stok ?? 0 },
-            });
+        return NextResponse.json({
+            message: hasil.perluValidasiUlang
+                ? "Varian berhasil disimpan. Karena harga/struktur varian berubah, produk perlu divalidasi ulang oleh Admin SMK dan sementara tidak tampil di toko."
+                : "Varian berhasil disimpan",
+            perluValidasiUlang: hasil.perluValidasiUlang,
+        });
+    } catch (error) {
+        if (error instanceof VarianError) {
+            return NextResponse.json({ message: error.message }, { status: 400 });
         }
 
-        return NextResponse.json({ message: "Varian berhasil disimpan" });
-    } catch (error) {
         console.error("POST /api/produk/[id]/varian error:", error);
 
         if (
@@ -184,10 +108,6 @@ export async function POST(
             );
         }
 
-        return NextResponse.json(
-            { message: error instanceof Error ? error.message : "Terjadi kesalahan server" },
-            { status: 500 }
-        );
+        return NextResponse.json({ message: "Terjadi kesalahan server" }, { status: 500 });
     }
-
 }

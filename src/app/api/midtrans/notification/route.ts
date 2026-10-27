@@ -152,6 +152,7 @@ async function prosesCicilan(
         return;
     }
 
+    let pesananDibatalkan = false;
     try {
         await prisma.$transaction(async (tx) => {
             const sudah = await tx.transaksi.findFirst({
@@ -159,6 +160,15 @@ async function prosesCicilan(
                 select: { transaksi_id: true },
             });
             if (sudah) return;
+
+            const terbaru = await tx.order.findUnique({
+                where: { order_id: order.order_id },
+                select: { status_order: true },
+            });
+            if (!terbaru || terbaru.status_order === "Dibatalkan") {
+                pesananDibatalkan = true;
+                return;
+            }
 
             const sudahMasuk = await totalMasuk(tx, order.order_id);
             if (nominal > order.total_harga - sudahMasuk) {
@@ -191,6 +201,8 @@ async function prosesCicilan(
         if (isUniqueViolation(err)) return;
         throw err;
     }
+
+    if (pesananDibatalkan) await catatPembayaranYatim(midtransOrderId, nominal);
 }
 
 async function prosesJasaBooking(
@@ -215,6 +227,7 @@ async function prosesJasaBooking(
         return;
     }
 
+    let pesananDibatalkan = false;
     try {
         await prisma.$transaction(async (tx) => {
             const sudah = await tx.transaksi.findFirst({
@@ -222,6 +235,15 @@ async function prosesJasaBooking(
                 select: { transaksi_id: true },
             });
             if (sudah) return;
+
+            const terbaru = await tx.order.findUnique({
+                where: { order_id: orderId },
+                select: { status_order: true },
+            });
+            if (!terbaru || terbaru.status_order === "Dibatalkan") {
+                pesananDibatalkan = true;
+                return;
+            }
 
             const sudahMasuk = await totalMasuk(tx, orderId);
             if (nominal > order.total_harga - sudahMasuk) {
@@ -257,6 +279,8 @@ async function prosesJasaBooking(
         if (isUniqueViolation(err)) return;
         throw err;
     }
+
+    if (pesananDibatalkan) await catatPembayaranYatim(midtransOrderId, nominal);
 }
 
 async function prosesCheckoutProduk(
@@ -311,7 +335,7 @@ async function prosesCheckoutProduk(
                     where: { order_id: order.order_id, midtrans_order_id: kodeInvoice },
                     select: { transaksi_id: true },
                 });
-                if (sudah) continue; // webhook ulang
+                if (sudah) continue;
 
                 if (order.status_pembayaran === "Gagal") {
                     for (const d of order.orderDetail) {

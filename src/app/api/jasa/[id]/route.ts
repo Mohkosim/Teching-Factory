@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hapusAtauArsipkanProduk } from "@/lib/order/arsip-produk";
 import { jasaSchema } from "@/lib/validations/jasa";
+import { daftarBerbeda, statusPublikasiSetelahEdit, teksBerbeda } from "@/lib/utils/validasi-ulang";
 
 async function assertOwnedByAdminJurusan(jasaId: string, userId: string) {
     const jasa = await prisma.jasa.findUnique({
@@ -101,31 +102,52 @@ export async function PATCH(
         estimasi_pengerjaan, minimal_dp_persen, kapasitas_harian, fotos,
     } = parsed.data;
 
+    const infoInti = {
+        berubah:
+            teksBerbeda(jasa.produk.nama_produk, nama_jasa) ||
+            teksBerbeda(jasa.nama_jasa, nama_jasa) ||
+            teksBerbeda(jasa.produk.deskripsi, deskripsi) ||
+            teksBerbeda(jasa.estimasi_pengerjaan, estimasi_pengerjaan) ||
+            jasa.produk.harga !== harga ||
+            jasa.minimal_dp_persen !== minimal_dp_persen ||
+            daftarBerbeda(jasa.produk.foto.map((f) => f.url), fotos),
+    };
+    const statusPublikasiBaru = statusPublikasiSetelahEdit(jasa.produk.status_publikasi, infoInti);
+    const perluValidasiUlang = jasa.produk.status_publikasi === "Published" && statusPublikasiBaru === "Pending";
+
     try {
-        await prisma.produk.update({
-            where: { produk_id: jasa.produk_id },
-            data: {
-                nama_produk: nama_jasa, deskripsi, harga, status,
-                ...(jasa.produk.status_publikasi === "Revisi"
-                    ? { status_publikasi: "Pending" }
-                    : {}),
-            },
+        const updated = await prisma.$transaction(async (tx) => {
+            await tx.produk.update({
+                where: { produk_id: jasa.produk_id },
+                data: {
+                    nama_produk: nama_jasa, deskripsi, harga, status,
+                    ...(statusPublikasiBaru ? { status_publikasi: statusPublikasiBaru } : {}),
+                },
+            });
+
+            const hasil = await tx.jasa.update({
+                where: { jasa_id: id },
+                data: {
+                    nama_jasa, estimasi_pengerjaan, minimal_dp_persen,
+                    ...(kapasitas_harian !== undefined ? { kapasitas_harian } : {}),
+                },
+            });
+
+            await tx.fotoProduk.deleteMany({ where: { produk_id: jasa.produk_id } });
+            await tx.fotoProduk.createMany({
+                data: fotos.map((url) => ({ produk_id: jasa.produk_id, url })),
+            });
+
+            return hasil;
         });
 
-        const updated = await prisma.jasa.update({
-            where: { jasa_id: id },
-            data: {
-                nama_jasa, estimasi_pengerjaan, minimal_dp_persen,
-                ...(kapasitas_harian !== undefined ? { kapasitas_harian } : {}),
-            },
+        return NextResponse.json({
+            message: perluValidasiUlang
+                ? "Jasa berhasil diperbarui. Karena harga/informasi jasa berubah, jasa perlu divalidasi ulang oleh Admin SMK dan sementara tidak tampil di toko."
+                : "Jasa berhasil diperbarui",
+            perluValidasiUlang,
+            data: updated,
         });
-
-        await prisma.fotoProduk.deleteMany({ where: { produk_id: jasa.produk_id } });
-        await prisma.fotoProduk.createMany({
-            data: fotos.map((url) => ({ produk_id: jasa.produk_id, url })),
-        });
-
-        return NextResponse.json({ message: "Jasa berhasil diperbarui", data: updated });
     } catch (error) {
         console.error("PATCH /api/jasa/[id] error:", error);
         return NextResponse.json({ message: "Terjadi kesalahan server" }, { status: 500 });

@@ -3,6 +3,7 @@ export type NotifikasiJenis =
     | "jasa_timeline"
     | "jasa_bayar"
     | "refund_disetujui"
+    | "refund_dikembalikan"
     | "refund_ditolak";
 
 export interface NotifikasiItem {

@@ -75,7 +75,7 @@ interface TransaksiItem {
     metodePembayaran: string;
     statusSettlement: StatusSettlement;
     varianLabel?: string;
-    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Dikembalikan" | "Ditolak"; alasan: string };
 }
 
 interface LaporanKeuanganClientProps {

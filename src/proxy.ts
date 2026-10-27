@@ -19,6 +19,10 @@ function isAllowedWhileIncomplete(restSegments: string[]) {
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
+  if (pathname === "/uploads" || pathname.startsWith("/uploads/")) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
@@ -39,7 +43,6 @@ export async function proxy(req: NextRequest) {
   const smkSlug = token?.smkSlug as string | undefined;
   const jurusanSlug = token?.jurusanSlug as string | undefined;
 
-  // Akun dinonaktifkan/dihapus atau role berubah sejak login -> sesi dicabut sekarang juga.
   if (token && userId) {
     const status = await getStatusUser(userId);
     if (!status.aktif || status.role !== role) {
@@ -62,7 +65,7 @@ export async function proxy(req: NextRequest) {
     if (isGuestPath(pathname)) {
       return NextResponse.next();
     }
-    // Simpan tujuan awal supaya setelah login kembali ke halaman ini
+
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
@@ -96,18 +99,14 @@ export async function proxy(req: NextRequest) {
       const segments = pathname.split("/");
       const urlSlug = segments[3];
 
-      // Buka /dashboard/adminSMK tanpa slug -> arahkan ke slug miliknya
       if (!urlSlug) {
         return NextResponse.redirect(new URL(`/dashboard/adminSMK/${smkSlug}`, req.url));
       }
 
-      // Coba akses slug SMK lain -> paksa balik ke miliknya
       if (urlSlug !== smkSlug) {
         return NextResponse.redirect(new URL(`/dashboard/adminSMK/${smkSlug}`, req.url));
       }
 
-      // Profil belum lengkap -> kunci akses ke fitur lain, dorong ke halaman Profile.
-      // Dashboard utama & halaman Profile sendiri tetap boleh dibuka.
       const restSegments = segments.slice(4).filter(Boolean);
       if (userId && !isAllowedWhileIncomplete(restSegments)) {
         const complete = await checkProfileCompleteness(userId, "AdminSMK");
@@ -147,7 +146,6 @@ export async function proxy(req: NextRequest) {
         );
       }
 
-      // Profil belum lengkap -> kunci akses ke fitur lain, dorong ke halaman Profile.
       const restSegments = segments.slice(5).filter(Boolean);
       if (userId && !isAllowedWhileIncomplete(restSegments)) {
         const complete = await checkProfileCompleteness(userId, "AdminJurusan");
@@ -160,7 +158,6 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // 🚫 Admin (SuperAdmin / AdminSMK / AdminJurusan) tidak boleh akses halaman guestSelection/user
   if (isGuestPath(pathname) && role && role !== "User") {
     const target = roleRedirectMap[role];
     return NextResponse.redirect(new URL(target ?? "/unauthorized", req.url));

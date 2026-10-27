@@ -5,6 +5,7 @@ import { getProdukDetailById, getProdukRekomendasi } from "@/lib/data/produk-pub
 import { getFavoritIds } from "@/lib/data/favorit-public";
 import ProdukDetailClient from "./ProdukDetailClient";
 import type { VarianGrupPublik, VarianKombinasiPublik } from "@/types/interfaces/varian";
+import { GRUP_VARIAN_TERLIHAT, OPSI_VARIAN_TERLIHAT } from "@/lib/varian/terlihat";
 
 import type { Metadata } from "next";
 
@@ -42,8 +43,8 @@ export default async function ProdukDetailPage({
 
   const [grupVarianRaw, kombinasiVarianRaw] = await Promise.all([
     prisma.varianGrup.findMany({
-      where: { produk_id: produk.id },
-      include: { opsi: { orderBy: { urutan: "asc" } } },
+      where: { produk_id: produk.id, ...GRUP_VARIAN_TERLIHAT },
+      include: { opsi: { where: OPSI_VARIAN_TERLIHAT, orderBy: { urutan: "asc" } } },
       orderBy: { urutan: "asc" },
     }),
     prisma.varianKombinasi.findMany({

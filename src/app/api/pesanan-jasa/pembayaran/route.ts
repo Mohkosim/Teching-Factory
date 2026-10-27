@@ -30,6 +30,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Order tidak ditemukan" }, { status: 404 });
     }
 
+    if (order.status_order === "Dibatalkan") {
+        return NextResponse.json({ message: "Pesanan sudah dibatalkan, pembayaran tidak bisa dilakukan" }, { status: 400 });
+    }
+
     const sudahDibayar = order.transaksi
         .filter((t) => t.jenis_transaksi === "Pemasukan")
         .reduce((sum, t) => sum + t.nominal, 0);

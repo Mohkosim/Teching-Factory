@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hapusAtauArsipkanProduk } from "@/lib/order/arsip-produk";
 import { produkSchema } from "@/lib/validations/produk";
 import { computeStatusProduk } from "@/lib/utils/status-produk";
+import { daftarBerbeda, statusPublikasiSetelahEdit, teksBerbeda } from "@/lib/utils/validasi-ulang";
 import { z } from "zod";
 
 async function assertOwnedByAdminJurusan(produkId: string, userId: string) {
@@ -136,34 +137,55 @@ export async function PATCH(
 
     const { nama_produk, deskripsi, harga, status, fotos, stok, kondisi, berat_gram } = parsed.data;
 
+    // Harga & informasi inti produk yang sudah Published tidak boleh berubah tanpa persetujuan ulang.
+    // Stok, kondisi, dan status ketersediaan adalah data operasional sehingga tidak memicu validasi ulang.
+    const infoInti = {
+        berubah:
+            teksBerbeda(produk.nama_produk, nama_produk) ||
+            teksBerbeda(produk.deskripsi, deskripsi) ||
+            produk.harga !== harga ||
+            (berat_gram !== undefined && berat_gram !== produk.berat_gram) ||
+            daftarBerbeda(produk.foto.map((f) => f.url), fotos),
+    };
+    const statusPublikasiBaru = statusPublikasiSetelahEdit(produk.status_publikasi, infoInti);
+    const perluValidasiUlang = produk.status_publikasi === "Published" && statusPublikasiBaru === "Pending";
+
     try {
-        const updated = await prisma.produk.update({
-            where: { produk_id: id },
-            data: {
-                nama_produk, deskripsi, harga, ...(berat_gram ? { berat_gram } : {}), status: computeStatusProduk(stok, status),
-                ...(produk.status_publikasi === "Revisi"
-                    ? { status_publikasi: "Pending" }
-                    : {}),
-            },
+        const updated = await prisma.$transaction(async (tx) => {
+            const hasil = await tx.produk.update({
+                where: { produk_id: id },
+                data: {
+                    nama_produk, deskripsi, harga, ...(berat_gram ? { berat_gram } : {}), status: computeStatusProduk(stok, status),
+                    ...(statusPublikasiBaru ? { status_publikasi: statusPublikasiBaru } : {}),
+                },
+            });
+
+            await tx.fotoProduk.deleteMany({ where: { produk_id: id } });
+            await tx.fotoProduk.createMany({
+                data: fotos.map((url) => ({ produk_id: id, url })),
+            });
+
+            if (produk.barang[0]) {
+                await tx.barang.update({
+                    where: { barang_id: produk.barang[0].barang_id },
+                    data: { stok, kondisi },
+                });
+            } else {
+                await tx.barang.create({
+                    data: { produk_id: id, stok, kondisi },
+                });
+            }
+
+            return hasil;
         });
 
-        await prisma.fotoProduk.deleteMany({ where: { produk_id: id } });
-        await prisma.fotoProduk.createMany({
-            data: fotos.map((url) => ({ produk_id: id, url })),
+        return NextResponse.json({
+            message: perluValidasiUlang
+                ? "Produk berhasil diperbarui. Karena harga/informasi produk berubah, produk perlu divalidasi ulang oleh Admin SMK dan sementara tidak tampil di toko."
+                : "Produk berhasil diperbarui",
+            perluValidasiUlang,
+            data: updated,
         });
-
-        if (produk.barang[0]) {
-            await prisma.barang.update({
-                where: { barang_id: produk.barang[0].barang_id },
-                data: { stok, kondisi },
-            });
-        } else {
-            await prisma.barang.create({
-                data: { produk_id: id, stok, kondisi },
-            });
-        }
-
-        return NextResponse.json({ message: "Produk berhasil diperbarui", data: updated });
     } catch (error) {
         console.error("PATCH /api/produk/[id] error:", error);
         return NextResponse.json({ message: "Terjadi kesalahan server" }, { status: 500 });

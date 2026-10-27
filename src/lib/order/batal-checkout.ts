@@ -13,10 +13,10 @@ function httpStatusDari(err: unknown): number | undefined {
     return raw === undefined ? undefined : Number(raw);
 }
 
-async function matikanTransaksiMidtrans(kodeInvoice: string): Promise<HasilBatal> {
+export async function matikanTransaksiMidtrans(midtransOrderId: string): Promise<HasilBatal> {
     let status: string | undefined;
     try {
-        const res = await coreApi.transaction.status(kodeInvoice);
+        const res = await coreApi.transaction.status(midtransOrderId);
         status = res.transaction_status as string;
     } catch (err) {
         if (httpStatusDari(err) === 404) return { ok: true };
@@ -29,7 +29,7 @@ async function matikanTransaksiMidtrans(kodeInvoice: string): Promise<HasilBatal
     }
     if (status === "pending") {
         try {
-            await coreApi.transaction.cancel(kodeInvoice);
+            await coreApi.transaction.cancel(midtransOrderId);
         } catch (err) {
             console.error("Gagal membatalkan transaksi Midtrans:", err);
             return { ok: false, status: 502, message: "Gagal membatalkan pembayaran di Midtrans, coba lagi" };

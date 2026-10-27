@@ -238,7 +238,7 @@ export default function Navbar() {
                                 <p
                                   className={`text-xs truncate ${n.jenis === "jasa_bayar"
                                     ? "text-yellow-600"
-                                    : n.jenis === "refund_disetujui"
+                                    : n.jenis === "refund_disetujui" || n.jenis === "refund_dikembalikan"
                                       ? "text-green-600"
                                       : n.jenis === "refund_ditolak"
                                         ? "text-red-500"

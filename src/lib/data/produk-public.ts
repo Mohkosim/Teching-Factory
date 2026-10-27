@@ -10,6 +10,7 @@ import type {
 } from "@/types/interfaces/produk";
 
 import { normalizeProvinsi } from "@/lib/utils/lokasi";
+import { GRUP_VARIAN_TERLIHAT, OPSI_VARIAN_TERLIHAT } from "@/lib/varian/terlihat";
 
 const produkPublicInclude = {
   foto: true,
@@ -32,7 +33,8 @@ const produkDetailInclude = {
     orderBy: { createdAt: "desc" as const },
   },
   varianGrup: {
-    include: { opsi: { orderBy: { urutan: "asc" as const } } },
+    where: GRUP_VARIAN_TERLIHAT,
+    include: { opsi: { where: OPSI_VARIAN_TERLIHAT, orderBy: { urutan: "asc" as const } } },
     orderBy: { urutan: "asc" as const },
   },
   varianKombinasi: {

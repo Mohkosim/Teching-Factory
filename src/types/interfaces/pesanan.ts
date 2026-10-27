@@ -83,7 +83,7 @@ export interface JasaItem {
     riwayatPembayaran: RiwayatPembayaran[];
 }
 
-export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Ditolak";
+export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Dikembalikan" | "Ditolak";
 
 export interface RefundInfo {
     id: string;

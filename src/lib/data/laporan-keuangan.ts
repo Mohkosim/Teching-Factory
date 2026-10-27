@@ -22,7 +22,7 @@ export interface TransaksiRow {
     varianLabel?: string;
     biayaOngkir?: number;
     biayaMidtrans?: number;
-    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Dikembalikan" | "Ditolak"; alasan: string };
     asalPesanan?: boolean;
     pembeli?: { nama: string; nomor: string; email: string; alamat: string };
     pengiriman?: { kurir: string; nomorResi: string; estimasi: string };
@@ -65,8 +65,8 @@ export async function getLaporanKeuanganData(jurusanId: string) {
             od.order.user.alamat.find((a) => a.isUtama) ?? od.order.user.alamat[0];
 
         const refund = od.order.refundRequest;
-        const refundDiproses = !!refund && refund.status !== "Ditolak" && refund.status !== "Disetujui";
-        const refundDisetujui = refund?.status === "Disetujui";
+        const refundDiproses = !!refund && refund.status !== "Ditolak" && refund.status !== "Dikembalikan";
+        const refundDisetujui = refund?.status === "Dikembalikan";
 
         const statusSettlement: TransaksiRow["statusSettlement"] =
             refundDiproses || refundDisetujui
@@ -158,7 +158,6 @@ export function hitungSaldoDariJurnal(jurnal: Jurnal[], hariIni: string) {
     };
 }
 
-/** Dana yang sudah diajukan untuk ditarik tapi belum Selesai/Ditolak (Pending + Diproses) = saldo yang DICADANGKAN. */
 export async function getDanaDicadangkan(jurusanId: string): Promise<number> {
     const agg = await prisma.penarikanSaldo.aggregate({
         where: { jurusan_id: jurusanId, status: { in: ["Pending", "Diproses"] } },
@@ -167,7 +166,6 @@ export async function getDanaDicadangkan(jurusanId: string): Promise<number> {
     return agg._sum.nominal ?? 0;
 }
 
-/** Terapkan pencadangan ke hasil hitungSaldoDariJurnal: saldoTersedia = saldo jurnal - dana yang sedang diajukan. */
 export function kurangiDenganDanaDicadangkan<T extends { saldoTersedia: number }>(saldo: T, dicadangkan: number) {
     return { ...saldo, saldoTersedia: Math.max(0, saldo.saldoTersedia - dicadangkan), saldoDicadangkan: dicadangkan };
 }

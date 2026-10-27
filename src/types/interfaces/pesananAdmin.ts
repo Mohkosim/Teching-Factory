@@ -47,7 +47,7 @@ export interface OrderRow {
     autoConfirmed?: boolean;
 }
 
-export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Ditolak";
+export type StatusRefund = "Diajukan" | "Diproses" | "Disetujui" | "Dikembalikan" | "Ditolak";
 export type TipeBuktiRefund = "Foto" | "Video";
 
 export interface RefundBuktiAdmin {

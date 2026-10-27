@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AKUN, AKUN_MAP, KODE, PESAN_GUNAKAN_PENGELUARAN, TEMPLATE_JURNAL, TEMPLATE_MAP, adalahPengeluaranKas, type TipeJurnalManual } from "@/lib/akuntansi/coa";
+import { AKUN_MAP, BARIS_AWAL_BEBAS, KODE, PESAN_GUNAKAN_PENGELUARAN, akunBebasUntuk, TEMPLATE_JURNAL, TEMPLATE_MAP, adalahPengeluaranKas, type TipeJurnalManual } from "@/lib/akuntansi/coa";
 import { saldoAkunPer, validasiBarisManual, type BarisJurnal, type Jurnal } from "@/lib/akuntansi/engine";
 import { formatNominalInput } from "@/lib/utils/format";
 import { Lencana, rp } from "./ui";
@@ -41,10 +41,9 @@ export default function FormJurnalManual({ jurnal, tipeDiizinkan, hariIni }: Pro
     const [tanggal, setTanggal] = useState(hariIni);
     const [nominal, setNominal] = useState("");
     const [keterangan, setKeterangan] = useState("");
-    const [bebas, setBebas] = useState<BarisBebas[]>([
-        { kode: KODE.KAS, debit: "", kredit: "" },
-        { kode: KODE.MODAL, debit: "", kredit: "" },
-    ]);
+    const barisAwalBebas = (t: TipeJurnalManual): BarisBebas[] =>
+        BARIS_AWAL_BEBAS[t].map((kode) => ({ kode, debit: "", kredit: "" }));
+    const [bebas, setBebas] = useState<BarisBebas[]>(() => barisAwalBebas(tipeDiizinkan[0]));
     const [menyimpan, setMenyimpan] = useState(false);
 
     const daftarTemplate = TEMPLATE_JURNAL.filter((t) => t.tipe === tipe);
@@ -75,6 +74,7 @@ export default function FormJurnalManual({ jurnal, tipeDiizinkan, hariIni }: Pro
         setTipe(t);
         setTemplateId("");
         setNominal("");
+        setBebas(barisAwalBebas(t));
     }
 
     async function simpan() {
@@ -161,10 +161,13 @@ export default function FormJurnalManual({ jurnal, tipeDiizinkan, hariIni }: Pro
             {modeBebas ? (
                 <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">Baris Jurnal</p>
+                    <p className="text-xs text-gray-500">
+                        Akun yang dikelola otomatis oleh sistem (Saldo di Platform/Midtrans, Piutang, Pendapatan, Retur, Beban Admin Midtrans, dll.) tidak tersedia di jurnal bebas.
+                    </p>
                     {bebas.map((b, i) => (
                         <div key={i} className="grid grid-cols-12 gap-2">
                             <select className={`${selectCls} col-span-6`} value={b.kode} onChange={(e) => setBebas(bebas.map((x, j) => (j === i ? { ...x, kode: e.target.value } : x)))}>
-                                {AKUN.map((a) => (
+                                {akunBebasUntuk(tipe).map((a) => (
                                     <option key={a.kode} value={a.kode}>{a.kode} — {a.nama}</option>
                                 ))}
                             </select>
@@ -172,7 +175,7 @@ export default function FormJurnalManual({ jurnal, tipeDiizinkan, hariIni }: Pro
                             <Input inputMode="numeric" placeholder="Kredit" value={b.kredit} onChange={(e) => setBebas(bebas.map((x, j) => (j === i ? { ...x, kredit: formatNominalInput(e.target.value), debit: "" } : x)))} className="col-span-3 bg-gray-50 font-mono" />
                         </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={() => setBebas([...bebas, { kode: KODE.KAS, debit: "", kredit: "" }])}>+ Tambah Baris</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setBebas([...bebas, { kode: BARIS_AWAL_BEBAS[tipe][0], debit: "", kredit: "" }])}>+ Tambah Baris</Button>
                 </div>
             ) : (
                 baris.length > 0 && (

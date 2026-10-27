@@ -107,3 +107,47 @@ export const TEMPLATE_JURNAL: TemplateJurnal[] = [
 ];
 
 export const TEMPLATE_MAP: Record<string, TemplateJurnal> = Object.fromEntries(TEMPLATE_JURNAL.map((t) => [t.id, t]));
+
+
+export const AKUN_BEBAS: Record<TipeJurnalManual, string[]> = {
+    ModalAwal: [KODE.KAS, KODE.PERSEDIAAN, KODE.BEBAN_DIMUKA, KODE.UTANG_AKRUAL, KODE.MODAL],
+    Umum: [
+        KODE.KAS, KODE.PERSEDIAAN, KODE.BEBAN_DIMUKA, KODE.UTANG_AKRUAL, KODE.MODAL, KODE.PRIVE,
+        KODE.PEMBELIAN, KODE.BEBAN_GAJI, KODE.BEBAN_OPERASIONAL, KODE.BEBAN_LAINNYA,
+    ],
+    Penyesuaian: [
+        KODE.PERSEDIAAN, KODE.BEBAN_DIMUKA, KODE.UTANG_AKRUAL,
+        KODE.PEMBELIAN, KODE.BEBAN_GAJI, KODE.BEBAN_OPERASIONAL, KODE.BEBAN_LAINNYA,
+    ],
+};
+
+export const BARIS_AWAL_BEBAS: Record<TipeJurnalManual, [string, string]> = {
+    ModalAwal: [KODE.KAS, KODE.MODAL],
+    Umum: [KODE.KAS, KODE.MODAL],
+    Penyesuaian: [KODE.BEBAN_OPERASIONAL, KODE.UTANG_AKRUAL],
+};
+
+export function akunBebasUntuk(tipe: TipeJurnalManual): Akun[] {
+    const boleh = new Set(AKUN_BEBAS[tipe]);
+    return AKUN.filter((a) => boleh.has(a.kode));
+}
+
+export function cekAkunJurnalManual(
+    tipe: TipeJurnalManual,
+    templateId: string | null,
+    baris: { kode: string }[],
+): string | null {
+    const kodeBaris = [...new Set(baris.map((b) => b.kode))];
+    if (templateId) {
+        const t = TEMPLATE_MAP[templateId];
+        if (!t) return "Template jurnal tidak dikenal.";
+        const boleh = new Set<string>([t.debit, t.kredit]);
+        const salah = kodeBaris.filter((k) => !boleh.has(k));
+        return salah.length ? `Akun ${salah.join(", ")} tidak sesuai dengan template yang dipilih.` : null;
+    }
+    const boleh = new Set(AKUN_BEBAS[tipe]);
+    const salah = kodeBaris.filter((k) => !boleh.has(k));
+    if (!salah.length) return null;
+    const nama = salah.map((k) => `${k} — ${AKUN_MAP[k]?.nama ?? "tidak dikenal"}`).join(", ");
+    return `Akun berikut tidak boleh diinput manual pada jurnal bebas: ${nama}. Akun ini dikelola otomatis oleh sistem.`;
+}

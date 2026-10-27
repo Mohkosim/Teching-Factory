@@ -12,8 +12,8 @@ export const varianGrupSchema = z.object({
 
 export const varianKombinasiSchema = z.object({
   opsi_nama: z.array(z.string().min(1)),
-  harga: z.coerce.number().min(0, "Harga tidak boleh negatif"),
-  stok: z.coerce.number().min(0, "Stok tidak boleh negatif"),
+  harga: z.coerce.number().int("Harga harus bilangan bulat").min(0, "Harga tidak boleh negatif"),
+  stok: z.coerce.number().int("Stok harus bilangan bulat").min(0, "Stok tidak boleh negatif"),
   sku: z.string().optional(),
   gambar: z.string().optional(),
 });

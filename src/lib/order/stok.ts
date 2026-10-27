@@ -36,10 +36,15 @@ export async function kembalikanStok(
 ) {
     const { produkId, jumlah, kombinasiId } = item;
     if (kombinasiId) {
+        const kombinasi = await tx.varianKombinasi.findUnique({
+            where: { kombinasi_id: kombinasiId },
+            select: { aktif: true },
+        });
         await tx.varianKombinasi.updateMany({
             where: { kombinasi_id: kombinasiId },
             data: { stok: { increment: jumlah } },
         });
+        if (kombinasi && !kombinasi.aktif) return;
     }
     const barang = await tx.barang.findFirst({ where: { produk_id: produkId }, select: { barang_id: true } });
     if (barang) {

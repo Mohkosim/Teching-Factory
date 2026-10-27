@@ -50,6 +50,7 @@ import {
     selesaikanJasaAction,
     setujuiRefundAction,
     tolakRefundAction,
+    tandaiDanaDikembalikanAction,
 } from "@/lib/getdata/get-pesanan-admin";
 import { formatRupiah } from "@/lib/utils/format";
 import { formatDateRangeLabel } from "@/lib/utils/tanggal";
@@ -144,7 +145,8 @@ function refundBadgeClass(status: StatusRefund) {
     switch (status) {
         case "Diajukan": return "bg-amber-50 text-amber-600";
         case "Diproses": return "bg-sky-50 text-sky-600";
-        case "Disetujui": return "bg-emerald-50 text-emerald-600";
+        case "Disetujui": return "bg-sky-50 text-sky-600";
+        case "Dikembalikan": return "bg-emerald-50 text-emerald-600";
         case "Ditolak": return "bg-red-50 text-red-500";
     }
 }
@@ -152,7 +154,8 @@ function refundLabel(status: StatusRefund) {
     switch (status) {
         case "Diajukan": return "Refund Diajukan";
         case "Diproses": return "Refund Diproses";
-        case "Disetujui": return "Refund Disetujui";
+        case "Disetujui": return "Proses Dana Dikembalikan";
+        case "Dikembalikan": return "Dana Dikembalikan";
         case "Ditolak": return "Refund Ditolak";
     }
 }
@@ -304,6 +307,29 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                 updateOrder(order_id, { refund: previousRefund });
                 Swal.close();
                 toast.error("Gagal menyetujui refund");
+            }
+        });
+    };
+
+    const handleDanaDikembalikan = () => {
+        if (!detailItem?.refund) return;
+        const order_id = detailItem.order_id;
+        const refund = detailItem.refund;
+        const previousRefund = refund;
+
+        updateOrder(order_id, { refund: { ...refund, status: "Dikembalikan" } });
+
+        startTransition(async () => {
+            tampilkanLoading("Menandai dana dikembalikan...");
+            try {
+                await tandaiDanaDikembalikanAction(refund.id, slugs);
+                Swal.close();
+                toast.success("Dana refund ditandai sudah dikembalikan");
+                router.refresh();
+            } catch (err) {
+                updateOrder(order_id, { refund: previousRefund });
+                Swal.close();
+                toast.error(err instanceof Error ? err.message : "Gagal menandai dana dikembalikan");
             }
         });
     };
@@ -821,6 +847,22 @@ export default function OrderManagementClient({ initialOrders }: OrderManagement
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* Refund disetujui: dana masih dalam proses, admin menandai setelah uang masuk ke rekening pembeli */}
+                                        {detailItem.refund.status === "Disetujui" && (
+                                            <div className="space-y-2 bg-sky-50 rounded-xl p-3">
+                                                <p className="text-xs text-sky-700">
+                                                    Refund sudah disetujui. Transfer dana ke pembeli, lalu tandai di sini setelah dana benar-benar dikembalikan.
+                                                </p>
+                                                <Button
+                                                    onClick={handleDanaDikembalikan}
+                                                    disabled={isPending}
+                                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg h-9 text-sm"
+                                                >
+                                                    Tandai Dana Sudah Dikembalikan
+                                                </Button>
+                                            </div>
+                                        )}
 
                                         {/* Aksi tindak lanjut — cuma muncul selama refund belum diputuskan */}
                                         {(detailItem.refund.status === "Diajukan" || detailItem.refund.status === "Diproses") && (

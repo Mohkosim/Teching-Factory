@@ -19,7 +19,7 @@ export interface TransaksiItem {
     metodePembayaran: string;
     statusSettlement: StatusSettlementUI;
     varianLabel?: string;
-    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Ditolak"; alasan: string };
+    refund?: { status: "Diajukan" | "Diproses" | "Disetujui" | "Dikembalikan" | "Ditolak"; alasan: string };
 }
 
 function formatTanggal(date: Date): string {
@@ -96,9 +96,9 @@ export async function getTransaksiSmk(smk_id: string): Promise<TransaksiItem[]> 
         );
 
         const refund = t.order?.refundRequest;
-        const refundDiproses = !!refund && refund.status !== "Ditolak" && refund.status !== "Disetujui";
+        const refundDiproses = !!refund && refund.status !== "Ditolak" && refund.status !== "Dikembalikan";
 
-        const refundDisetujui = t.jenis_transaksi === "Pemasukan" && refund?.status === "Disetujui";
+        const refundDisetujui = t.jenis_transaksi === "Pemasukan" && refund?.status === "Dikembalikan";
 
         const base = {
             noInvoice: t.order?.kode_invoice ?? t.kode_pembayaran ?? "-",

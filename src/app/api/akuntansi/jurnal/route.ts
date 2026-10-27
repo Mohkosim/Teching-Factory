@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { PESAN_GUNAKAN_PENGELUARAN, TEMPLATE_MAP, adalahPengeluaranKas } from "@/lib/akuntansi/coa";
+import { PESAN_GUNAKAN_PENGELUARAN, TEMPLATE_MAP, adalahPengeluaranKas, cekAkunJurnalManual } from "@/lib/akuntansi/coa";
 import { validasiBarisManual } from "@/lib/akuntansi/engine";
 import { requireRoleApi } from "@/lib/authz";
 
@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
 
     const cek = validasiBarisManual(body.baris);
     if (!cek.ok) return NextResponse.json({ message: cek.error }, { status: 400 });
+
+    const salahAkun = cekAkunJurnalManual(tipe, templateId, cek.baris);
+    if (salahAkun) return NextResponse.json({ message: salahAkun }, { status: 400 });
 
     if (tipe === "Umum" && adalahPengeluaranKas(cek.baris)) {
         return NextResponse.json({ message: PESAN_GUNAKAN_PENGELUARAN }, { status: 400 });

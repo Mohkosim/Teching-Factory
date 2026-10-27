@@ -17,7 +17,6 @@ export async function getNotifikasiData(userId: string): Promise<NotifikasiItem[
     const { produk, jasa } = await getPesananData(userId);
     const notifikasi: NotifikasiItem[] = [];
 
-    // Kelompokkan produk per orderId biar tidak duplikat notifikasi timeline per item
     const produkPerOrder = new Map<string, typeof produk>();
     for (const item of produk) {
         const list = produkPerOrder.get(item.orderId) ?? [];
@@ -41,7 +40,6 @@ export async function getNotifikasiData(userId: string): Promise<NotifikasiItem[
         }
     }
 
-    // Notifikasi refund — dicek per item produk (bukan per order), karena refund bisa spesifik ke satu produk
     for (const item of produk) {
         if (!item.refund) continue;
 
@@ -52,7 +50,17 @@ export async function getNotifikasiData(userId: string): Promise<NotifikasiItem[
                 judul: item.nama,
                 pesan: item.refund.catatanAdmin
                     ? `Refund disetujui: ${item.refund.catatanAdmin}`
-                    : "Refund Anda disetujui",
+                    : "Refund Anda disetujui, dana sedang dalam proses dikembalikan",
+                tanggal: item.tanggal,
+                href: "/profile/pesanan",
+                thumbnail: item.thumbnail,
+            });
+        } else if (item.refund.status === "Dikembalikan") {
+            notifikasi.push({
+                id: `refund-dikembalikan-${item.refund.id}`,
+                jenis: "refund_dikembalikan",
+                judul: item.nama,
+                pesan: "Dana refund Anda sudah dikembalikan",
                 tanggal: item.tanggal,
                 href: "/profile/pesanan",
                 thumbnail: item.thumbnail,
@@ -86,7 +94,6 @@ export async function getNotifikasiData(userId: string): Promise<NotifikasiItem[
             });
         }
 
-        // Reminder cicilan: status masih "berjalan" (belum lunas)
         if (item.status === "berjalan") {
             const sudahDibayar = item.dp ?? 0;
             const sisaTagihan = item.total - sudahDibayar;

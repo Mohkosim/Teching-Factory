@@ -67,9 +67,11 @@ export async function PATCH(
         const resetToken = crypto.randomBytes(32).toString("hex");
         const resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 30);
 
+        const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+
         const updated = await prisma.user.update({
             where: { user_id: id },
-            data: { email: newEmail, resetToken, resetTokenExpiry },
+            data: { email: newEmail, resetToken: resetTokenHash, resetTokenExpiry },
         });
 
         const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${resetToken}`;

@@ -43,3 +43,7 @@ next-env.d.ts
 /app/generated/prisma
 
 /generated/prisma
+
+# Upload lokal tidak boleh masuk repo/image: semua upload disimpan di Cloudinary.
+# Folder ini pernah berisi bukti refund & pengeluaran yang bersifat privat.
+/public/uploads/

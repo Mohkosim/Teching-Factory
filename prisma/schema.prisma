@@ -100,6 +100,7 @@ enum StatusRefund {
   Diajukan
   Diproses
   Disetujui
+  Dikembalikan
   Ditolak
 }
 

@@ -1,9 +1,5 @@
 import { AKUN, AKUN_KAS, AKUN_MAP, KODE, akunUntukKategori, type Akun, type TipeJurnalManual } from "./coa";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tipe data
-// ─────────────────────────────────────────────────────────────────────────────
-
 export type TipeJurnal = "Umum" | "Penyesuaian";
 
 export type JenisJurnal =
@@ -90,9 +86,6 @@ export interface SumberAkuntansi {
     manual: SumberManual[];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Util
-// ─────────────────────────────────────────────────────────────────────────────
 
 const WIB_MS = 7 * 60 * 60 * 1000;
 
@@ -150,10 +143,6 @@ function buat(p: {
 
 const D = (kode: string, debit: number): BarisJurnal => ({ kode, debit: rp(debit), kredit: 0 });
 const K = (kode: string, kredit: number): BarisJurnal => ({ kode, debit: 0, kredit: rp(kredit) });
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. Jurnal otomatis dari data sumber
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function bangunJurnalOtomatis(src: SumberAkuntansi): { jurnal: Jurnal[]; peringatan: string[] } {
     const out: Jurnal[] = [];
@@ -230,7 +219,7 @@ function jurnalOrder(o: SumberOrder, out: Jurnal[], peringatan: string[]) {
 
     const diterima = o.diterimaAt !== null || o.statusOrder === "Diterima" || o.statusOrder === "Selesai";
     const recTime = diterima ? (o.diterimaAt ?? o.updatedAt).getTime() : null;
-    const refundTime = o.refund?.status === "Disetujui" ? o.refund.tanggal.getTime() : null;
+    const refundTime = o.refund?.status === "Dikembalikan" ? o.refund.tanggal.getTime() : null;
 
     const events: Event[] = o.pembayaran.map((p) => ({ t: p.tanggal.getTime(), urut: 0, kind: "pay", pay: p }) as Event);
     if (recTime !== null) events.push({ t: recTime, urut: 1, kind: "rec" });
@@ -351,9 +340,6 @@ function jurnalOrder(o: SumberOrder, out: Jurnal[], peringatan: string[]) {
     void pendapatanMasuk;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. Validasi jurnal manual (dipakai API & form)
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function validasiBarisManual(input: unknown): { ok: true; baris: BarisJurnal[] } | { ok: false; error: string } {
     if (!Array.isArray(input) || input.length < 2) return { ok: false, error: "Jurnal minimal memiliki 2 baris (debit dan kredit)." };
@@ -377,9 +363,6 @@ export function validasiBarisManual(input: unknown): { ok: true; baris: BarisJur
     return { ok: true, baris };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. Saldo, Buku Besar, Neraca Saldo
-// ─────────────────────────────────────────────────────────────────────────────
 
 export interface FilterJurnal {
     mulai?: string;
@@ -505,9 +488,6 @@ export function neracaSaldo(jurnal: Jurnal[], f: { sampai?: string; tanpaPenyesu
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. Laporan keuangan
-// ─────────────────────────────────────────────────────────────────────────────
 
 export interface LabaRugi {
     mulai: string | null;
@@ -673,7 +653,6 @@ export function neraca(jurnal: Jurnal[], f: { sampai: string }): Neraca {
     };
 }
 
-// ── Arus Kas ─────
 
 export interface ItemArusKas {
     label: string;
@@ -768,9 +747,6 @@ export function arusKas(jurnal: Jurnal[], f: { mulai?: string; sampai: string })
     return { mulai: f.mulai ?? null, sampai: f.sampai, saldoAwal, ...hasil, arusBersih, saldoAkhir: saldoAwal + arusBersih };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. Validasi sistem (indikator Valid / Tidak Valid)
-// ─────────────────────────────────────────────────────────────────────────────
 
 export interface CekValidasi {
     id: string;

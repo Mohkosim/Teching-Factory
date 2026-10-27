@@ -678,7 +678,7 @@ export default function LaporanKeuanganClient({
                                 <>
                                     <Separator className="my-3" />
                                     <p className="font-semibold text-gray-800 mb-1">Detail Refund</p>
-                                    <InfoRow label="Status" value={detailItem.refund.status} />
+                                    <InfoRow label="Status" value={detailItem.refund.status === "Disetujui" ? "Proses Dana Dikembalikan" : detailItem.refund.status === "Dikembalikan" ? "Dana Dikembalikan" : detailItem.refund.status} />
                                     <InfoBlock label="Alasan" value={detailItem.refund.alasan} />
                                 </>
                             )}

@@ -644,7 +644,7 @@ function TokoSection({
     const first = items[0];
     const namaToko = (first as ProdukItem & { toko?: string }).toko ?? "Toko";
 
-    const refundDisetujui = first.refund?.status === "Disetujui";
+    const refundDisetujui = first.refund?.status === "Disetujui" || first.refund?.status === "Dikembalikan";
 
     const sedangDikirim = first.statusKirim === "Sedang Dikirim";
     const sudahDiterima = first.statusKirim === "Diterima" && !refundDisetujui;
@@ -894,7 +894,7 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, onKonfirmasiSe
     const totalOngkir = first.biayaOngkir;
     const total = subtotal + totalOngkir;
     const sedangDikirim = first.statusKirim === "Sedang Dikirim";
-    const refundDisetujui = first.refund?.status === "Disetujui";
+    const refundDisetujui = first.refund?.status === "Disetujui" || first.refund?.status === "Dikembalikan";
     const sudahDiterima = first.statusKirim === "Diterima" && !refundDisetujui;
 
     return (
@@ -918,9 +918,14 @@ function DetailOrderModal({ items, onClose, onKonfirmasiDiterima, onKonfirmasiSe
                         <span className="text-sm font-semibold text-gray-800">Status Refund</span>
                         <RefundStatusBadge status={first.refund.status} />
                     </div>
-                    {refundDisetujui && (
+                    {first.refund.status === "Disetujui" && (
                         <p className="text-xs text-gray-500 mt-1">
-                            Refund pesanan ini sudah disetujui. Pesanan ditutup lewat jalur refund, tidak perlu dikonfirmasi selesai lagi.
+                            Refund disetujui. Dana sedang dalam proses dikembalikan ke rekening kamu, harap tunggu sampai status berubah menjadi &quot;Dana Dikembalikan&quot;.
+                        </p>
+                    )}
+                    {first.refund.status === "Dikembalikan" && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            Dana refund sudah dikembalikan ke rekening kamu. Pesanan ditutup lewat jalur refund, tidak perlu dikonfirmasi selesai lagi.
                         </p>
                     )}
                     {first.refund.status === "Ditolak" && (
@@ -1460,7 +1465,8 @@ function RefundStatusBadge({ status }: { status: StatusRefund }) {
     const cfg: Record<StatusRefund, { label: string; className: string }> = {
         Diajukan: { label: "Refund Diajukan", className: "bg-amber-50 text-amber-600" },
         Diproses: { label: "Refund Diproses", className: "bg-sky-50 text-sky-600" },
-        Disetujui: { label: "Refund Disetujui", className: "bg-emerald-50 text-emerald-600" },
+        Disetujui: { label: "Proses Dana Dikembalikan", className: "bg-sky-50 text-sky-600" },
+        Dikembalikan: { label: "Dana Dikembalikan", className: "bg-emerald-50 text-emerald-600" },
         Ditolak: { label: "Refund Ditolak", className: "bg-red-50 text-red-500" },
     };
     const c = cfg[status];

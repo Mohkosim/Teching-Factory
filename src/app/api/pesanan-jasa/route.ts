@@ -136,7 +136,10 @@ export async function POST(request: Request) {
         });
     } catch (err) {
         console.error("Gagal membuat transaksi Snap untuk jasa:", err);
-        await prisma.order.delete({ where: { order_id: order.order_id } });
+        await prisma.$transaction([
+            prisma.order_Detail.deleteMany({ where: { order_id: order.order_id } }),
+            prisma.order.delete({ where: { order_id: order.order_id } }),
+        ]);
         return NextResponse.json({ message: "Gagal membuat transaksi pembayaran" }, { status: 500 });
     }
 }

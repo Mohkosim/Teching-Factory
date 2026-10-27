@@ -179,7 +179,7 @@ export async function setujuiRefundAction(
 ) {
     const { refund } = await otorisasiRefund(refund_id);
 
-    if (refund.status === "Disetujui" || refund.status === "Ditolak") {
+    if (refund.status === "Disetujui" || refund.status === "Dikembalikan" || refund.status === "Ditolak") {
         throw new Error("Refund ini sudah diputuskan sebelumnya");
     }
 
@@ -201,7 +201,7 @@ export async function tolakRefundAction(
     slugs: { smkSlug: string; jurusanSlug: string }
 ) {
     const { refund } = await otorisasiRefund(refund_id);
-    if (refund.status === "Disetujui" || refund.status === "Ditolak") {
+    if (refund.status === "Disetujui" || refund.status === "Dikembalikan" || refund.status === "Ditolak") {
         throw new Error("Refund ini sudah diputuskan sebelumnya");
     }
     const catatan = String(catatanAdmin ?? "").trim().slice(0, 1000);
@@ -212,4 +212,21 @@ export async function tolakRefundAction(
         data: { status: "Ditolak", catatanAdmin: catatan },
     });
     revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
+}
+
+export async function tandaiDanaDikembalikanAction(
+    refund_id: string,
+    slugs: { smkSlug: string; jurusanSlug: string }
+) {
+    await otorisasiRefund(refund_id);
+
+    const hasil = await prisma.refundRequest.updateMany({
+        where: { refund_id, status: "Disetujui" },
+        data: { status: "Dikembalikan" },
+    });
+    if (hasil.count === 0) {
+        throw new Error("Refund belum disetujui atau dana sudah ditandai dikembalikan");
+    }
+    revalidatePath(pesananPath(slugs.smkSlug, slugs.jurusanSlug));
+    revalidatePath("/profile/pesanan");
 }

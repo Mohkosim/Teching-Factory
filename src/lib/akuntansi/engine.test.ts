@@ -137,7 +137,7 @@ describe("jurnal otomatis — jasa dengan DP/cicilan", () => {
 
 describe("jurnal otomatis — refund", () => {
     it("refund setelah diakui → retur penjualan, ongkir dikembalikan, kas platform berkurang", () => {
-        const o = orderProduk({ refund: { status: "Disetujui", tanggal: w("2026-09-08") } });
+        const o = orderProduk({ refund: { status: "Dikembalikan", tanggal: w("2026-09-08") } });
         const { jurnal } = bangunJurnalOtomatis(sumber({ order: [o] }));
         const ref = jurnal.find((j) => j.jenis === "Refund")!;
         expect(ref.baris).toEqual([
@@ -151,7 +151,7 @@ describe("jurnal otomatis — refund", () => {
     });
 
     it("refund SEBELUM diterima → pendapatan tidak pernah diakui", () => {
-        const o = orderProduk({ statusOrder: "Selesai", refund: { status: "Disetujui", tanggal: w("2026-09-03") } });
+        const o = orderProduk({ statusOrder: "Selesai", refund: { status: "Dikembalikan", tanggal: w("2026-09-03") } });
         const { jurnal } = bangunJurnalOtomatis(sumber({ order: [o] }));
         expect(jurnal.some((j) => j.jenis === "Pengakuan Pendapatan")).toBe(false);
         const ref = jurnal.find((j) => j.jenis === "Refund")!;
