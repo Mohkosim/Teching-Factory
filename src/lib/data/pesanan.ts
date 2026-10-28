@@ -65,7 +65,21 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
         const totalMasukOrder = order.transaksi
             .filter((t) => t.jenis_transaksi === "Pemasukan")
             .reduce((sum, t) => sum + t.nominal, 0);
-        const timelineStep = mapStatusKeStep(order.status_pembayaran, order.status_order, isOrderJasa && totalMasukOrder > 0);
+
+        // Jasa yang dibatalkan/gagal bayar sebelum ada pembayaran masuk tidak ditampilkan di Pesanan Saya.
+        const jasaBatalTanpaBayar =
+            isOrderJasa &&
+            totalMasukOrder === 0 &&
+            (order.status_order === "Dibatalkan" || order.status_pembayaran === "Gagal");
+        if (jasaBatalTanpaBayar) continue;
+
+        // Refund disetujui/dikembalikan: DB menandai order "Dibatalkan", tetapi timeline
+        // tetap menampilkan progres pesanan (sudah diterima), bukan kembali ke "Belum Bayar".
+        const refundDisetujui =
+            order.refundRequest?.status === "Disetujui" || order.refundRequest?.status === "Dikembalikan";
+        const timelineStep: 0 | 1 | 2 | 3 = refundDisetujui
+            ? 3
+            : mapStatusKeStep(order.status_pembayaran, order.status_order, isOrderJasa && totalMasukOrder > 0);
 
         const refund: RefundInfo | null = order.refundRequest
             ? {
@@ -110,6 +124,7 @@ export async function getPesananData(userId: string): Promise<{ produk: ProdukIt
                     varianLabel,
                     statusBayar: order.status_pembayaran === "Lunas" ? "Dibayar" : "Belum Dibayar",
                     statusKirim:
+                        refundDisetujui ? "Diterima" :
                         order.status_order === "Selesai" ? "Selesai" :
                             order.status_order === "Diterima" ? "Diterima" :
                                 order.status_order === "Dikirim" ? "Sedang Dikirim" : "Diproses",

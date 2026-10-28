@@ -54,17 +54,24 @@ export async function PATCH(
         return NextResponse.json({ message: midtrans.message }, { status: midtrans.status });
     }
 
-    const hasil = await prisma.order.updateMany({
-        where: {
-            order_id: order.order_id,
-            user_id: session.user.id,
-            status_order: "Menunggu",
-            transaksi: { none: { jenis_transaksi: "Pemasukan" } },
-        },
-        data: HASIL_BATAL,
+    const dihapus = await prisma.$transaction(async (tx) => {
+        const masihBisa = await tx.order.findFirst({
+            where: {
+                order_id: order.order_id,
+                user_id: session.user.id,
+                status_order: "Menunggu",
+                transaksi: { none: { jenis_transaksi: "Pemasukan" } },
+            },
+            select: { order_id: true },
+        });
+        if (!masihBisa) return 0;
+
+        await tx.order_Detail.deleteMany({ where: { order_id: order.order_id } });
+        const hasil = await tx.order.deleteMany({ where: { order_id: order.order_id } });
+        return hasil.count;
     });
 
-    if (hasil.count !== 1) {
+    if (dihapus !== 1) {
         return NextResponse.json(
             { message: "Status pesanan berubah, muat ulang halaman lalu coba lagi" },
             { status: 409 }

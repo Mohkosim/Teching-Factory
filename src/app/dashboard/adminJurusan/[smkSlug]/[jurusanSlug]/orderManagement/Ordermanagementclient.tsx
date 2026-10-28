@@ -161,6 +161,8 @@ function refundLabel(status: StatusRefund) {
 }
 
 function getActiveStepIndex(order: OrderRow) {
+    // Refund disetujui/dikembalikan: order ditandai "Dibatalkan" di DB, tapi timeline tetap di tahap akhir.
+    if (order.refund?.status === "Disetujui" || order.refund?.status === "Dikembalikan") return 3;
     if (!adminBolehMengelola(order)) return 0;
     if (order.statusPengiriman === "Menunggu" || order.statusPengiriman === "Diproses") return 1;
     if (order.statusPengiriman === "Dikirim") return 2;

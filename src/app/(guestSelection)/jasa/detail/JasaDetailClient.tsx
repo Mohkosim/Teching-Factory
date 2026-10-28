@@ -171,7 +171,7 @@ export default function JasaDetailClient({
         nominalAngka <= jasa.harga &&
         nominalAngka >= minimalDp;
 
-    const bukaSnapPay = (snapToken: string, orderId: string) => {
+    const bukaSnapPay = (snapToken: string, orderId: string, kodeInvoice: string) => {
         if (!window.snap) {
             toast.error("Metode pembayaran belum siap, coba lagi sesaat lagi");
             return;
@@ -194,7 +194,7 @@ export default function JasaDetailClient({
                 });
             },
             onClose: () => {
-                handlePesananBelumBayar(orderId, snapToken);
+                handlePesananBelumBayar(orderId, snapToken, kodeInvoice);
             },
         });
     };
@@ -224,7 +224,7 @@ export default function JasaDetailClient({
 
             Swal.close();
             closeForm();
-            bukaSnapPay(result.snapToken, result.orderId);
+            bukaSnapPay(result.snapToken, result.orderId, result.kodeInvoice);
         } catch (err) {
             Swal.close();
             toast.error(err instanceof Error ? err.message : "Gagal membuat pesanan, silakan coba lagi");
@@ -233,17 +233,19 @@ export default function JasaDetailClient({
         }
     };
 
-    const handlePesananBelumBayar = async (orderId: string, snapToken: string) => {
+    // Saat jendela pembayaran ditutup: tanyakan dulu. Kalau memilih batal, pesanan
+    // dihapus (tidak masuk ke "Pesanan Saya"), sama seperti alur produk.
+    const handlePesananBelumBayar = async (orderId: string, snapToken: string, kodeInvoice: string) => {
         const lanjutkanBayar = await confirmAksi({
             title: "Pembayaran Belum Selesai",
-            text: "Pesanan kamu belum dibayar. Mau lanjutkan pembayaran sekarang, atau batalkan pesanan ini (pesanan akan dihapus)?",
+            text: `Pesanan kamu sudah dibuat (Order #${kodeInvoice}) tapi pembayaran belum diselesaikan. Mau lanjutkan pembayaran sekarang, atau batalkan pesanan ini?`,
             icon: "warning",
             confirmText: "Lanjutkan Pembayaran",
             cancelText: "Batalkan Pesanan",
         });
 
         if (lanjutkanBayar) {
-            bukaSnapPay(snapToken, orderId);
+            bukaSnapPay(snapToken, orderId, kodeInvoice);
             return;
         }
 
