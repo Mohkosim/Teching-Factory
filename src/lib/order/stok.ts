@@ -1,8 +1,8 @@
 import "server-only";
-import type { Prisma } from "@/generated/prisma/client";
+import type { PrismaTx } from "@/lib/prisma";
 import { computeStatusProduk } from "@/lib/utils/status-produk";
 
-type Tx = Prisma.TransactionClient;
+type Tx = PrismaTx;
 
 export async function kurangiStokAtomic(
     tx: Tx,

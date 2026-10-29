@@ -17,6 +17,7 @@ export async function getSMKAccountDetail(userId: string): Promise<SMKAccountDet
             smk: {
                 include: {
                     jurusans: {
+                        where: { deletedAt: null },
                         orderBy: { createdAt: "asc" },
                         include: {
                             user: {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import { recordAuditLog } from "@/lib/utils/audit-log";
 import { prosesPengajuanMitraSchema } from "@/lib/validations/pengajuan-mitra";
 import { sendPengajuanMitraDitolakEmail } from "@/lib/mail";
@@ -82,7 +82,7 @@ export async function PATCH(
         });
     }
 
-    const npsnDipakai = await prisma.sMK.findFirst({
+    const npsnDipakai = await prismaAll.sMK.findFirst({
         where: { npsn: pengajuan.npsn, NOT: { user_id: pengajuan.user_id } },
     });
     if (npsnDipakai) {

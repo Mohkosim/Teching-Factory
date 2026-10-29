@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import crypto from "crypto";
 import { z } from "zod";
 import { sendResetPasswordEmail, sendEmailChangedNotice } from "@/lib/mail";
@@ -55,7 +55,7 @@ export async function PATCH(
             );
         }
 
-        const dipakaiAkunLain = await prisma.user.findUnique({ where: { email: newEmail } });
+        const dipakaiAkunLain = await prismaAll.user.findUnique({ where: { email: newEmail } });
         if (dipakaiAkunLain) {
             return NextResponse.json(
                 { message: "E-mail tersebut sudah dipakai akun lain" },

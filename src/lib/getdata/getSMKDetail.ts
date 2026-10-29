@@ -15,7 +15,7 @@ export async function getSMKDetail(smkId: string): Promise<SMKDetailData | null>
       latitude: true,
       longitude: true,
       user: { select: { name: true, img: true } },
-      _count: { select: { jurusans: true } },
+      _count: { select: { jurusans: { where: { deletedAt: null } } } },
     },
   });
 

@@ -8,7 +8,7 @@ export async function getJurusanNames(): Promise<string[]> {
 
     const smk = await prisma.sMK.findUnique({
         where: { user_id: session.user.id },
-        include: { jurusans: true },
+        include: { jurusans: { where: { deletedAt: null } } },
     });
     if (!smk) return [];
 

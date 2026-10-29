@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import * as bcrypt from "bcryptjs";
 import { registerSmkSchema } from "@/lib/validations/pengajuan-mitra";
 import { generateOtp, hashOtp, OTP_EXPIRY_MS } from "@/lib/utils/otp";
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: emailError }, { status: 400 });
         }
 
-        const npsnSudahMitra = await prisma.sMK.findUnique({ where: { npsn } });
+        const npsnSudahMitra = await prismaAll.sMK.findUnique({ where: { npsn } });
         if (npsnSudahMitra) {
             return NextResponse.json(
                 { message: "NPSN ini sudah terdaftar sebagai mitra SMK" },
@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const existing = await prisma.user.findUnique({ where: { email } });
-        if (existing && existing.isVerified) {
+        const existing = await prismaAll.user.findUnique({ where: { email } });
+        if (existing && (existing.isVerified || existing.deletedAt)) {
             return NextResponse.json({ message: "E-mail sudah terdaftar" }, { status: 409 });
         }
 

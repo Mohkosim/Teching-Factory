@@ -6,9 +6,10 @@ export async function getJurusanAccounts(adminSmkUserId: string): Promise<Jurusa
         where: { user_id: adminSmkUserId },
         include: {
             jurusans: {
+                where: { deletedAt: null },
                 include: {
                     user: true,
-                    _count: { select: { produk: true } },
+                    _count: { select: { produk: { where: { deletedAt: null } } } },
                 },
             },
         },

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import { getCurrentUserProfile } from "@/lib/getdata/get-profile";
 
 export async function GET() {
@@ -70,7 +70,7 @@ export async function PATCH(req: Request) {
     };
 
     if (email) {
-        const existing = await prisma.user.findFirst({
+        const existing = await prismaAll.user.findFirst({
             where: { email, NOT: { user_id: session.user.id } },
         });
         if (existing) {

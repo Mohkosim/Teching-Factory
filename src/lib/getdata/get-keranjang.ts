@@ -13,6 +13,7 @@ export async function findCartOrder(userId: string) {
         },
         include: {
             orderDetail: {
+                where: { produk: { deletedAt: null } },
                 include: {
                     produk: {
                         include: {

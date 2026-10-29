@@ -29,7 +29,7 @@ export default async function LaporanKeuanganPage() {
         where: { smk_id },
         select: {
             user: { select: { name: true } },
-            jurusans: { select: { jurusan_id: true, nama_jurusan: true }, orderBy: { nama_jurusan: "asc" } },
+            jurusans: { where: { deletedAt: null }, select: { jurusan_id: true, nama_jurusan: true }, orderBy: { nama_jurusan: "asc" } },
         },
     });
 

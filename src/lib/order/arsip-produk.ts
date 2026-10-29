@@ -9,13 +9,15 @@ export async function hapusAtauArsipkanProduk(produkId: string): Promise<"diarsi
         },
     });
 
-    await prisma.order_Detail.deleteMany({
-        where: { produk_id: produkId, order: { kode_invoice: null, pengiriman: null } },
-    });
+    await prisma.$transaction([
+        prisma.order_Detail.deleteMany({
+            where: { produk_id: produkId, order: { kode_invoice: null, pengiriman: null } },
+        }),
+        prisma.produk.update({
+            where: { produk_id: produkId },
+            data: { deletedAt: new Date(), status: "Nonaktif" },
+        }),
+    ]);
 
-    if (pernahDipesan > 0) {
-        await prisma.produk.update({ where: { produk_id: produkId }, data: { status: "Nonaktif" } });
-        return "diarsipkan";
-    }
-    return "dihapus";
+    return pernahDipesan > 0 ? "diarsipkan" : "dihapus";
 }

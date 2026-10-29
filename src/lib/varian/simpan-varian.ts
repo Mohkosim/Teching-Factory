@@ -1,11 +1,11 @@
 import "server-only";
 import { randomUUID } from "crypto";
 import type { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, type PrismaTx } from "@/lib/prisma";
 import { sinkronStatusProduk } from "@/lib/order/stok";
 import type { SimpanVarianInput } from "@/lib/validations/varian";
 
-type Tx = Prisma.TransactionClient;
+type Tx = PrismaTx;
 
 export class VarianError extends Error {
     constructor(message: string) {

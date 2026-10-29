@@ -66,8 +66,12 @@ export async function PATCH(
         });
         if (!masihBisa) return 0;
 
-        await tx.order_Detail.deleteMany({ where: { order_id: order.order_id } });
-        const hasil = await tx.order.deleteMany({ where: { order_id: order.order_id } });
+        // Soft delete: Order & Order_Detail tetap ada sebagai jejak (mis. untuk notifikasi Midtrans yang terlambat),
+        // tetapi tersembunyi dari Pesanan Saya, dashboard, dan hitungan slot jadwal jasa.
+        const hasil = await tx.order.updateMany({
+            where: { order_id: order.order_id, deletedAt: null },
+            data: { deletedAt: new Date() },
+        });
         return hasil.count;
     });
 

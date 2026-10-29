@@ -134,6 +134,7 @@ model User {
   role     Role   @default(User)
   gender   Gender? 
   isActive Boolean @default(true)
+  deletedAt DateTime?
 
   smk      SMK?
   jurusan  Jurusan?
@@ -250,6 +251,7 @@ model Jurusan {
   deskripsi       String?
   kepala_jurusan  String?
   jam_operasional String?
+  deletedAt       DateTime?
 
   produk Produk[]
   kurirAktif KurirAktif[]
@@ -297,6 +299,7 @@ model Produk {
 
   status_publikasi StatusPublikasi @default(Pending)
   catatan_revisi   String?  
+  deletedAt        DateTime?
 
   foto   FotoProduk[]
   barang Barang[]
@@ -467,6 +470,7 @@ model Order {
   seller_jurusan_id  String?
   status_order      StatusOrder      @default(Menunggu)
   status_pembayaran StatusPembayaran @default(Belum_Bayar)
+  deletedAt         DateTime?
 
   orderDetail Order_Detail[]
   transaksi   Transaksi[]
@@ -527,6 +531,7 @@ model Transaksi {
   midtrans_order_id String?
   biaya_midtrans Int? @default(0)
   status_settlement StatusSettlementTransaksi @default(Selesai)
+  deletedAt         DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

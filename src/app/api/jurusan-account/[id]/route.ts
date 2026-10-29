@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { softDeleteJurusan } from "@/lib/utils/soft-delete";
 
 async function assertOwnedByAdminSMK(jurusanId: string, smkUserId: string) {
     const jurusan = await prisma.jurusan.findUnique({
@@ -87,8 +88,9 @@ export async function DELETE(
             return NextResponse.json({ message: "Data jurusan tidak ditemukan" }, { status: 404 });
         }
 
-        await prisma.jurusan.delete({ where: { jurusan_id: id } });
-        await prisma.user.delete({ where: { user_id: jurusan.user_id } });
+        await prisma.$transaction(async (tx) => {
+            await softDeleteJurusan(tx, [id]);
+        });
 
         return NextResponse.json({ message: "Akun jurusan berhasil dihapus" });
     } catch (error) {

@@ -43,7 +43,7 @@ export async function getJurusanListBySMK({
         jurusan_id: true,
         nama_jurusan: true,
         deskripsi: true,
-        _count: { select: { produk: true } },
+        _count: { select: { produk: { where: { deletedAt: null } } } },
       },
     }),
     prisma.jurusan.count({ where }),

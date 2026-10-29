@@ -3,6 +3,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { FAVORIT_TIDAK_TERHAPUS } from "@/lib/utils/soft-delete";
 
 export interface FavoritIds {
     produkIds: string[];
@@ -14,7 +15,7 @@ export async function getFavoritIds(): Promise<FavoritIds> {
     if (!session?.user?.id) return { produkIds: [], jasaIds: [] };
 
     const favorites = await prisma.favorite.findMany({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, ...FAVORIT_TIDAK_TERHAPUS },
         select: { produkId: true, jasaId: true },
     });
 

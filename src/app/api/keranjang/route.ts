@@ -13,6 +13,7 @@ async function findCartOrder(userId: string) {
         },
         include: {
             orderDetail: {
+                where: { produk: { deletedAt: null } },
                 include: {
                     produk: { include: { foto: true, barang: true, jurusan: true } },
                     kombinasi: { include: { opsi: { include: { opsi: true } } } },

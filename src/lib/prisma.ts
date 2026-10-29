@@ -1,22 +1,44 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { terapkanFilterSoftDelete } from "@/lib/soft-delete-filter";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
+function createPrismaClients() {
+    const adapter = new PrismaPg({ connectionString });
+    const dasar = new PrismaClient({ adapter });
+
+    const terfilter = dasar.$extends({
+        name: "soft-delete",
+        query: {
+            $allModels: {
+                $allOperations({ model, operation, args, query }) {
+                    return query(terapkanFilterSoftDelete(model, operation, args) as typeof args);
+                },
+            },
+        },
+    });
+
+    return { dasar, terfilter };
+}
+
 const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined;
+    prismaClients: ReturnType<typeof createPrismaClients> | undefined;
 };
 
-function createPrismaClient() {
-    const adapter = new PrismaPg({ connectionString });
-    return new PrismaClient({ adapter });
-}
-
-const prisma = globalForPrisma.prisma ?? createPrismaClient();
+const clients = globalForPrisma.prismaClients ?? createPrismaClients();
 
 if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma;
+    globalForPrisma.prismaClients = clients;
 }
 
-export { prisma };
+const prisma = clients.terfilter;
+
+const prismaAll = clients.dasar;
+
+
+type PrismaTx = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends" | "$use">;
+
+export { prisma, prismaAll };
+export type { PrismaTx };

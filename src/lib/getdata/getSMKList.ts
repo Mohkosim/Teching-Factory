@@ -50,7 +50,7 @@ export async function getSMKList({
         user: {
           select: { name: true, img: true },
         },
-        _count: { select: { jurusans: true } },
+        _count: { select: { jurusans: { where: { deletedAt: null } } } },
       },
     }),
     prisma.sMK.count({ where }),

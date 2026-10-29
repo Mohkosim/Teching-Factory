@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma, type PrismaTx } from "@/lib/prisma";
 import { coreApi } from "@/lib/midtrans";
 import type { MetodePembayaran } from "@/generated/prisma/enums";
-import type { Prisma } from "@/generated/prisma/client";
 import { decodeCicilanOrderId } from "@/lib/utils/invoice";
 import { hitungBiayaMidtrans } from "@/lib/midtrans/hitungBiaya";
 import { kurangiStokAtomic, kembalikanStok } from "@/lib/order/stok";
@@ -18,7 +17,7 @@ interface MidtransNotification {
     payment_type: string;
 }
 
-type Tx = Prisma.TransactionClient;
+type Tx = PrismaTx;
 
 function verifikasiSignature(body: MidtransNotification): boolean {
     const expected = crypto

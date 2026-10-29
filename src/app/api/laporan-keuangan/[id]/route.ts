@@ -114,7 +114,7 @@ export async function DELETE(
     }
 
     try {
-        await prisma.transaksi.delete({ where: { transaksi_id: id } });
+        await prisma.transaksi.update({ where: { transaksi_id: id }, data: { deletedAt: new Date() } });
         return NextResponse.json({ message: "Transaksi berhasil dihapus" });
     } catch (err) {
         console.error("Gagal hapus transaksi:", err);

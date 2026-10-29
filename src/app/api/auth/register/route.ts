@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import * as bcrypt from "bcryptjs";
 import { registerSchema } from "@/lib/validations/auth";
 import { generateOtp, hashOtp, OTP_EXPIRY_MS } from "@/lib/utils/otp";
@@ -43,9 +43,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: emailError }, { status: 400 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prismaAll.user.findUnique({ where: { email } });
 
-    if (existing && existing.isVerified) {
+    if (existing && (existing.isVerified || existing.deletedAt)) {
       return NextResponse.json(
         { message: "E-mail sudah terdaftar" },
         { status: 409 }

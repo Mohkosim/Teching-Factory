@@ -21,7 +21,7 @@ export async function getProdukList(): Promise<ProdukItem[]> {
     } else {
         const smk = await prisma.sMK.findUnique({
             where: { user_id: session.user.id },
-            include: { jurusans: true },
+            include: { jurusans: { where: { deletedAt: null } } },
         });
         if (!smk) return [];
         jurusanIdFilter = smk.jurusans.map((j) => j.jurusan_id);

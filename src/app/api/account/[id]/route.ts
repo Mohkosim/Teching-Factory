@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { recordAuditLog } from "@/lib/utils/audit-log";
+import { softDeleteJurusan } from "@/lib/utils/soft-delete";
 
 export async function PATCH(
     req: NextRequest,
@@ -110,7 +111,23 @@ export async function DELETE(
             return NextResponse.json({ message: "Akun tidak ditemukan" }, { status: 404 });
         }
 
-        await prisma.user.delete({ where: { user_id: id } });
+        await prisma.$transaction(async (tx) => {
+            if (account.role === "AdminSMK") {
+                const smk = await tx.sMK.findUnique({
+                    where: { user_id: id },
+                    select: { jurusans: { select: { jurusan_id: true } } },
+                });
+                await softDeleteJurusan(tx, (smk?.jurusans ?? []).map((j) => j.jurusan_id));
+            } else if (account.role === "AdminJurusan") {
+                const jurusan = await tx.jurusan.findUnique({ where: { user_id: id }, select: { jurusan_id: true } });
+                await softDeleteJurusan(tx, jurusan ? [jurusan.jurusan_id] : []);
+            }
+
+            await tx.user.update({
+                where: { user_id: id },
+                data: { deletedAt: new Date(), isActive: false },
+            });
+        });
 
         await recordAuditLog({
             actorId: session.user.id,

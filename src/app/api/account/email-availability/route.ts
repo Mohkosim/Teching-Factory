@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prismaAll } from "@/lib/prisma";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     const { email, excludeUserId } = parsed.data;
 
-    const existing = await prisma.user.findUnique({
+    const existing = await prismaAll.user.findUnique({
         where: { email },
         select: { user_id: true },
     });

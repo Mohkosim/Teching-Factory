@@ -208,15 +208,13 @@ export async function DELETE(
     }
 
     try {
-        if ((await hapusAtauArsipkanProduk(id)) === "diarsipkan") {
+        const hasil = await hapusAtauArsipkanProduk(id);
+        if (hasil === "diarsipkan") {
             return NextResponse.json({
-                message: "Produk sudah pernah dipesan sehingga dinonaktifkan (bukan dihapus) agar riwayat transaksi tetap utuh",
+                message: "Produk berhasil dihapus dari daftar. Produk ini sudah pernah dipesan sehingga riwayat transaksinya tetap tersimpan",
                 archived: true,
             });
         }
-        await prisma.fotoProduk.deleteMany({ where: { produk_id: id } });
-        await prisma.barang.deleteMany({ where: { produk_id: id } });
-        await prisma.produk.delete({ where: { produk_id: id } });
         return NextResponse.json({ message: "Produk berhasil dihapus" });
     } catch (error) {
         console.error("DELETE /api/produk/[id] error:", error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const { nama_jurusan, email, password } = parsed.data;
 
     try {
-        const existingEmail = await prisma.user.findUnique({ where: { email } });
+        const existingEmail = await prismaAll.user.findUnique({ where: { email } });
         if (existingEmail) {
             return NextResponse.json({ message: "EmailTaken" }, { status: 409 });
         }

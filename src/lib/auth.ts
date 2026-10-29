@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { prisma } from "@/lib/prisma";
+import { prisma, prismaAll } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -46,7 +46,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        if (!user.isActive) {
+        if (!user.isActive || user.deletedAt) {
           throw new Error("AccountDisabled");
         }
 
@@ -87,7 +87,7 @@ export const authOptions: NextAuthOptions = {
 
         if (!user || !user.isVerified) return null;
 
-        if (!user.isActive) {
+        if (!user.isActive || user.deletedAt) {
           throw new Error("AccountDisabled");
         }
 
@@ -127,12 +127,13 @@ export const authOptions: NextAuthOptions = {
 
         const email = user.email!.trim().toLowerCase();
 
-        const existing = await prisma.user.findUnique({
+        // prismaAll: akun yang di-soft-delete tetap menyimpan email-nya, jadi harus terdeteksi di sini.
+        const existing = await prismaAll.user.findUnique({
           where: { email },
         });
 
         if (existing) {
-          if (!existing.isActive) return false;
+          if (!existing.isActive || existing.deletedAt) return false;
 
           if (!existing.isVerified) {
             const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
@@ -244,6 +245,7 @@ export const authOptions: NextAuthOptions = {
             where: { user_id: token.id },
             select: { isActive: true, role: true },
           });
+          // `prisma` menyembunyikan akun yang di-soft-delete, jadi `!db` juga mematikan sesi akun terhapus.
           if (!db || !db.isActive) {
             token.id = undefined as unknown as string;
             token.role = undefined as unknown as typeof token.role;

@@ -30,7 +30,7 @@ export async function getStatsAdminSMK() {
 
     const smk = await prisma.sMK.findUnique({
         where: { user_id: session.user.id },
-        include: { jurusans: true },
+        include: { jurusans: { where: { deletedAt: null } } },
     });
 
     if (!smk) {
@@ -108,7 +108,7 @@ export async function getTefaStats(): Promise<TefaStats> {
     const [smk, jurusan, produk, jasa] = await Promise.all([
         prisma.sMK.count(),
         prisma.jurusan.count(),
-        prisma.barang.count(),
+        prisma.barang.count({ where: { produk: { deletedAt: null } } }),
         prisma.jasa.count(),
     ]);
 
